@@ -1,0 +1,476 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Botshot chatbot</title>
+</head>
+<body>
+<div id="header">
+    <h1>Messages for user {{ uid }}</h1>
+    <div id="button_logout" onclick="logout()">Log out</div>
+</div>
+<div id="list_wrap">
+    <div id="list">
+        {% for m in messages %}
+            <div class="message_container" style="float: {% if m.is_response %} left {% else %} right {% endif %};">
+{#                <p>{{ m.message.text }}</p>#}
+                {% if m.is_response %}
+                    <img class="circle-image" src="{% static bot_img %}"
+                         onerror='this.onerror=null; this.src="https://placehold.it/100x100"'/>
+                {% endif %}
+                <div class="msg" style="text-align: {% if m.is_response %} left {% else %} right {% endif %}">
+
+
+                    {% if m.message.attachment.type == 'template' %}
+
+                        {% if m.message.attachment.payload.template_type == 'button' %}
+                            <!-- A message with buttons -->
+                            <div class="bubble {% if m.is_response %} left-bubble {% else %} right-bubble {% endif %}">
+                                <span class="text">{{ m.message.attachment.payload.text }}</span>
+                            <div class="buttons">
+                            {% for b in m.message.attachment.payload.buttons %}
+                                {% if b.type == 'web_url' %}
+                                    <button onclick="gourl('{{ b.url }}')">{{ b.title }}</button>
+                                {% elif b.type == 'postback' %}
+                                    <button onclick="postback('{{ b.title }}', '{{ b.payload }}')">
+                                        {{ b.title }}
+                                    </button>
+                                {% endif %}
+                            {% endfor %}
+                            </div>
+                            </div>
+
+                        {% elif m.message.attachment.payload.template_type == 'generic' %}
+                            <!-- List template -->
+                            <div class="template-message">
+                            {% for e in m.message.attachment.payload.elements %}
+                                <div class="template-element">
+                                    <img src="{{ e.image_url }}"
+                                         onerror="this.onerror=null;this.src='https://placehold.it/250x150'"/>
+                                    <h3>{{ e.title }}</h3>
+                                    <p>{{ e.subtitle }}</p>
+                                    <div class="buttons">
+                                    {% for b in e.buttons %}
+                                        {% if b.type == 'web_url' %}
+                                            <button onclick="gourl('{{ b.url }}')">{{ b.title }}</button>
+                                        {% elif b.type == 'postback' %}
+                                            <button onclick="postback('{{ b.title }}', '{{ b.payload}}')">
+                                                {{ b.title }}
+                                            </button>
+                                        {% endif %}
+                                    {% endfor %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            </div>
+
+                        {% endif %}
+                    {% else %}
+                        <!-- Text message -->
+                        <div class="bubble {% if m.is_response %} left-bubble {% else %} right-bubble {% endif %}">
+                            <span class="text">{{ m.message.text }}</span>
+                        </div>
+                    {% endif %}
+
+                    {% if m.message.quick_replies != None %}
+                         <div class="quick-replies">
+                            {% for b in m.message.quick_replies %}
+                                <!-- TODO support postbacks here, quickreply b instead of title -->
+                                <button onclick="quickreply('{{ b.title }}')">{{ b.title }}</button>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <span class="time"
+                      style="float: {% if m.is_response %} right {% else %} left {% endif %};">[{{ m.timestamp }}]</span>
+                {% if not m.is_response %}
+                    <img class="circle-image" src="{% static user_img %}"
+                         onerror='this.onerror=null; this.src="https://placehold.it/100x100"'/>
+                {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+<div id="footer">
+    <form id="form_msg" autocomplete="off">
+    {% csrf_token %}
+    {{ form }}
+    <input type="submit" value="Send">
+</form>
+</div>
+</body>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+
+<script type="text/javascript">
+    function quickreply(text) {
+        console.log("Quick reply");
+        $.ajax({
+                url: document.URL,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    message: text,
+                    csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value
+                }
+            });
+    }
+    function gourl(url) {
+        window.open(url, '_blank');
+    }
+
+    function postback(text, payload) {
+        console.log("Postback");
+        console.log(payload);
+        $.ajax({
+            url: document.URL,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                message: text,
+                postback: payload,
+                csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value
+            }
+        });
+    }
+</script>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('#form_msg').submit(function (e) {
+            e.preventDefault();
+            var txt = $('#id_message');
+            $.ajax({
+                url: document.URL,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    message: txt.val(),
+                    csrfmiddlewaretoken: document.getElementsByName('csrfmiddlewaretoken')[0].value
+                }
+            });
+            txt.val("")
+        })
+    });
+</script>
+
+<script type="text/javascript">
+    var timestamp = {{ timestamp }};
+    $(window).load(function() {
+        $("#list_wrap").scrollTop($("#list_wrap").prop("scrollHeight"));
+        setTimeout(refresh, 2000);
+    });
+
+    function refresh() {
+        setTimeout(refresh, 2000);
+        $.getJSON("{% url 'last_change' %}", data = {"uid": "{{uid}}"}, function (data) {
+            var timestamp = data['timestamp__max'];
+            if (timestamp > window.timestamp) {
+                console.log('REFRESHING');
+                // change occurred, reload messages
+                $('#list').load(document.URL + ' #list');
+                window.timestamp = timestamp;
+                $("#list_wrap").animate({scrollTop: $("#list_wrap").prop("scrollHeight")}, "slow");
+            }
+        });
+    }
+
+    function logout() {
+        window.location = '{% url 'do_logout' %}'
+    }
+</script>
+
+<style>
+    @import url('https://fonts.googleapis.com/css?family=Roboto|Oxygen|Raleway:800|Open+Sans:600');
+
+    body {
+        background-color: white;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        margin: 0;
+    }
+
+    #header {
+        position: -webkit-sticky;
+        top: 0;
+        background-color: #0d6ceb;
+        box-shadow: 0 4px 12px #aaaaaa;
+        width: 100%;
+        height: auto;
+        z-index: 100;
+        margin-bottom: 8px;
+    }
+
+    #header > h1 {
+        font-family: "Raleway", sans-serif;
+        text-align: center;
+        font-size: x-large;
+        color: white;
+        padding: 5px 10%;
+        font-weight: 800;
+        z-index: 10;
+        display: inline-block;
+    }
+
+    #footer {
+        width: 100vw;
+        position: -webkit-sticky;
+        margin-top: auto;
+        bottom: 0;
+        padding-bottom: 10px;
+        background-color: white;
+        z-index: 100;
+    }
+
+    #list_wrap {
+        background-color: white;
+        width: 100vw;
+        height: available;
+        margin: 0 auto;
+        overflow-x: auto;
+        overflow-y: scroll;
+    }
+
+    #list {
+        width: 80vw;
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 1366px;
+    }
+
+    #button_logout {
+        float: right;
+        background-color: white;
+        text-transform: uppercase;
+        font-weight: 700;
+        font-family: "Roboto", 'sans-serif';
+        color: #222222;
+        border: none;
+        font-size: small;
+        border-radius: 2px;
+        padding: 12px;
+        margin: 10px;
+    }
+
+    #button_logout:focus, #button_logout:hover {
+        background-color: #eaeaea;
+    }
+
+    .message_container {
+        font-family: 'Oxygen', sans-Serif;
+        font-weight: 400;
+        margin: 5px;
+        clear: both;
+    }
+
+    .time {
+        color: #8c8c8c;
+        font-weight: 400;
+        font-size: small;
+    }
+
+    #form_msg {
+        float: right;
+        font-family: Roboto, sans-serif;
+        {#margin-right: 10%;#}
+        width: 100%;
+    }
+
+    .circle-image {
+        width: 48px;
+        height: 48px;
+        border-radius: 100%;
+        position: relative;
+        display: inline-block;
+    }
+
+    .msg {
+        position: relative;
+        display: inline-block;
+    }
+
+    .msg > .text {
+        background-color: #00d1eb;
+        color: white;
+        padding: 8px;
+        border-radius: 20px;
+        z-index: 0;
+        line-height: 200%;
+    }
+
+    .bubble {
+        background: rgb(59, 172, 196);
+        background: linear-gradient(90deg, rgba(59, 172, 196, 1) 0%, rgba(43, 103, 204, 1) 100%);
+        color: white;
+        padding: 8px 24px;
+        margin-left: 16px;
+        margin-right: 16px;
+        border-radius: 20px;
+        z-index: 1;
+        line-height: 200%;
+    }
+
+    .right-bubble:after {
+        content: "";
+        width: 0;
+        height: 0;
+        background: transparent;
+
+        /*position: absolute;*/
+        /*right: 16px;*/
+        /*bottom: 10px;*/
+        /*border-left: 25px solid transparent;*/
+        /*border-bottom: 25px solid transparent;*/
+        /*border-right: 20px solid rgba(43,103,204,1);*/
+    }
+
+    .left-bubble {
+
+    }
+
+    .msg + .time {
+        display: none;
+        background-color: transparent;
+    }
+
+    .msg:hover + .time {
+
+        display: inline-block;
+        position: relative;
+        background-color: #bbbbbb;
+        color: white;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    .quick-replies > button {
+        background-color: #f0f0f0;
+        padding: 6px;
+        margin: 5px 5px;
+        border: none;
+        border-radius: 3px;
+color: black;
+    }
+
+    .quick-replies > button:focus, .quick-replies > button:hover {
+        background-color: #dddddd;
+    }
+
+    .buttons > button {
+        background-color: #ffffff;
+        padding: 6px;
+        margin: 5px 5px;
+        border: none;
+        border-radius: 8px;
+        font-family: "Roboto", 'sans-serif';
+        {#text-transform: uppercase;#}
+        color: #0d6ceb;
+    }
+
+    .buttons > button:focus, .buttons > button:hover {
+        background-color: #efefef;
+    }
+
+    .template-element {
+        width: 250px;
+        {#width: available;#}
+        position: relative;
+        {#background: #ececec;#}
+        border: solid 2px #dddddd;
+        margin: 5px;
+        display: inline;
+{#background: rgb(232,243,254);#}
+{#background: radial-gradient(circle, rgba(232,243,254,1) 0%, rgba(212,233,250,1) 100%);#}
+        background: rgb(243,249,254);
+    }
+
+    .template-element > img {
+        {#margin-left: 20%;#}
+        {#margin-right: 20%;#}
+        height: 150px;
+        width: 250px;
+    }
+
+    .template-element > p {
+        padding-left: 5%;
+        padding-right: 5%;
+        text-align: justify-all;
+        font-family: "Roboto Light", "sans-serif";
+        color: black;
+    }
+
+
+    .template-element > h3 {
+        z-index: 100;
+        color: #0f0f0f;
+        margin-top: auto;
+        margin-bottom: auto;
+        text-align: center;
+        font-size: 100%;
+        font-weight: 600;
+        font-family: "Open Sans", "sans-serif";
+    }
+
+    .template-message {
+        width: 100%;
+        display: inline-flex;
+        height: auto;
+        margin-right: auto;
+        margin-left: auto;
+    }
+
+    input[type='submit'] {
+        background-color: white;
+        text-transform: uppercase;
+        font-weight: 700;
+        font-family: "Roboto", 'sans-serif';
+        color: #222222;
+        border: none;
+        border-radius: 2px;
+        padding: 12px;
+        box-shadow: 0 5px 10px #aaaaaa;
+        outline: 0;
+    }
+
+    input[type='submit']:focus, input[type='submit']:hover {
+        background-color: #eaeaea;
+        box-shadow: 0 5px 10px #777777;
+    }
+
+    input[type="text"] {
+        padding: 10px;
+        border: none;
+        border-bottom: 1px solid #bcbcbc;
+        font-family: "Roboto", 'sans-serif';
+        background-color: white;
+        box-shadow: 0 3px 10px #aaaaaa;
+        color: #777777;
+        -webkit-transition: box-shadow 0.3s, border 0.3s;
+        -moz-transition: box-shadow 0.3s, border 0.3s;
+        -ms-transition: box-shadow 0.3s, border 0.3s;
+        -o-transition: box-shadow 0.3s, border 0.3s;
+        transition: box-shadow 0.3s, border 0.3s;
+        width: 90%;
+    }
+
+    #form_msg > label {
+        color: transparent;
+    }
+
+    input[type="text"]:focus {
+        border-bottom: 2px solid #00d1eb;
+        color: #222222;
+        background-color: white;
+        box-shadow: 0 3px 1px #aaaaaa;
+        outline: none;
+        -webkit-transition: border 0.3s;
+        -moz-transition: border 0.3s;
+        -ms-transition: border 0.3s;
+        -o-transition: border 0.3s;
+        transition: border 0.3s;
+    }
+
+</style>

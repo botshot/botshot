@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Tests{% endblock %}
+{% block content %}
+{% load golem_extras %}
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12" id="header">
+      <h3>Tests</h3>
+      <h3>Updated: {{ updated_time }} <button class="btn btn-default run-tests">Run tests</button></h3>
+
+      <table id="tests" class="table">
+        
+        <tr class="header1">
+          <th>Test</th>
+          <th colspan="2">Result</th>
+          <th colspan="4">Avg. Response time</th>
+        </tr>
+        <tr class="header2">
+          <th>Name</th>
+          <th>Status</th>
+          <th>Test duration</th>
+          <th>Total</th>
+          <th>Initializing</th>
+          <th>Parsing</th>
+          <th>Processing</th>
+          <th>Actions</th>
+        </tr>
+
+        <tr class="total test-{{ status }}">
+          <td class="test-name">Summary</td>
+          <td class="test-result">{{ status | capfirst }}</td>
+          <td>avg {{ avg.duration | duration }}</td>
+          <td>{{ avg.total | duration }}</td>
+          <td>{{ avg.init | duration }}</td>
+          <td>{{ avg.parsing | duration }}</td>
+          <td>{{ avg.processing | duration }}</td>
+          <td></td>
+        </tr>
+
+        {% for test in tests %}
+        
+        <tr data-toggle="#test_{{ test.name }}" class="test test-{{ test.result.status }}">
+          <td class="test-name">{{ test.name | capfirst }}</td>
+          <td class="test-result">{{ test.result.status | capfirst }}</td>
+          <td>{{ test.result.duration | duration }}</td>
+          <td>{{ test.result.report.avg.total | duration }}</td>
+          <td>{{ test.result.report.avg.init | duration }}</td>
+          <td>{{ test.result.report.avg.parsing | duration }}</td>
+          <td>{{ test.result.report.avg.processing | duration }}</td>
+          <td><button class="btn btn-xs btn-default run-test" data-module="{{ test.name }}">Run test</button></td>
+        </tr>
+
+        <tr id="test_{{ test.name }}" class="test-{{ test.result.status }} log hidden">
+          <td colspan="7">
+            {% for line in test.result.log %}
+              <div class="log-line">{{ line | linebreaks }}</div>
+            {% endfor %}
+            <div class="log-message">{{ test.result.message }}</div>
+          </td>
+        </tr>
+        
+        {% endfor %}
+
+        
+
+      </table>
+
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+
+$(function(){
+
+  $('[data-toggle]').click(function(){
+    $($(this).data('toggle')).toggleClass('hidden')
+  })
+
+  $('.run-tests').click(function(){
+    var $button = $(this)
+    $button.text('Running...')
+    $.get('/golem/run_all_tests', {}, function(e){
+      $button.text('Done.')
+      window.location.reload()
+    }).fail(function() {
+      alert( "Error running tests" );
+    })
+  });
+
+  $('.run-test').click(function(e){
+    $('.run-test').css('visibility','hidden')
+    var $button = $(this)
+    $button.text('Running...')
+    $button.css('visibility','visible')
+    var module = $(this).data('module')
+    $.get('/golem/run_test/'+module, {}, function(e){
+      $button.text('Done.')
+      window.location.reload()
+    }).fail(function() {
+      alert( "Error running test "+module );
+    })
+    e.stopPropagation()
+  });
+  
+})
+
+
+  
+
+function load_user(uid, page){
+  
+
+
+}
+</script>
+{% endblock %}
+
+{% block headers %}
+<style>
+.test {
+  cursor: pointer;
+}
+.test-name {
+}
+.test-passed {
+  background: #ccffcc;
+}
+.test-failed {
+  background: #ffddaa;
+}
+.test-exception {
+  background: #ffaaaa;
+}
+.header2 th {
+  font-weight: normal;
+}
+.total {
+  color: white;
+  font-weight: bold;
+}
+.total.test-exception {
+  background: #dd3333;
+}
+.total.test-passed {
+  background: #11aa11;
+}
+.total.test-failed {
+  background: #dd5500;
+}
+.table tr.total td {
+  font-size: 110%;
+  padding: 12px 8px;
+  border-bottom: 5px solid white;
+}
+.hidden {
+  display: none;
+}
+.log {
+  font-size: 90%;
+}
+.log-message {
+  font-weight: bold;
+}
+.log-line, .log-message  {
+  border-radius: 3px;
+  margin: 5px;
+  padding: 5px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+}
+.log-line p {
+  margin: 0;
+}
+</style>
+{% endblock %}

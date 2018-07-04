@@ -1,0 +1,108 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FIT.AI</title>
+</head>
+<body>
+<header>
+    <h1>Chatbot NLP entities</h1>
+</header>
+<main>
+    {% for entity in entities %}
+        <details class="entity">
+            <summary>
+                <img src="{% static "images/ic_keyboard_arrow_down_black_24px.svg" %}"/>
+                {{ entity }}
+                <button onclick="alert('Not implemented yet')">Training</button>
+            </summary>
+            <span><strong>Strategy: </strong>{{ entity.strategy }}</span>
+            <h4>Values:</h4>
+            <ul class="values">
+                {% for value in entity.get_values %}
+                    <li>{{ value.name }}</li>
+                {% endfor %}
+            </ul>
+        </details>
+    {% endfor %}
+</main>
+</body>
+<style>
+    @import url('https://fonts.googleapis.com/css?family=Roboto:400,500,700,');
+
+    body {
+        font-family: 'Roboto', sans-serif;
+        background-color: #eaeaea;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+    }
+
+    header {
+        background-color: #00bcd4;
+        font-family: Roboto, sans-serif;
+        box-shadow: 0 5px 10px #BBB;
+        z-index: 100;
+        margin-bottom: 6px;
+    }
+
+    header > h1 {
+        color: white;
+        margin-left: 10vw;
+        font-weight: 500;
+    }
+
+    .entity {
+        padding: 8px;
+        margin: 8px;
+        background-color: white;
+        box-shadow: 0 0 10px #cccccc;
+    }
+
+    .entity > summary:focus {
+        outline: none
+    }
+
+    .entity > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .entity > summary {
+        color: #444444;
+        font-size: 150%;
+        text-transform: capitalize;
+    }
+
+    .entity > summary > img {
+        margin: auto;
+    }
+
+    .entity > summary > button {
+        text-transform: uppercase;
+        background-color: #00d1eb;
+        font-weight: 500;
+        color: white;
+        border: none;
+        padding: 6px;
+        float: right;
+        z-index: 10;
+        box-shadow: 0 0 10px #bbbbbb;
+    }
+
+    .entity > ul {
+        list-style-type: none;
+    }
+
+    .entity > ul > li {
+        color: #222222;
+        padding-top: 2px;
+        padding-bottom: 2px;
+    }
+
+    .entity > ul > li + li {
+        border-top: 1px solid #eaeaea;
+    }
+</style>
+</html>

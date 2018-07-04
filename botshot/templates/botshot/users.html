@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+<head>
+    <title>Chatbot users</title>
+</head>
+<body>
+<header id="header"><h1>Users</h1></header>
+<div id="content">
+    {% for user in users %}
+        <div class="user">
+            <h3>{{ user.uid }}</h3>
+            <span>Name: {{ user.name }} {{ user.surname }}</span><br>
+            <span>Last active: {{ user.last_active }}</span><br>
+            <span>Total messages: {{ user.message_cnt }}</span><br>
+            <span>Active chats: </span>
+            {% for chat in user.get_chats %}
+                <div class="chat">
+                    <span>{{ chat.chat_id }}</span>
+                    <button onclick="open_chat('{{ chat.chat_id }}')">View</button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+
+</div>
+<footer id="footer">
+    {% if prev_offset >= 0 %}
+        <button onclick="go_prev_page()">Previous</button>
+    {% endif %}
+    <button onclick="go_next_page()">Next</button>
+</footer>
+<script type="text/javascript">
+    function go_next_page() {
+        location.href = location.origin + location.pathname + '?offset={{ next_offset }}';
+    }
+
+    function go_prev_page() {
+        location.href = location.origin + location.pathname + '?offset={{ prev_offset }}';
+    }
+</script>
+</body>
+<style>
+    @import url('https://fonts.googleapis.com/css?family=Roboto');
+
+    body {
+        font-family: "Roboto", sans-serif;
+        background-color: white;
+        margin: 0 0;
+    }
+
+    header {
+        background-color: #3F51B5;
+        padding: 8px;
+        padding-left: 10vw;
+        color: white;
+        font-weight: 500;
+    }
+
+    button {
+        background-color: white;
+        text-transform: uppercase;
+        font-weight: 700;
+        font-family: "Roboto", 'sans-serif';
+        color: #222222;
+        border: none;
+        font-size: small;
+        border-radius: 2px;
+        padding: 12px;
+        margin: 10px;
+    }
+
+    .user {
+        margin: 5px;
+        padding: 10px;
+        background-color: white;
+        box-shadow: 0 0 10px #bcbcbc;
+    }
+
+    .user > h3 {
+        color: #222222;
+    }
+
+    .chat {
+        display: block;
+        padding: 10px;
+    }
+    .chat > span {
+        font-weight: normal;
+        text-transform: uppercase;
+        color: #222222;
+    }
+    .chat > button {
+        background: #00bcd4;
+        color: white;
+    }
+</style>
+</html>

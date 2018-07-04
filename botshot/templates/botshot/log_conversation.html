@@ -1,0 +1,62 @@
+{% load golem_extras %}
+{% for message in messages %}
+    <div 
+    class="{% if message.switch %}message-switch{% endif %} {% if message.is_user %}message-user pull-right{% else %}message-bot pull-left{% endif %} message"
+    data-meta="{{ message.json }}"
+    >
+    {% if message.response.elements %}
+        <div class="clearfix"></div>
+        <div class="message-elements-scroller">
+            <div class="message-elements" style="width: {{ message.elementWidth }}px">
+            {% for element in message.response.elements %}
+              <div class="message-element-wrapper">
+                  <div class="message-element">
+                    <div class="message-element-image" {% if element.image_url %}  style="background-image: url('{{ element.image_url }}')" {% endif %}></div>
+                    <div class="message-element-title">{{ element.title }}</div>
+                    <div class="message-element-subtitle">{{ element.subtitle }}</div>
+                  </div>
+                {% for button in element.buttons %}
+                  <div class="message-button message-element-button">
+                  {{ button.title }}
+                  </div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+            </div>
+        </div>
+    {% else %}
+
+      <div class="message-bubble m-{{ message.type }}">
+        <span>
+          {% if message.text %}
+            {{ message.text }}
+          {% else %}
+            {% with log_text=message.entities|entity:"_log_text" %}
+                {% if log_text %}
+                    {{ log_text }}
+                {% else %}
+                    <em>{{ message.type }}</em>
+                {% endif %}
+            {% endwith %}
+          {% endif %}
+        </span>
+      </div>
+      {% if message.response.buttons %}
+        {% for button in message.response.buttons %}
+          <div class="message-button pull-left clearfix">
+          {{ button.title }}
+          </div>
+        {% endfor %}
+      {% endif %}
+      {% if message.response.quick_replies %}
+        {% for reply in message.response.quick_replies %}
+          <div class="message-quick-reply">
+          {{ reply.title }}
+          </div>
+        {% endfor %}
+      {% endif %}
+      <div class="debug"></div>
+    {% endif %}
+    </div>
+    <div class="clearfix"></div>
+{% endfor %}

@@ -1,0 +1,25 @@
+from urllib.parse import urlparse
+
+import os
+
+redis_url = os.environ.get('REDIS_URL', "redis://localhost:6379/0")
+
+if redis_url:
+    redis_url_parsed = urlparse(redis_url)
+    REDIS_CONF = {
+        'HOST': redis_url_parsed.hostname,
+        'PORT': redis_url_parsed.port,
+        'PASSWORD': redis_url_parsed.password
+    }
+else:
+    raise Exception('Redis URL not set')
+
+BOT_CONFIG = {
+    "BOTS": {
+        "{APP_NAME}/bots/flows.yml"
+    },
+    "REDIS_URL": redis_url,
+    "REDIS": REDIS_CONF,
+    'DEPLOY_URL': os.environ.get('DEPLOY_URL', 'http://localhost:8000/'),
+    'MSG_LIMIT_SECONDS': 20,
+}
