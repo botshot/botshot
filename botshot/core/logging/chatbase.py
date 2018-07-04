@@ -20,7 +20,7 @@ class ChatbaseLogger(MessageLogger):
 
     def log_user_message(self, dialog, accepted_time, state, message: dict, type, entities):
         unsupported = False
-        if '_unsupported' in entities and entities['unsupported']:
+        if '_unsupported' in entities and entities['_unsupported']:
             unsupported = entities["_unsupported"][0].get('value', False)
         from django.conf import settings
         payload = {
