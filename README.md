@@ -24,9 +24,9 @@ What it can do:
 
 Just install the package and run our `golm` init script that will take care of initial configuration.
 ```bash
-pip3 install django-golem
-golm init my-bot
-cd my-bot && golm start my-bot
+pip3 install botshot
+bots init my-bot
+cd my-bot && bots start my-bot
 ```
 
 That's all! A development chat server should now be running at http://localhost:8000.
