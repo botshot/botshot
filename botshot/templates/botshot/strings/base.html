@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-rc.2/js/materialize.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <title>Botshot Strings</title>
+</head>
+<body>
+
+    <header>
+        <div id="botshot-logo">
+            <b>Botshot Strings</b>
+        </div>
+        <!--<nav></nav>-->
+    </header>
+
+    <div id="content">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+<style>
+
+    {% block css %}
+    {% endblock %}
+
+    body {
+        font-family: "Open Sans", "sans-serif";
+        margin: 0;
+        background: #eeeeee;
+    }
+
+    header {
+        position: fixed;
+        height: 56px;
+        width: 100%;
+        background: #0d6ceb;
+        color: white;
+    }
+
+    #botshot-logo {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.5em;
+        margin-left: 16px;
+    }
+
+    #content {
+        position: absolute;
+        padding-top: 56px;
+        height: 100%;
+        width: 100%;
+    }
+
+    .collection {
+        background: white;
+        position: relative;
+        height: 100%;
+        width: 90%;
+        margin: 0 auto;
+    }
+
+    .collection-item > h6, span {
+        color: black;
+    }
+
+</style>
+<script>
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = jQuery.trim(cookies[i]);
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    var csrftoken = getCookie('csrftoken');
+</script>
+</html>

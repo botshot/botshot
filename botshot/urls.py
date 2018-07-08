@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.conf.urls import url
 
+from botshot.core import strings
 from . import views
 
 secret_url = settings.BOT_CONFIG.get('WEBHOOK_SECRET_URL')
@@ -22,5 +23,8 @@ urlpatterns = [
     url(r'^debug/?$', views.debug),
     url(r'^test_record/?$', views.test_record),
     url(r'^users/?', views.users_view),
-    url(r'^log_conversation/(?P<group_id>[a-zA-Z_0-9]*)/(?P<page>[0-9]*)/?$', views.log_conversation)
+    url(r'^log_conversation/(?P<group_id>[a-zA-Z_0-9]*)/(?P<page>[0-9]*)/?$', views.log_conversation),
+    url(r'^strings/?$', strings.string_view, name='string_list'),
+    url(r'^strings/edit/(?P<key>.+)?$', strings.detail_view, name='string_detail'),
+    url(r'^strings/update', strings.update_view, name="string_update"),
 ]

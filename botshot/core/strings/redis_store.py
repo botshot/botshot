@@ -12,20 +12,24 @@ class RedisStore(KeyValueStore):
         self.redis = persistence.get_redis()
         self.prefix = prefix
 
-    def update(self, key: str, value: str):
+    def get_prefix(self, lang):
+        lang = str(lang) + "__" if lang else ""
+        return self.prefix + lang
+
+    def update(self, key: str, value: str, lang):
         self.validate_key(key)
         self.validate_value(value)
-        return self.redis.set(name=self.prefix + key, value=value.encode('utf8'))
+        return self.redis.set(name=self.get_prefix(lang) + lang + key, value=value.encode('utf8'))
 
-    def delete(self, key: str):
+    def delete(self, key: str, lang):
         self.validate_key(key)
-        return self.redis.delete(self.prefix + key)
+        return self.redis.delete(self.get_prefix(lang) + key)
 
-    def get(self, key: str):
+    def get(self, key: str, lang):
         self.validate_key(key)
-        val = self.redis.get(self.prefix + key)
+        val = self.redis.get(self.get_prefix(lang) + key)
         return val.decode('utf8') if val else None
 
-    def __contains__(self, key: str):
+    def __contains__(self, key: str, lang):
         self.validate_value(key)
-        return self.redis.exists(self.prefix + key)
+        return self.redis.exists(self.get_prefix(lang) + key)

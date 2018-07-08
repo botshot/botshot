@@ -13,23 +13,23 @@ class KeyValueStore(ABC):
             raise ValueError("Value must be a non-empty string")
 
     @abstractmethod
-    def update(self, key: str, value: str):
+    def update(self, key: str, value: str, lang: Optional[str]):
         pass
 
     @abstractmethod
-    def delete(self, key: str):
+    def delete(self, key: str, lang: Optional[str]):
         pass
 
     @abstractmethod
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str, lang: Optional[str]) -> Optional[str]:
         pass
 
     @abstractmethod
-    def __contains__(self, key: str):
+    def __contains__(self, key: str, lang: Optional[str]):
         pass
 
-    def __getitem__(self, key: str) -> Optional[str]:
-        return self.get(key)
+    def __getitem__(self, key: str, lang: Optional[str]) -> Optional[str]:
+        return self.get(key, lang)
 
-    def __setitem__(self, key: str, value: str):
-        return self.update(key, value)
+    def __setitem__(self, key: str, value: str, lang: Optional[str]):
+        return self.update(key, value, lang)

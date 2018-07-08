@@ -1,0 +1,18 @@
+{% extends 'botshot/strings/base.html' %}
+
+{% block content %}
+
+        <div class="collection">
+            {% for item in strings %}
+            <a class="collection-item" href="{% url 'string_detail' item.key %}">
+                <h6>{{ item.key }}</h6>
+                <span>{{ item.value }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        <a class="btn-floating btn-large waves-effect waves-light red" style="position: fixed; bottom: 36px; right: 36px;"
+            href="{% url 'string_detail' %}">
+            <i class="material-icons">add</i>
+        </a>
+
+{% endblock %}

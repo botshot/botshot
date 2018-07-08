@@ -1,0 +1,58 @@
+{% extends 'botshot/strings/base.html' %}
+
+{% block content %}
+<div class="wrap">
+    <form class="col s12" id="form">
+        {% csrf_token %}
+        <div class="input-field col s12">
+          <input placeholder="MY_STRING" id="key" type="text" class="validate" value="{{ string.key }}">
+          <label for="key">String ID</label>
+        </div>
+        <div class="input-field col s12">
+          <input placeholder="My value" id="value" type="text" class="validate" value="{{ string.key }}">
+          <label for="value">String value</label>
+        </div>
+        <button class="btn-floating btn-large waves-effect waves-light red" style="position: absolute; bottom: 36px; right: 36px;"
+            onclick="$('#form').submit()" >
+            <i class="material-icons">add</i>
+        </button>
+    </form>
+
+    <script>
+        $('#form').submit(function(e){
+            e.preventDefault();
+            $.ajaxSetup({
+                beforeSend: function(xhr, settings) {
+                    if (!this.crossDomain) {
+                        xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
+                    }
+                }
+            });
+            $.ajax({
+                url: "{% url 'string_update' %}",
+                type:'post',
+                data:$('#form').serialize(),
+                success:function() {
+                    window.location.href = "{% url 'string_list' %}"
+                }
+            });
+        });
+    </script>
+
+</div>
+
+{% endblock %}
+
+{% block css %}
+    .wrap {
+        display: block;
+        width: 90%;
+        height: 100%;
+        margin: auto;
+        background: white;
+    }
+
+    form {
+        padding: 24px;
+    }
+{% endblock %}
