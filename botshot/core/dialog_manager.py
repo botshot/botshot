@@ -1,16 +1,16 @@
 import json
 import logging
-import time
-
 import os
+import time
+from typing import Optional
+
 from django.conf import settings
 
 from botshot.core.chat_session import ChatSession
-from botshot.core.responses import LinkButton
 from botshot.core.responses.responses import TextMessage
 from botshot.tasks import accept_inactivity_callback, accept_schedule_callback
 from .context import Context
-from .flow import load_flows_from_definitions
+from .flow import load_flows_from_definitions, State
 from .logger import MessageLogging
 from .persistence import get_redis
 from .serialize import json_deserialize, json_serialize
@@ -34,7 +34,7 @@ class DialogManager:
         version = self.db.get('dialog_version')
         logging.info('Initializing dialog for chat %s...' % session.chat_id)
         self.current_state_name = None
-        self.init_flows()
+        self._init_flows()
 
         if version and version.decode('utf-8') == DialogManager.version and \
                 self.db.hexists('session_context', self.session.chat_id):
@@ -56,15 +56,15 @@ class DialogManager:
             logging.info('Creating new session...')
             self.logger.log_user(self.session)
 
-
         self.context = Context.from_dict(dialog=self, data=context_dict)  # type: Context
 
-    def init_flows(self):
-        flow_definitions = self.create_flows()
+    def _init_flows(self):
+        flow_definitions = self._create_flows()
         self.flows = load_flows_from_definitions(flow_definitions)
         self.current_state_name = 'default.root'
 
-    def create_flows(self):
+    def _create_flows(self):
+        """Creates flows from their YAML definitions."""
         import yaml
         flows = {}  # a dict with all the flows loaded from YAML
         BOTS = settings.BOT_CONFIG.get('BOTS', [])
@@ -83,6 +83,7 @@ class DialogManager:
 
     @staticmethod
     def clear_chat(chat_id):
+        """Clears all context for this conversation."""
         db = get_redis()
         db.hdel('session_state', chat_id)
         db.hdel('session_context', chat_id)
@@ -108,7 +109,7 @@ class DialogManager:
 
         if self.test_record_message(message_type, entities):
             return
-        elif self.special_message(message_type, entities):
+        elif self._special_message(message_type, entities):
             return
 
         if message_type != 'schedule':
@@ -116,9 +117,10 @@ class DialogManager:
 
         logging.info('>>> Processing message')
 
-        if not self.check_state_transition() \
-            and not self.check_intent_transition(entities) \
-            and not self.check_entity_transition(entities):
+        if not self._check_state_transition() \
+                and not self._check_transition_function(entities) \
+                and not self._check_intent_transition(entities) \
+                and not self._check_entity_transition(entities):
 
                 if self.get_state().is_supported(entities.keys()):
                     self.run_accept(save_identical=True)
@@ -127,11 +129,12 @@ class DialogManager:
                     # run 'unsupported' action of the state
                     entities['_unsupported'] = [{"value": True}]
 
+                    # TODO make unsupported state temporary
                     if self.get_state().unsupported:
-                        self.run_action(self.get_state().unsupported)
+                        self._run_action(self.get_state().unsupported)
                     # if not provided, run 'unsupported' action of the flow
                     elif self.get_flow().unsupported:
-                        self.run_action(self.get_flow().unsupported)
+                        self._run_action(self.get_flow().unsupported)
                     # if not provided, give up and go to default.root
                     else:
                         self.move_to("default.root:")
@@ -187,7 +190,7 @@ class DialogManager:
             self.recording = True
         return False
 
-    def special_message(self, type, entities):
+    def _special_message(self, type, entities):
         text = entities.get("_message_text", [])
         text = text[0] if len(text) else None
         text = text.get("value") if text else None
@@ -208,14 +211,14 @@ class DialogManager:
         state = self.get_state()
         if self.current_state_name != 'default.root' and not state.check_requirements(self.context):
             requirement = state.get_first_requirement(self.context)
-            self.run_action(requirement.action)
+            self._run_action(requirement.action)
         else:
             if not state.action:
                 logging.warning('State {} does not have an action.'.format(self.current_state_name))
                 return
-            self.run_action(state.action)
+            self._run_action(state.action)
 
-    def run_action(self, fn):
+    def _run_action(self, fn):
         if not callable(fn):
             logging.error("Error: Trying to run a function of type {}".format(type(fn)))
             return
@@ -226,15 +229,15 @@ class DialogManager:
             raise ValueError("Error: Action must return either None or a state name.")
         self.move_to(retval)
 
-    def check_state_transition(self):
-        """Checks if entity _state wasn't received in current message (and moves to the state)"""
+    def _check_state_transition(self):
+        """Checks if entity _state was received in current message (and moves to the state)"""
         new_state_name = self.context._state.current_v()
         if new_state_name is not None:
             return self.move_to(new_state_name)
         return False
 
-    def check_intent_transition(self, entities: dict):
-        """Checks if intent wasn't parsed from current message (and moves by intent)"""
+    def _check_intent_transition(self, entities: dict):
+        """Checks if intent was parsed from current message (and moves by intent)"""
         intent = self.context.intent.current_v()
         if not intent:
             return False
@@ -262,7 +265,7 @@ class DialogManager:
         logging.info('Moving based on intent %s...' % intent)
         return self.move_to(new_state_name + ":")  # : runs the action
 
-    def check_entity_transition(self, entities: dict):
+    def _check_entity_transition(self, entities: dict):
         """ Checks if entity was parsed from current message (and moves if associated state exists)"""
         # FIXME somehow it also uses older entities
         # first check if supported, if yes, abort
@@ -283,19 +286,19 @@ class DialogManager:
             logging.info("Moving by entity")
             return self.move_to(new_state_name + ":")
 
-        # AND THEN? a) default.root don't understand b) remain in the same state
-        # I'd say don't understand but still keep tuned for the entity in default.root (temporary root)
-        # Even better: move to special (configurable) unsupported state that will be temporary too
-
         return False
 
+    def _check_transition_function(self, entities):
+        return False  # TODO
+
     def get_flow(self, flow_name=None):
-        """Returns a flow by name, or current flow if no name is specified."""
+        """Returns a Flow object by its name. Defaults to current flow."""
         if not flow_name:
             flow_name, _ = self.current_state_name.split('.', 1)
         return self.flows.get(flow_name)
 
-    def get_state(self, flow_state_name=None):
+    def get_state(self, flow_state_name=None) -> Optional[State]:
+        """Returns a State object by its name. Defaults to current state."""
         flow_name, state_name = (flow_state_name or self.current_state_name).split('.', 1)
         flow = self.get_flow(flow_name)
         return flow.get_state(state_name) if flow else None
@@ -422,24 +425,9 @@ class DialogManager:
             self.logger.log_bot_message(response, self.current_state_name)
 
     def send(self, responses):
+        """
+        Send one or more messages to the user.
+        Shortcut for send_response().
+        :param responses:       Instance of MessageElement, str or Iterable.
+        """
         return self.send_response(responses)
-
-    def dont_understand(self):
-        # TODO log to chatbase
-        # TODO work in progress
-        from botshot.core.parsing import golem_extractor
-        utterance = self.context.get("_message_text", max_age=0)
-        nlu = golem_extractor.GOLEM_NLU
-        if not nlu or not utterance:
-            print("NLU instance and message text can't be None")
-            return
-        intent = nlu.parse_entity(utterance, 'intent', threshold=0.5)
-        if intent:
-            text = "I'm not sure what you mean. Are you talking about \"{}\"?".format(intent[0]['value'])
-            message = TextMessage(text).with_replies(['Yes', 'No'])
-            self.send_response(message)
-        else:
-            text = "I'm not sure what you mean. Could you help me learn?"
-            message = TextMessage(text).add_button(LinkButton("WebView", "http://zilinec.me/intent.html"))
-            self.send_response(message)
-            # TODO webview
