@@ -228,14 +228,14 @@ class DialogManager:
 
     def check_state_transition(self):
         """Checks if entity _state wasn't received in current message (and moves to the state)"""
-        new_state_name = self.context._state.current_v()
+        new_state_name = self.context._state.get_value(this_msg=True)
         if new_state_name is not None:
             return self.move_to(new_state_name)
         return False
 
     def check_intent_transition(self, entities: dict):
         """Checks if intent wasn't parsed from current message (and moves by intent)"""
-        intent = self.context.intent.current_v()
+        intent = self.context.intent.get_value(this_msg=True)
         if not intent:
             return False
 

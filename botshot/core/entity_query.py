@@ -1,6 +1,9 @@
 import time
 
 import re
+from typing import Optional
+
+from botshot.core.entity_value import EntityValue
 
 
 class EntityQuery:
@@ -116,40 +119,42 @@ class EntityQuery:
         self.items = filtered
         return self
 
-    def latest(self):
-        self.items = sorted(self.items, key=lambda x: x.timestamp, reverse=True)
-        return self.items[0] if len(self.items) > 0 else None
+    def get(self, this_msg=False) -> Optional[EntityValue]:
+        """
+        Returns the newest entity in context.
+        You can limit search to the newest message from user by setting this_msg to True.
 
-    def latest_v(self):
-        item = self.latest()
+        :param this_msg: True to search only in last received message
+        :return: Instance of EntityValue or None.
+        """
+        item = self.items[0] if len(self.items) else None
+
+        if this_msg and (item is not None) and (item.counter != self.context.counter):
+            return None
+
+        return item
+
+    def get_value(self, this_msg=False) -> Optional[object]:
+        """
+        Returns value of the newest entity in context.
+        You can limit search to the newest message from user by setting this_msg to True.
+
+        :param this_msg: True to search only in last received message
+        :return: Value of newest entity or None.
+        """
+        item = self.get(this_msg=this_msg)
         return item.value if item else None
 
-    def get(self):
-        return self.latest()
-
-    def get_v(self):
-        return self.latest_v()
-
-    def get_age(self):
+    def get_age(self) -> int:
+        """Returns age of the latest entity in messages, or -1 if there are no entities."""
         self.items = sorted(self.items, key=lambda x: x.timestamp, reverse=True)
-        return self.items[0].value, (self.items[0].counter - self.context.counter) if len(self.items) > 0 else None
+        return (self.items[0].counter - self.context.counter) if len(self.items) > 0 else -1
 
-    def current(self):
-        item = self.latest()
-        return item if item is not None and item.counter == self.context.counter else None
-
-    def current_v(self):
-        item = self.current()
-        return item.value if item else None
-
-    def all(self):
-        return list(self.items)
-
-    def all_v(self):
-        return [x.value for x in self.all()]
+    def values(self):
+        """Returns a list with values of all present entities."""
+        return [x.value for x in self]
 
     def count(self):
-        self.items = list(self.items)
         return len(self.items)
 
     def __nonzero__(self):
@@ -175,6 +180,16 @@ class EntityQuery:
         new_items = set(self.items).intersection(set(other.items))
         return EntityQuery(self.context, self.name, new_items)
 
+    def __iter__(self):
+        return iter(list(self.items))
+
+    def __getitem__(self, idx: int):
+        if idx < 0 or idx > len(self.items):
+            raise ValueError("Entity index out of bounds")
+        return self.items[idx]
+
+    def __len__(self):
+        return len(self.items)
 
     @staticmethod
     def from_yaml(context, name: str, yml: list):
