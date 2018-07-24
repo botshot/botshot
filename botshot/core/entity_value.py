@@ -6,10 +6,11 @@ class EntityValue:
     This class holds the value of a single entity in context.
     """
 
-    def __init__(self, context, name, value=None, raw=None):
+    def __init__(self, context, name, value=None, raw=None, role=None):
         self.name = name
         self.raw = raw or dict()  # type: dict
         self.value = value or self.raw.get("value")
+        self.role = role or self.raw.get("role")
         self.timestamp = time.time()
         self.counter = context.counter
         self.state_set = context.get_state_name() or ""

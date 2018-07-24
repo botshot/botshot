@@ -79,7 +79,7 @@ class Context(object):
             entity = EntityValue(self, entity_name, raw=entity_dict)
             self.entities.setdefault(entity_name, []).insert(0, entity)
 
-        if 'values' in entity_dict:  # compound entities
+        if 'values' in entity_dict:  # compound entities (probably Wit.ai?)
             for item in entity_dict['values']:
                 for role, entity in item.items():
                     canon_name = entity_name + "__" + role

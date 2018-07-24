@@ -119,6 +119,11 @@ class EntityQuery:
         self.items = filtered
         return self
 
+    def with_role(self, role):
+        """Filter entities by role (for example: location can be from, to)."""
+        self.items = list(filter(lambda item: item.role == role, self.items))
+        return self
+
     def get(self, this_msg=False) -> Optional[EntityValue]:
         """
         Returns the newest entity in context.
