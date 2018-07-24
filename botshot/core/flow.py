@@ -234,7 +234,7 @@ class Flow:
 
     def matches_intent(self, intent) -> bool:
         """Checks whether this flow accepts an intent."""
-        return re.match(intent, self.intent) is not None
+        return re.match(self.intent, intent) is not None
 
     def set_accepts(self, entity_name):
         """Add accepted entity."""
