@@ -120,7 +120,8 @@ class DialogManager:
             and not self.check_intent_transition(entities) \
             and not self.check_entity_transition(entities):
 
-                if self.get_state().is_supported(entities.keys()):
+            entity_values = self._get_entity_value_tuples(entities)
+            if self.get_state().is_supported(entity_values):
                     self.run_accept(save_identical=True)
                     self.save_state()
                 else:
@@ -239,7 +240,8 @@ class DialogManager:
         if not intent:
             return False
 
-        if self.get_state().is_supported(entities.keys()):
+        entity_values = self._get_entity_value_tuples(entities, include=("intent", "_message_text"))
+        if self.get_state().is_supported(entity_values):
             return False
 
         # move to the flow whose 'intent' field matches intent
@@ -265,8 +267,10 @@ class DialogManager:
     def check_entity_transition(self, entities: dict):
         """ Checks if entity was parsed from current message (and moves if associated state exists)"""
         # FIXME somehow it also uses older entities
+
         # first check if supported, if yes, abort
-        if self.get_state().is_supported(entities.keys()):
+        entity_values = self._get_entity_value_tuples(entities)
+        if self.get_state().is_supported(entity_values):
             return False
 
         # TODO check states of current flow for 'accepted' first
@@ -443,3 +447,22 @@ class DialogManager:
             message = TextMessage(text).add_button(LinkButton("WebView", "http://zilinec.me/intent.html"))
             self.send_response(message)
             # TODO webview
+
+    def _get_entity_value_tuples(self, entities: dict, include=tuple()):
+        """
+        Builds a set of [entity names + tuples (entity_name, entity_value)].
+        Used for checking whether the current state supports the received message.
+        """
+        entity_set = set()
+        # add entity names
+        entity_set = entity_set.union(entities.keys())
+
+        # add tuples (name, value)
+        for name, values in entities.items():
+            if include and name not in include:
+                continue
+            for value in values:
+                if 'value' in value:
+                    entity_set.add((name, value['value']))
+
+        return entity_set

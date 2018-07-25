@@ -19,7 +19,8 @@ class State:
         :param is_temporary     whether the action should fire just once,
                                  after that, the state will be used just as a basis for transitions
                                  and unrecognized messages will move to default.root instead.
-        :param supported        entities that will not trigger a state change (- state can handle them)
+        :param supported        set of entities that will not trigger a state change (- state can handle them)
+                                 for specific values, use tuples like this: (entity_name, entity_value)
         :param unsupported      an optional function to handle unsupported messages
         """
         self.name = str(name)
@@ -46,7 +47,27 @@ class State:
         requires = State.parse_requirements(definition.get('require'), relpath)
         intent = definition.get("intent")
         is_temporary = definition.get("temporary", False)
-        supported = set(definition.get("supports", [])).union([r.entity for r in requires if isinstance(r, EntityRequirement)])  # TODO add local entities
+
+        supported = set()
+        for obj in definition.get("supports", []):
+            if isinstance(obj, dict):
+                # it is a list of supported values along with entity name
+                for entity_name, value in obj.items():  # dict of (name: value)
+                    if isinstance(value, str):
+                        supported.add((entity_name, value))
+                    else:
+                        # finally, it can be a list of supported values for this entity
+                        for v in value:
+                            supported.add((entity_name, v))
+
+            elif isinstance(obj, str):
+                # it is a simple entity name - string
+                supported.add(obj)
+            else:
+                raise ValueError("Unknown data type in supported entity list: {}".format(type(obj)))
+
+        # TODO add local entities
+        supported = supported.union([r.entity for r in requires if isinstance(r, EntityRequirement)])
 
         if 'unsupported' in definition:
             unsupported = State.make_action(definition.get("unsupported"), relpath)
@@ -178,7 +199,8 @@ class State:
                 return requirement
         return True
 
-    def is_supported(self, msg_entities: list) -> bool:
+    def is_supported(self, msg_entities: set) -> bool:
+        """Checks whether this state can handle a message with given entities."""
         return not self.supported.isdisjoint(msg_entities)
 
     def __str__(self):
