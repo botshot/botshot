@@ -120,8 +120,8 @@ class DialogManager:
             and not self.check_intent_transition(entities) \
             and not self.check_entity_transition(entities):
 
-            entity_values = self._get_entity_value_tuples(entities)
-            if self.get_state().is_supported(entity_values):
+                entity_values = self._get_entity_value_tuples(entities)
+                if self.get_state().is_supported(entity_values):
                     self.run_accept(save_identical=True)
                     self.save_state()
                 else:
