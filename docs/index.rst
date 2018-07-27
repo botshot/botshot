@@ -14,6 +14,8 @@ Welcome to Botshot's documentation!
    quickstart/installation
    quickstart/configuration
    quickstart/parts
+   quickstart/conversation
+   quickstart/actions
 
 
 Indices and tables
