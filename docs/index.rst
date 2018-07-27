@@ -13,6 +13,7 @@ Welcome to Botshot's documentation!
    quickstart/index
    quickstart/installation
    quickstart/configuration
+   quickstart/parts
 
 
 Indices and tables
