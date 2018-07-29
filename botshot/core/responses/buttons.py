@@ -126,6 +126,7 @@ class ShareButton(Button):
     """
     A button that opens share dialog for the message it's attached to.
     Currently only Facebook Messener is supported.
+    Can be attached to list, carousel and media templates.
     """
 
     def __init__(self):

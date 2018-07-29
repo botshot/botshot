@@ -5,6 +5,7 @@ import requests
 from django.conf import settings
 
 from botshot.core.chat_session import ChatSession
+from botshot.core.interfaces.adapter.facebook import FacebookAdapter
 from botshot.core.message_parser import parse_text_message
 from botshot.core.persistence import get_redis
 from botshot.core.responses.buttons import *
@@ -20,6 +21,7 @@ class FacebookInterface():
     name = 'facebook'
     prefix = 'fb'
     TEXT_LENGTH_LIMIT = 320
+    adapter = FacebookAdapter()
 
     # Post function to handle Facebook messages
     @staticmethod
@@ -112,7 +114,7 @@ class FacebookInterface():
             }
         elif isinstance(response, MessageElement):
             message_tag = response.get_message_tag()
-            message = FacebookInterface.to_message(response)
+            message = FacebookInterface.to_message(response, session)
             response_dict = {
                 "recipient": {"id": fbid},
                 "message": message,
@@ -181,66 +183,68 @@ class FacebookInterface():
         raise ValueError('Error: Invalid setting type: {}: {}'.format(type(response), response))
 
     @staticmethod
-    def to_message(response):
-        if isinstance(response, TextMessage):
-            if response.buttons:
-                return {
-                    "attachment": {
-                        "type": "template",
-                        "payload": {
-                            "template_type": "button",
-                            "text": response.text[:FacebookInterface.TEXT_LENGTH_LIMIT],
-                            "buttons": [FacebookInterface.to_message(button) for button in response.buttons]
-                        }
-                    }
-                }
-            message = {'text': response.text[:FacebookInterface.TEXT_LENGTH_LIMIT]}
-            if response.quick_replies:
-                message["quick_replies"] = [FacebookInterface.to_message(reply) for reply in response.quick_replies]
-            return message
-
-        elif isinstance(response, GenericTemplateMessage):
-            return {
-                "attachment": {
-                    "type": "template",
-                    "payload": {
-                        "template_type": "generic",
-                        "elements": [FacebookInterface.to_message(element) for element in response.elements[:10]]
-                    }
-                }
-            }
-
-        elif isinstance(response, AttachmentMessage):
-            return {
-                "attachment": {
-                    "type": response.attachment_type,
-                    "payload": {
-                        "url": response.url
-                    }
-                }
-            }
-
-        elif isinstance(response, GenericTemplateElement):
-            message = {
-                "title": response.title,
-                "image_url": response.image_url,
-                "subtitle": response.subtitle,
-                "item_url": response.item_url
-            }
-            if response.buttons:
-                message["buttons"] = [FacebookInterface.to_message(button) for button in response.buttons]
-            return message
-
-        elif isinstance(response, QuickReply):
-            return response.to_response()
-
-        elif isinstance(response, Button):
-            return response.to_response()
-
-        elif isinstance(response, ListTemplate):
-            return response.to_response()
-
-        raise ValueError('Error: Invalid message type: {}: {}'.format(type(response), response))
+    def to_message(response, session):
+        FacebookInterface.adapter.prepare_message(response, session)
+        return FacebookInterface.adapter.transform_message(response)
+        # if isinstance(response, TextMessage):
+        #     if response.buttons:
+        #         return {
+        #             "attachment": {
+        #                 "type": "template",
+        #                 "payload": {
+        #                     "template_type": "button",
+        #                     "text": response.text[:FacebookInterface.TEXT_LENGTH_LIMIT],
+        #                     "buttons": [FacebookInterface.to_message(button) for button in response.buttons]
+        #                 }
+        #             }
+        #         }
+        #     message = {'text': response.text[:FacebookInterface.TEXT_LENGTH_LIMIT]}
+        #     if response.quick_replies:
+        #         message["quick_replies"] = [FacebookInterface.to_message(reply) for reply in response.quick_replies]
+        #     return message
+        #
+        # elif isinstance(response, GenericTemplateMessage):
+        #     return {
+        #         "attachment": {
+        #             "type": "template",
+        #             "payload": {
+        #                 "template_type": "generic",
+        #                 "elements": [FacebookInterface.to_message(element) for element in response.elements[:10]]
+        #             }
+        #         }
+        #     }
+        #
+        # elif isinstance(response, AttachmentMessage):
+        #     return {
+        #         "attachment": {
+        #             "type": response.attachment_type,
+        #             "payload": {
+        #                 "url": response.url
+        #             }
+        #         }
+        #     }
+        #
+        # elif isinstance(response, GenericTemplateElement):
+        #     message = {
+        #         "title": response.title,
+        #         "image_url": response.image_url,
+        #         "subtitle": response.subtitle,
+        #         "item_url": response.item_url
+        #     }
+        #     if response.buttons:
+        #         message["buttons"] = [FacebookInterface.to_message(button) for button in response.buttons]
+        #     return message
+        #
+        # elif isinstance(response, QuickReply):
+        #     return response.to_response()
+        #
+        # elif isinstance(response, Button):
+        #     return response.to_response()
+        #
+        # elif isinstance(response, ListTemplate):
+        #     return response.to_response()
+        #
+        # raise ValueError('Error: Invalid message type: {}: {}'.format(type(response), response))
 
     @staticmethod
     def send_settings(setting_list):
@@ -311,3 +315,33 @@ class FacebookInterface():
                 entities['attachment'].append({'value': url})
                 entities['intent'].append({'value': 'attachment'})
         return {'entities': entities, 'type': 'message'}
+
+    @staticmethod
+    def upload_attachment(session, attachment_url, type, is_reusable=True):
+        """
+        Uploads a file from the given URL to Facebook's servers.
+        :returns: Id of the attachment if uploaded successfully, None otherwise.
+        """
+
+        data = {
+            "message": {
+                "attachment": {
+                    "type": type,
+                    "payload": {
+                        "is_reusable": is_reusable,
+                        "url": attachment_url
+                    }
+                }
+            }
+        }
+
+        prefix_post_message_url = 'https://graph.facebook.com/v2.6/me/'
+        page_id = session.meta.get("page_id")
+        token = FacebookInterface.get_page_token(page_id)
+        post_message_url = prefix_post_message_url + "message_attachments" + '?access_token=' + token
+        r = requests.post(url=post_message_url, data=json.dumps(data), headers={"Content-Type": "application/json"})
+        response = r.json()
+        if r.status_code != 200:
+            logging.error("Couldn't upload attachment: {}".format(response))
+            logging.exception(response['error']['message'])
+        return response.get("attachment_id")

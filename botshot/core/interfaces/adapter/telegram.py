@@ -2,6 +2,7 @@ import json
 import logging
 from typing import List, Optional
 
+from botshot.core.responses import CarouselMessage
 from botshot.core.responses.buttons import Button, LinkButton, PayloadButton
 from botshot.core.responses.quick_reply import QuickReply, LocationQuickReply
 from botshot.core.responses.responses import *
@@ -28,7 +29,7 @@ class TelegramAdapter():
 
                 return [self.text_message(element.text, reply=reply)]
 
-            elif isinstance(element, GenericTemplateMessage) or isinstance(element, ListTemplate):
+            elif isinstance(element, CarouselMessage) or isinstance(element, ListTemplate):
                 responses = []
                 for e in element.elements:
                     title, subtitle = escape_markdown(e.title), escape_markdown(e.subtitle)
