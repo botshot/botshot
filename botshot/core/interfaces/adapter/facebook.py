@@ -36,7 +36,7 @@ class FacebookAdapter(MessageAdapter):
         message_type = type(message)
         fn = self.functions.get(message_type)
         if not fn:
-            raise Exception("Response {} not supported in Facebook Messenger!".format(message_type))
+            raise Exception("Response {} is not supported in Facebook Messenger at the moment!".format(message_type))
         return fn(message)
 
     def prepare_message(self, message: MessageElement, session):
