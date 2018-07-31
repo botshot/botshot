@@ -1,13 +1,5 @@
-import json
 import logging
-from typing import List, Optional
-
-from botshot.core.responses import CarouselMessage
-from botshot.core.responses.buttons import Button, LinkButton, PayloadButton
-from botshot.core.responses.quick_reply import QuickReply, LocationQuickReply
-from botshot.core.responses.responses import *
-from botshot.core.responses.templates import ListTemplate
-
+from typing import Optional
 
 from botshot.core.interfaces.adapter.message_adapter import MessageAdapter
 from botshot.core.responses import *
@@ -34,7 +26,7 @@ class TelegramAdapter(MessageAdapter):
             # LocationQuickReply: lambda reply: {'content_type': 'location'},
 
             # Templates
-            # CardMessage: self._card_template,
+            CardMessage: self._card_template,
             # ListTemplate: self._list_template,
             # CarouselMessage: self._carousel_template,
 
@@ -135,6 +127,34 @@ class TelegramAdapter(MessageAdapter):
         return {
             'inline_keyboard': keyboard
         }
+
+    def _card_template(self, message: CardMessage, session):
+
+        # FIXME html encode title, subtitle
+        item_url = "<a>{url}</a>".format(url=message.item_url) if message.item_url else ""
+        html_text = "<strong>{title}</strong>\n{subtitle}\n{url}".format(
+            title=message.title, subtitle=message.subtitle, url=item_url
+        )
+
+        payload = {
+            'chat_id': session.meta['chat_id'],
+            'parse_mode': "HTML",
+            'text': html_text,
+            'disable_web_page_preview': False
+        }
+
+        # if message.quick_replies:  TODO should they be added to the template?
+        #     payload['reply_markup'] = json.dumps(self._quick_replies(message.quick_replies))
+        if message.buttons:
+            payload['reply_markup'] = json.dumps(self._buttons(message.buttons))
+
+        photo_payload = {  # TODO image aspect ratio would be nice
+            'chat_id': session.meta['chat_id'],
+            'photo': message.image_url,
+            'disable_notification': True,
+            'caption': message.title[:200] if message.title else None,
+        }
+        return [('sendPhoto', photo_payload), ('sendMessage', payload)]
 
 
 class TelegramAdapter2():
