@@ -3,7 +3,7 @@ import time
 import random
 
 from botshot.core.persistence import get_redis
-from botshot.core.responses import CarouselMessage
+from botshot.core.responses import CarouselTemplate
 from botshot.core.responses.responses import *
 from botshot.core.responses.buttons import *
 from django.conf import settings
@@ -186,7 +186,7 @@ class ConversationTest:
             if isinstance(message, TextMessage):
                 buttons = message.buttons
                 buttons += message.quick_replies
-            if isinstance(message, CarouselMessage):
+            if isinstance(message, CarouselTemplate):
                 for element in message.elements:
                     buttons += element.buttons
             for button_qr in buttons:

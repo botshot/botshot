@@ -1,10 +1,9 @@
 from typing import List
 
-from botshot.core.responses import MessageElement
 from botshot.core.responses.responses import MessageElement, _ellipsize
 
 
-class CardMessage(MessageElement):
+class CardTemplate(MessageElement):
     """
     A horizontal card view with title, subtitle, image and buttons.
     """
@@ -44,16 +43,16 @@ class ListTemplate(MessageElement):
 
     def __init__(self, is_compact=False, button=None):
         super().__init__()
-        self.elements = []  # type: List[CardMessage]
+        self.elements = []  # type: List[CardTemplate]
         self.compact = is_compact
         self.button = button
 
-    def add_element(self, element: CardMessage):
+    def add_element(self, element: CardTemplate):
         self.elements.append(element)
         return self
 
     def create_element(self, **kwargs):
-        element = CardMessage(**kwargs)
+        element = CardTemplate(**kwargs)
         return self.add_element(element)
 
     def to_response(self):
@@ -73,13 +72,13 @@ class ListTemplate(MessageElement):
         return response
 
 
-class CarouselMessage(MessageElement):
+class CarouselTemplate(MessageElement):
     """
     A horizontal list of GenericTemplateElement items.
     """
 
     def __init__(self, elements=None):
-        self.elements = [CardMessage(**element) for element in elements or []]
+        self.elements = [CardTemplate(**element) for element in elements or []]
 
     def to_response(self):
         return {
@@ -102,8 +101,8 @@ class CarouselMessage(MessageElement):
         self.elements.append(element)
         return self
 
-    def create_element(self, **kwargs) -> CardMessage:
-        element = CardMessage(**kwargs)
+    def create_element(self, **kwargs) -> CardTemplate:
+        element = CardTemplate(**kwargs)
         self.add_element(element)
         return element
 

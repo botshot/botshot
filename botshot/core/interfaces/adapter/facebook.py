@@ -23,9 +23,9 @@ class FacebookAdapter(MessageAdapter):
             LocationQuickReply: lambda reply: {'content_type': 'location'},
 
             # Templates
-            CardMessage: self._card_template,
+            CardTemplate: self._card_template,
             ListTemplate: self._list_template,
-            CarouselMessage: self._carousel_template,
+            CarouselTemplate: self._carousel_template,
 
             # Media
             AttachmentMessage: self._attachment_message,
@@ -127,7 +127,7 @@ class FacebookAdapter(MessageAdapter):
             response['image_url'] = reply.image_url
         return response
 
-    def _card_template(self, card: CardMessage):
+    def _card_template(self, card: CardTemplate):
         response = {
             "title": card.title,
             "image_url": card.image_url,
@@ -154,7 +154,7 @@ class FacebookAdapter(MessageAdapter):
 
         return response
 
-    def _carousel_template(self, list: CarouselMessage):
+    def _carousel_template(self, list: CarouselTemplate):
         return {
             "attachment": {
                 "type": "template",
