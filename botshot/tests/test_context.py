@@ -26,10 +26,11 @@ class TestContext(TestCase):
         context = Context(dialog=self.dialog, entities={}, history=[], counter=0)
         context.intent = "greeting"
         context.intent = "goodbye"
-        intent = context.intent.current_v()
+        intent = context.intent.get_value(this_msg=True)
         self.assertEquals(intent, "goodbye")
         cnt = context.intent.count()
         self.assertEquals(cnt, 2)
+        self.assertEquals(cnt, len(context.intent))
 
     def test_context_message_age_filter(self):
         context = Context(dialog=self.dialog, entities={}, history=[], counter=0)
@@ -42,13 +43,13 @@ class TestContext(TestCase):
         self.assertFalse('myentityy' in context)
         self.assertFalse('myent' in context)
         self.assertEquals(context.counter, 2)
-        self.assertEquals(context.myentity.current_v(), 3)
-        self.assertEquals(context.myentity.latest_v(), 3)
+        self.assertEquals(context.myentity.get_value(this_msg=True), 3)
+        self.assertEquals(context.myentity.get_value(), 3)
         self.assertEquals(context.myentity.count(), 3)
-        self.assertEquals(context.myentity.exactly(messages=1).latest_v(), 2)
+        self.assertEquals(context.myentity.exactly(messages=1).get_value(), 2)
         self.assertEquals(context.myentity.newer_than(messages=1).count(), 1)
         self.assertEquals(context.myentity.older_than(messages=1).count(), 1)
-        self.assertEquals(context.myentity.older_than(messages=1).latest_v(), 1)
+        self.assertEquals(context.myentity.older_than(messages=1).get_value(), 1)
         self.assertEquals(context.myentity.older_than(messages=0).count(), 2)
         self.assertEquals(context.myentity.newer_than(messages=3).count(), 3)
 
@@ -56,5 +57,5 @@ class TestContext(TestCase):
         context = Context(dialog=self.dialog, entities={}, history=[], counter=0)
         context.myent = "foo"
         context.foo = EntityValue(context, "foo", raw={"value": "foo"})
-        self.assertEqual(context.myent.current_v(), "foo")
-        self.assertEqual(context.foo.current_v(), "foo")
+        self.assertEqual(context.myent.get_value(this_msg=True), "foo")
+        self.assertEqual(context.foo.get_value(this_msg=True), "foo")

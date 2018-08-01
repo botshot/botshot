@@ -118,11 +118,11 @@ class DialogManager:
         logging.info('>>> Processing message')
 
         if not self._check_state_transition() \
-                and not self._check_transition_function(entities) \
-                and not self._check_intent_transition(entities) \
-                and not self._check_entity_transition(entities):
+            and not self._check_intent_transition(entities) \
+            and not self._check_entity_transition(entities):
 
-                if self.get_state().is_supported(entities.keys()):
+                entity_values = self._get_entity_value_tuples(entities)
+                if self.get_state().is_supported(entity_values):
                     self.run_accept(save_identical=True)
                     self.save_state()
                 else:
@@ -231,18 +231,19 @@ class DialogManager:
 
     def _check_state_transition(self):
         """Checks if entity _state was received in current message (and moves to the state)"""
-        new_state_name = self.context._state.current_v()
+        new_state_name = self.context._state.get_value(this_msg=True)
         if new_state_name is not None:
             return self.move_to(new_state_name)
         return False
 
     def _check_intent_transition(self, entities: dict):
         """Checks if intent was parsed from current message (and moves by intent)"""
-        intent = self.context.intent.current_v()
+        intent = self.context.intent.get_value(this_msg=True)
         if not intent:
             return False
 
-        if self.get_state().is_supported(entities.keys()):
+        entity_values = self._get_entity_value_tuples(entities, include=("intent", "_message_text"))
+        if self.get_state().is_supported(entity_values):
             return False
 
         # move to the flow whose 'intent' field matches intent
@@ -268,8 +269,10 @@ class DialogManager:
     def _check_entity_transition(self, entities: dict):
         """ Checks if entity was parsed from current message (and moves if associated state exists)"""
         # FIXME somehow it also uses older entities
+
         # first check if supported, if yes, abort
-        if self.get_state().is_supported(entities.keys()):
+        entity_values = self._get_entity_value_tuples(entities)
+        if self.get_state().is_supported(entity_values):
             return False
 
         # TODO check states of current flow for 'accepted' first
@@ -287,9 +290,6 @@ class DialogManager:
             return self.move_to(new_state_name + ":")
 
         return False
-
-    def _check_transition_function(self, entities):
-        return False  # TODO
 
     def get_flow(self, flow_name=None):
         """Returns a Flow object by its name. Defaults to current flow."""
@@ -431,3 +431,22 @@ class DialogManager:
         :param responses:       Instance of MessageElement, str or Iterable.
         """
         return self.send_response(responses)
+
+    def _get_entity_value_tuples(self, entities: dict, include=tuple()):
+        """
+        Builds a set of [entity names + tuples (entity_name, entity_value)].
+        Used for checking whether the current state supports the received message.
+        """
+        entity_set = set()
+        # add entity names
+        entity_set = entity_set.union(entities.keys())
+
+        # add tuples (name, value)
+        for name, values in entities.items():
+            if include and name not in include:
+                continue
+            for value in values:
+                if 'value' in value:
+                    entity_set.add((name, value['value']))
+
+        return entity_set

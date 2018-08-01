@@ -18,7 +18,7 @@ class MicrosoftAdapter():
                     response["suggestedActions"] = {"actions": self.buttons(element.buttons)}
 
                 return response
-            elif isinstance(element, GenericTemplateMessage) or isinstance(element, ListTemplate):
+            elif isinstance(element, CarouselTemplate) or isinstance(element, ListTemplate):
                 return self.generic_template(element)
                 # TODO cards and lists
 
@@ -55,8 +55,8 @@ class MicrosoftAdapter():
                 # TODO other buttons
         return arr
 
-    def generic_template(self, template: GenericTemplateMessage or ListTemplate):
-        if isinstance(template, GenericTemplateMessage):
+    def generic_template(self, template: CarouselTemplate or ListTemplate):
+        if isinstance(template, CarouselTemplate):
             content_type = "application/vnd.microsoft.card.hero"
         elif isinstance(template, ListTemplate):
             content_type = "application/vnd.microsoft.card.thumbnail"

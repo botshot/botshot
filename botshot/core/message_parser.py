@@ -48,6 +48,9 @@ def parse_text_message(text, num_tries=1):
 
     parsed = {'entities': entities, 'type': 'message'}
 
+    if settings.DEBUG:
+        print("Parsed message:", parsed)
+
     return parsed
 
 
