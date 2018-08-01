@@ -214,8 +214,12 @@ class Flow:
         :param name:   name of this flow
         :param states: dict of states (optional)
         :param intent: accepted intents regex (optional)
-        :param unsupported      an optional function to handle unsupported messages
+        :param unsupported      a function to handle unsupported messages
         """
+
+        if unsupported is None:
+            raise ValueError("Missing required 'unsupported' action field in flow {}.".format(name))
+
         self.name = str(name)
         self.states = states or {}
         self.intent = intent or self.name

@@ -129,7 +129,6 @@ class DialogManager:
                     # run 'unsupported' action of the state
                     entities['_unsupported'] = [{"value": True}]
 
-                    # TODO make unsupported state temporary
                     if self.get_state().unsupported:
                         self._run_action(self.get_state().unsupported)
                     # if not provided, run 'unsupported' action of the flow
@@ -137,7 +136,9 @@ class DialogManager:
                         self._run_action(self.get_flow().unsupported)
                     # if not provided, give up and go to default.root
                     else:
-                        self.move_to("default.root:")
+                        raise Exception("Missing required 'unsupported' action field in flow {}.".format(
+                            self.get_flow().name)
+                        )
                     self.save_state()
 
         self.session.interface.processing_end(self.session)

@@ -1,5 +1,24 @@
 import logging
 
+
+_interfaces = []
+
+
+def add_interface(classname):
+    """
+    Adds a messaging interface for a messaging platform.
+    :param classname: 
+    :return:
+    """
+    import importlib
+
+    package, classname = classname.rsplit(".", maxsplit=1)
+    module = importlib.import_module(package)
+    cls = getattr(module, classname)
+
+    _interfaces.append(cls)
+
+
 def get_interfaces():
     """
     :returns: List of all registered chat interface classes.
@@ -11,7 +30,7 @@ def get_interfaces():
     from botshot.core.interfaces.google import GoogleActionsInterface
     from botshot.core.interfaces.test import TestInterface
     return [WebGuiInterface, FacebookInterface, TelegramInterface, MicrosoftInterface, GoogleActionsInterface,
-                         TestInterface]
+                         TestInterface] + _interfaces
 
 
 def create_from_name(name):
