@@ -1,15 +1,16 @@
 import logging
 
 import requests
+from django.conf import settings
 
 from botshot.core.logging.abs_logger import MessageLogger
 
 
 class ChatbaseLogger(MessageLogger):
-    def __init__(self, api_key):
+    def __init__(self):
         super().__init__()
         self.base_url = 'https://chatbase.com/api'
-        self.api_key = api_key
+        self.api_key = settings.BOT_CONFIG.get("CHATBASE_API_KEY")
         if self.api_key is None:
             logging.warning("Chatbase API key not provided, will not log!")
 

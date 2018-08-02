@@ -1,5 +1,6 @@
 import logging
 import time
+import importlib
 
 from django.conf import settings
 
@@ -53,15 +54,31 @@ MESSAGE_LOGGERS = []
 
 
 def register_logger(logger):
-    if isinstance(logger, MessageLogger):
-        logging.debug("Registering logger %s", logger.__class__.__name__)
+    """Registers a logger class."""
+    if isinstance(logger, str):
+        cls = _get_logger_class(logger)
+        logging.debug("Registering logger %s", cls)
+        MESSAGE_LOGGERS.append(cls)
+    elif issubclass(logger, MessageLogger):
+        logging.debug("Registering logger %s", logger)
         MESSAGE_LOGGERS.append(logger)
+    elif isinstance(logger, MessageLogger):
+        raise ValueError("Error: Please register logger class instead of instance.")
     else:
-        raise ValueError("Error: Must be an instance of botshot.core.abs_logger.MessageLogger")
+        raise ValueError("Error: Logger must be a subclass of botshot.core.abs_logger.MessageLogger")
+
+
+def _get_logger_class(classname):
+    package, classname = classname.rsplit('.', maxsplit=1)
+    module = importlib.import_module(package)
+    return getattr(module, classname)
 
 
 try:
     for item in settings.BOT_CONFIG.get("MESSAGE_LOGGERS", []):
-        register_logger(item)
+        package, classname = item.rsplit('.', maxsplit=1)
+        module = importlib.import_module(package)
+        cls = getattr(module, classname)
+        register_logger(cls)
 except Exception as ex:
     raise ValueError("Error registering message loggers, is your configuration correct?") from ex
