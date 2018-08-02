@@ -22,14 +22,12 @@ class Context(object):
     def __getattr__(self, item):
         if item in ['counter', 'entities', 'history', 'max_depth', 'dialog', 'history_restart_minutes']:
             return super().__getattribute__(item)
-        return EntityQuery(self, item, self.entities.get(item, []))
+        return self.__getitem__(item)
 
     def __setattr__(self, key, value):
         if key in ['counter', 'entities', 'history', 'max_depth', 'dialog', 'history_restart_minutes']:
             return super().__setattr__(key, value)
-        if not isinstance(value, EntityValue):
-            value = EntityValue(self, key, value=value)
-        self.entities.setdefault(key, []).insert(0, value)
+        return self.__setitem__(key, value)
 
     def __contains__(self, key: Union[str, Iterable]):
         if isinstance(key, str):
@@ -208,3 +206,12 @@ class Context(object):
             if not self.get(entity, max_age=max_age):
                 return False
         return True
+
+    def __getitem__(self, item):
+        return EntityQuery(self, item, self.entities.get(item, []))
+
+    def __setitem__(self, key, value):
+        if not isinstance(value, EntityValue):
+            value = EntityValue(self, key, value=value)
+        self.entities.setdefault(key, []).insert(0, value)
+        return self.__getitem__(key)  # mainly to shut up IDE warnings
