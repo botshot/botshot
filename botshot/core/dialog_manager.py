@@ -36,6 +36,10 @@ class DialogManager:
         self.current_state_name = None
         self._init_flows()
 
+        if self.get_state("default.root") is None:
+            raise Exception("Required state default.root was not found. "
+                            "Please add this state, Botshot uses it as the first state when starting a conversation.")
+
         if version and version.decode('utf-8') == DialogManager.version and \
                 self.db.hexists('session_context', self.session.chat_id):
 
