@@ -103,6 +103,12 @@
 </body>
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/reconnecting-websocket/1.0.0/reconnecting-websocket.min.js"></script>-->
+
+<!--<script type="text/javascript">-->
+    <!--var ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";-->
+    <!--var chat_socket = new ReconnectingWebSocket(ws_scheme + '://' + window.location.host + "/chat" + window.location.pathname);-->
+<!--// </script>-->
 
 <script type="text/javascript">
     function quickreply(text) {
@@ -157,7 +163,7 @@
 </script>
 
 <script type="text/javascript">
-    var timestamp = {{ timestamp }};
+    // var timestamp = "{{ timestamp }}";
     $(window).load(function() {
         $("#list_wrap").scrollTop($("#list_wrap").prop("scrollHeight"));
         setTimeout(refresh, 2000);
@@ -165,20 +171,20 @@
 
     function refresh() {
         setTimeout(refresh, 2000);
-        $.getJSON("{% url 'last_change' %}", data = {"uid": "{{uid}}"}, function (data) {
-            var timestamp = data['timestamp__max'];
-            if (timestamp > window.timestamp) {
+        // $.getJSON("{% url 'last_change' %}", data = {"uid": "{{uid}}"}, function (data) {
+        //     var timestamp = data['timestamp__max'];
+        //     if (timestamp > window.timestamp) {
                 console.log('REFRESHING');
                 // change occurred, reload messages
                 $('#list').load(document.URL + ' #list');
-                window.timestamp = timestamp;
+                // window.timestamp = timestamp;
                 $("#list_wrap").animate({scrollTop: $("#list_wrap").prop("scrollHeight")}, "slow");
-            }
-        });
+            // }
+        // });
     }
 
     function logout() {
-        window.location = '{% url 'do_logout' %}'
+        window.location = "{% url 'do_logout' %}"
     }
 </script>
 
