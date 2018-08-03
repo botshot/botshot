@@ -22,7 +22,7 @@ setup(
     author_email='david.prihoda@gmail.com, zilinec.m@gmail.com',
     entry_points={
           'console_scripts': [
-              'bots = botshot.management.bots:main'
+              'bots = bots:main'
           ]
       },
     classifiers=[

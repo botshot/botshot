@@ -5,8 +5,7 @@ from botshot.tasks import *
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', '{APP_NAME}.settings')
 
-redis_url = settings.BOTSHOT_CONFIG.get("REDIS_URL")
-print("Redis URL is", redis_url)
+redis_url = settings.BOT_CONFIG.get("REDIS_URL")
 
 app = Celery('{APP_NAME}', backend='redis', broker=redis_url)
 app.conf.update(BROKER_URL=redis_url,
