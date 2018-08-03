@@ -2,6 +2,7 @@ import json
 import logging
 import pickle
 
+from django.conf import settings
 from wit import Wit
 
 from botshot.core.parsing import date_utils
@@ -11,14 +12,14 @@ from botshot.core.persistence import get_redis
 
 class WitExtractor(EntityExtractor):
 
-    def __init__(self, wit_token, enable_cache=True):
+    def __init__(self):
         super().__init__()
         self.log = logging.getLogger()
-        self.wit_token = wit_token
+        self.wit_token = settings.BOT_CONFIG['WIT_TOKEN']
         if not self.wit_token:
             raise ValueError("Wit token not found!")
         self.cache_key = 'wit_cache'
-        self.cache = enable_cache
+        self.cache = settings.BOT_CONFIG.get('WIT_ENABLE_CACHE', True)
         # self.clear_wit_cache()
 
     def extract_entities(self, text: str, max_retries=5):

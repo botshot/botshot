@@ -1,10 +1,38 @@
+import importlib
 import logging
 
 import emoji
 import re
 from django.conf import settings
 
-ENTITY_EXTRACTORS = settings.BOT_CONFIG.get("ENTITY_EXTRACTORS", [])
+from botshot.core.parsing.entity_extractor import EntityExtractor
+
+ENTITY_EXTRACTORS = []
+
+
+def register_extractor(extractor):
+    """Registers an entity extractor class."""
+    if isinstance(extractor, str):
+        cls = _get_logger_class(extractor)
+        logging.debug("Registering entity extractor %s", cls)
+        ENTITY_EXTRACTORS.append(cls)
+    elif issubclass(extractor, EntityExtractor):
+        logging.debug("Registering entity extractor %s", extractor)
+        ENTITY_EXTRACTORS.append(extractor)
+    elif isinstance(extractor, EntityExtractor):
+        raise ValueError("Error: Please register entity extractor class instead of instance.")
+    else:
+        raise ValueError("Error: Entity extractor must be a subclass of botshot.core.parsing.entity_extractor.EntityExtractor")
+
+
+def _get_logger_class(classname):
+    package, classname = classname.rsplit('.', maxsplit=1)
+    module = importlib.import_module(package)
+    return getattr(module, classname)
+
+
+for classname in settings.BOT_CONFIG.get("ENTITY_EXTRACTORS", []):
+    register_extractor(classname)
 
 
 def add_default_extractors():
@@ -12,7 +40,7 @@ def add_default_extractors():
     if "WIT_TOKEN" in settings.BOT_CONFIG:
         logging.warning("Adding wit extractor from wit token")
         from botshot.core.parsing import wit_extractor
-        ENTITY_EXTRACTORS.append(wit_extractor.WitExtractor(settings.BOT_CONFIG['WIT_TOKEN']))
+        ENTITY_EXTRACTORS.append(wit_extractor.WitExtractor)
 
 
 add_default_extractors()
