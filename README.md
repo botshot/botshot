@@ -1,6 +1,13 @@
 # Botshot chatbot framework
 
-![PyPI](https://img.shields.io/pypi/v/django-golem.svg)
+![PyPI](https://img.shields.io/pypi/v/botshot.svg)
+![PyPI - Status](https://img.shields.io/pypi/status/botshot.svg)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/botshot.svg)
+![GitHub last commit](https://img.shields.io/github/last-commit/the-bots/botshot.svg)
+![Read the Docs](https://img.shields.io/readthedocs/botshot.svg)
+![GitHub](https://img.shields.io/github/license/the-bots/botshot.svg)
+
+<!-- ![PyPI - Django Version](https://img.shields.io/pypi/djversions/botshot.svg) -->
 
 <p align="center">
 <img src="https://www.praguevisitor.eu/wp-content/uploads/2018/03/Golem.jpg" width="300"/>
