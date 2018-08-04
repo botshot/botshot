@@ -23,6 +23,7 @@ APPS_STR = """
     'botshot.webgui',
 """
 
+
 def process_template(text, app_name):
     return text.replace("{APP_NAME}", app_name)
 
@@ -133,7 +134,28 @@ def start(djangoapp):
     print('')
 
 
+def _yesno(query):
+    reply = input(query)
+    while True:
+        reply = reply.strip()
+        if reply in ["y", "Y"]:
+            return True
+        elif reply in ["n", "N"]:
+            return False
+        else:
+            reply = input("Invalid input. Please reply either y or n.")
+
+
 def main():
+
+    if sys.version_info >= (3, 7):
+        ok = _yesno("Warning: Python 3.7 is not supported yet due to Celery dependency. Do you want to continue? [y/n]")
+        if not ok:
+            exit(1)
+    elif sys.version_info < (3, 5):
+        print("Your Python version is not supported. Please update to Python 3.5 or 3.6.")
+        exit(1)
+
     argp = argparse.ArgumentParser(description="Botshot framework configuration utility")
     argp.add_argument('command', nargs=1, type=str, help="One of: init, start, help")
     argp.add_argument('djangoapp', nargs='?', help="Name of your django app.")
