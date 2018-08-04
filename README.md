@@ -13,23 +13,23 @@
 <img src="https://www.praguevisitor.eu/wp-content/uploads/2018/03/Golem.jpg" width="300"/>
 </p>
 
-#### Botshot is a python framework for building chatbots for Messenger, Telegram and other platforms.
+#### Botshot is a Python/Django framework for building stateful chatbots.
 
-It differs from other bot frameworks by giving a concrete structure to the conversation.
+With Botshot, you can build complex chatbots that remember past conversations.
 
-What it can do:
+Botshot can:
 - __Receive messages__ from __Messenger__ and __Telegram__ (Actions on Google coming soon)
-- __Extract entities__ from these messages, for example using [Wit.ai](http://wit.ai)
+- __Extract entities__ from these messages using your favorite **NLU** service
   - e.g. "Show me the best concert" -> *intent:* recommend, *query:* concert
-- __Keep track of the history__ of all entity values in the *context*
+- __Keep track of the history__ of all entities in the *context*
 - __Move between different states__ of the conversation based on intent and other entities
-- Call your functions for each state and __send messages__ and media back to the user
-- It supports any language supported by Wit (English is recommended)
-- It has a __web chat GUI__ for easy testing
+- __Send messages__ and media back to the user
+<!-- - It's __language independent__ -->
+<!-- - It has a __web chat GUI__ for easy testing -->
 
 ## Getting started
 
-Just install the package and run our `golm` init script that will take care of initial configuration.
+Just install the package and run our `bots` init script.
 ```bash
 pip3 install botshot
 bots init my-bot
@@ -43,9 +43,9 @@ You may also want to configure NLU, chat integrations and analytics, see the doc
 
 ## Docs
 
-It's very easy to get started!
+It's quite easy to get started!
 
-Find out how to make your own bot on the **[Wiki](https://github.com/the-bots/botshot/wiki)**.
+Find out how to make your own bot in the **[Docs](https://botshot.readthedocs.io)**.
 
 
 ## Authors
