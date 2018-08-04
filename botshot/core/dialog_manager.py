@@ -52,7 +52,7 @@ class DialogManager:
             elif state.endswith(':'):
                 state = state[:-1]  # to avoid infinite loop
 
-            self.move_to(state, initializing=True)
+            self._move_to(state, initializing=True)
             context_string = self.db.hget('session_context', self.session.chat_id)
             context_dict = json.loads(context_string.decode('utf-8'), object_hook=json_deserialize)
         else:
@@ -132,7 +132,7 @@ class DialogManager:
 
                 entity_values = self._get_entity_value_tuples(entities)
                 if self.get_state().is_supported(entity_values):
-                    self.run_accept(save_identical=True)
+                    self._run_accept(save_identical=True)
                     self.save_state()
                 else:
                     # run 'unsupported' action of the state
@@ -216,7 +216,7 @@ class DialogManager:
             return True
         return False
 
-    def run_accept(self, save_identical=False):
+    def _run_accept(self, save_identical=False):
         """Runs action of the current state."""
         state = self.get_state()
         if self.current_state_name != 'default.root' and not state.check_requirements(self.context):
@@ -237,13 +237,13 @@ class DialogManager:
         # send a response if given in return value
         if retval and not isinstance(retval, str):
             raise ValueError("Error: Action must return either None or a state name.")
-        self.move_to(retval)
+        self._move_to(retval)
 
     def _check_state_transition(self):
         """Checks if entity _state was received in current message (and moves to the state)"""
         new_state_name = self.context._state.get_value(this_msg=True)
         if new_state_name is not None:
-            return self.move_to(new_state_name)
+            return self._move_to(new_state_name)
         return False
 
     def _check_intent_transition(self, entities: dict):
@@ -274,7 +274,7 @@ class DialogManager:
             return False
 
         logging.info('Moving based on intent %s...' % intent)
-        return self.move_to(new_state_name + ":")  # : runs the action
+        return self._move_to(new_state_name + ":")  # : runs the action
 
     def _check_entity_transition(self, entities: dict):
         """ Checks if entity was parsed from current message (and moves if associated state exists)"""
@@ -297,7 +297,7 @@ class DialogManager:
 
         if new_state_name:
             logging.info("Moving by entity")
-            return self.move_to(new_state_name + ":")
+            return self._move_to(new_state_name + ":")
 
         return False
 
@@ -313,7 +313,7 @@ class DialogManager:
         flow = self.get_flow(flow_name)
         return flow.get_state(state_name) if flow else None
 
-    def move_to(self, new_state_name, initializing=False, save_identical=False):
+    def _move_to(self, new_state_name, initializing=False, save_identical=False):
         """Moves to a state by its full name."""
         logging.info("Trying to move to {}".format(new_state_name))
 
@@ -355,10 +355,10 @@ class DialogManager:
                     logging.info("Moving from {} to {} and executing action".format(
                         previous_state, new_state_name
                     ))
-                    self.run_accept()
+                    self._run_accept()
                 elif action:
                     logging.info("Staying in state {} and executing action".format(previous_state))
-                    self.run_accept()
+                    self._run_accept()
                 elif previous_state != new_state_name:
                     logging.info("Moving from {} to {} and doing nothing".format(previous_state, new_state_name))
                 else:
