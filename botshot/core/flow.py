@@ -106,15 +106,17 @@ class State:
             try:
                 rel_module, fn_name = action.rsplit(".", maxsplit=1)
                 try:
+                    # try to import as relative path
+                    module = importlib.import_module(rel_module)
+                except:
+                    # try to import as absolute path
                     abs_module = relpath + "." + rel_module
                     module = importlib.import_module(abs_module)
-                except:
-                    module = importlib.import_module(rel_module)
 
                 fn = getattr(module, fn_name)
                 return fn
             except Exception as e:
-                raise ValueError("Action {} is undefined, malformed or couldn't be imported".format(action)) from e
+                raise Exception("An error occurred while importing action {}. See the exception above.".format(action)) from e
         elif isinstance(action, dict):
             # load a static action, such as text or image
             return State.make_default_action(action)
