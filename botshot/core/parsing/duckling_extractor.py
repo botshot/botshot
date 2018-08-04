@@ -12,8 +12,10 @@ class DucklingExtractor(EntityExtractor):
 
     def __init__(self):
         super().__init__()
-        self.duckling_url = settings.BOT_CONFIG['DUCKLING_URL']
-        self.language = settings.BOT_CONFIG['DUCKLING_LANGUAGE']
+        self.duckling_url = settings.BOT_CONFIG.get('DUCKLING_URL')
+        self.language = settings.BOT_CONFIG.get('DUCKLING_LANGUAGE', "en_US")
+        if not self.duckling_url:
+            raise ValueError("Duckling URL not set! Please set it as settings.BOT_CONFIG['DUCKLING_URL'].")
 
     def extract_entities(self, text: str, max_retries=1):
         """

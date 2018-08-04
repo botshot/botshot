@@ -58,10 +58,10 @@ def register_logger(logger):
     if isinstance(logger, str):
         cls = _get_logger_class(logger)
         logging.debug("Registering logger %s", cls)
-        MESSAGE_LOGGERS.append(cls)
+        MESSAGE_LOGGERS.append(cls())
     elif issubclass(logger, MessageLogger):
         logging.debug("Registering logger %s", logger)
-        MESSAGE_LOGGERS.append(logger)
+        MESSAGE_LOGGERS.append(logger())
     elif isinstance(logger, MessageLogger):
         raise ValueError("Error: Please register logger class instead of instance.")
     else:

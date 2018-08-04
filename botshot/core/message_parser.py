@@ -15,10 +15,10 @@ def register_extractor(extractor):
     if isinstance(extractor, str):
         cls = _get_logger_class(extractor)
         logging.debug("Registering entity extractor %s", cls)
-        ENTITY_EXTRACTORS.append(cls)
+        ENTITY_EXTRACTORS.append(cls())
     elif issubclass(extractor, EntityExtractor):
         logging.debug("Registering entity extractor %s", extractor)
-        ENTITY_EXTRACTORS.append(extractor)
+        ENTITY_EXTRACTORS.append(extractor())
     elif isinstance(extractor, EntityExtractor):
         raise ValueError("Error: Please register entity extractor class instead of instance.")
     else:
@@ -37,10 +37,10 @@ for classname in settings.BOT_CONFIG.get("ENTITY_EXTRACTORS", []):
 
 def add_default_extractors():
     # compatibility for old chatbots
-    if "WIT_TOKEN" in settings.BOT_CONFIG:
+    if "WIT_TOKEN" in settings.BOT_CONFIG and "ENTITY_EXTRACTORS" not in settings.BOT_CONFIG:
         logging.warning("Adding wit extractor from wit token")
         from botshot.core.parsing import wit_extractor
-        ENTITY_EXTRACTORS.append(wit_extractor.WitExtractor)
+        ENTITY_EXTRACTORS.append(wit_extractor.WitExtractor())
 
 
 add_default_extractors()

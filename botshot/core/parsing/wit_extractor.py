@@ -15,9 +15,9 @@ class WitExtractor(EntityExtractor):
     def __init__(self):
         super().__init__()
         self.log = logging.getLogger()
-        self.wit_token = settings.BOT_CONFIG['WIT_TOKEN']
+        self.wit_token = settings.BOT_CONFIG.get('WIT_TOKEN')
         if not self.wit_token:
-            raise ValueError("Wit token not found!")
+            raise ValueError("Wit token not set! Please set it as settings.BOT_CONFIG['WIT_TOKEN'].")
         self.cache_key = 'wit_cache'
         self.cache = settings.BOT_CONFIG.get('WIT_ENABLE_CACHE', True)
         # self.clear_wit_cache()
@@ -34,8 +34,8 @@ class WitExtractor(EntityExtractor):
             entities = self._process_wit_entities(entities)
             self.save_to_cache(text, entities)
             return entities
-        except Exception as e:
-            self.log.exception('Wit error:', e)
+        except Exception:
+            self.log.exception('Wit error:')
             return self.extract_entities(text, max_retries - 1)
 
     def _process_wit_entities(self, entities: dict):
