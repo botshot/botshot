@@ -43,8 +43,33 @@
                             </div>
 
                         {% elif m.message.attachment.payload.template_type == 'generic' %}
-                            <!-- List template -->
-                            <div class="template-message">
+                            <!-- Horizontal (Carousel) template -->
+                            <div class="template-message carousel-template">
+                            {% for e in m.message.attachment.payload.elements %}
+                                <div class="template-element">
+                                    <img src="{{ e.image_url }}"
+                                         onerror="this.onerror=null;this.src='https://placehold.it/250x150'"/>
+                                    <h3>{{ e.title }}</h3>
+                                    <p>{{ e.subtitle }}</p>
+                                    <div class="buttons">
+                                    {% for b in e.buttons %}
+                                        {% if b.type == 'web_url' %}
+                                            <button onclick="gourl('{{ b.url }}')">{{ b.title }}</button>
+                                        {% elif b.type == 'postback' %}
+                                            <button onclick="postback('{{ b.title }}', '{{ b.payload}}')">
+                                                {{ b.title }}
+                                            </button>
+                                        {% endif %}
+                                    {% endfor %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            </div>
+
+                        {% elif m.message.attachment.payload.template_type == 'list' %}
+
+                            <!-- Vertical (List) template -->
+                            <div class="template-message list-template">
                             {% for e in m.message.attachment.payload.elements %}
                                 <div class="template-element">
                                     <img src="{{ e.image_url }}"
@@ -382,14 +407,9 @@ color: black;
 
     .template-element {
         width: 250px;
-        {#width: available;#}
         position: relative;
-        {#background: #ececec;#}
-        border: solid 2px #dddddd;
+        border: solid 1px rgb(220,226,231);
         margin: 5px;
-        display: inline;
-{#background: rgb(232,243,254);#}
-{#background: radial-gradient(circle, rgba(232,243,254,1) 0%, rgba(212,233,250,1) 100%);#}
         background: rgb(243,249,254);
     }
 
@@ -426,6 +446,14 @@ color: black;
         height: auto;
         margin-right: auto;
         margin-left: auto;
+    }
+
+    .carousel-template {
+        display: inline-flex;
+    }
+
+    .list-template {
+        display: block;
     }
 
     input[type='submit'] {
