@@ -68,7 +68,7 @@ def accept_schedule_all_users(callback_name):
 
 
 @shared_task
-def accept_schedule_callback(session: dict, callback_name):
+def accept_schedule_callback(session: dict, callback_state):
     session = ChatSession.from_json(session)
     from botshot.core.dialog_manager import DialogManager
     db = get_redis()
@@ -78,9 +78,8 @@ def accept_schedule_callback(session: dict, callback_name):
     parsed = {
         'type': 'schedule',
         'entities': {
-            'intent': '_schedule',
             '_inactive_seconds': inactive_seconds,
-            '_callback_name': callback_name
+            '_state': callback_state
         }
     }
     dialog = DialogManager(session)
@@ -88,7 +87,7 @@ def accept_schedule_callback(session: dict, callback_name):
 
 
 @shared_task
-def accept_inactivity_callback(session: dict, context_counter, callback_name, inactive_seconds):
+def accept_inactivity_callback(session: dict, context_counter, callback_state, inactive_seconds):
     session = ChatSession.from_json(session)
     from botshot.core.dialog_manager import DialogManager
     dialog = DialogManager(session)
@@ -101,9 +100,8 @@ def accept_inactivity_callback(session: dict, context_counter, callback_name, in
     parsed = {
         'type': 'schedule',
         'entities': {
-            'intent': '_inactive',
             '_inactive_seconds': inactive_seconds,
-            '_callback_name': callback_name
+            '_state': callback_state
         }
     }
 

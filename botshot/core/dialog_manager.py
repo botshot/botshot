@@ -155,21 +155,32 @@ class DialogManager:
         # leave logging message to the end so that the user does not wait
         self.logger.log_user_message(message_type, entities, accepted_time, accepted_state)
 
-    def schedule(self, callback_name, at=None, seconds=None):
-        logging.info('Scheduling callback "{}": at {} / seconds: {}'.format(callback_name, at, seconds))
+    def schedule(self, callback_state, at=None, seconds=None):
+        """
+        Schedules a state transition in the future.
+        :param callback_state:  The state to move to.
+        :param at:              A datetime with timezone
+        :param seconds:         An integer, seconds from now
+        """
+        logging.info('Scheduling callback "{}": at {} / seconds: {}'.format(callback_state, at, seconds))
         if at:
             if at.tzinfo is None or at.tzinfo.utcoffset(at) is None:
                 raise Exception('Use datetime with timezone, e.g. "from django.utils import timezone"')
-            accept_schedule_callback.apply_async((self.session.to_json(), callback_name), eta=at)
+            accept_schedule_callback.apply_async((self.session.to_json(), callback_state), eta=at)
         elif seconds:
-            accept_schedule_callback.apply_async((self.session.to_json(), callback_name), countdown=seconds)
+            accept_schedule_callback.apply_async((self.session.to_json(), callback_state), countdown=seconds)
         else:
             raise Exception('Specify either "at" or "seconds" parameter')
 
-    def inactive(self, callback_name, seconds):
-        logging.info('Setting inactivity callback "{}" after {} seconds'.format(callback_name, seconds))
+    def inactive(self, callback_state, seconds):
+        """
+        Schedules a state transition in the future, if the user doesn't say anything until then.
+        :param callback_state:  The state to move to.
+        :param seconds:         An integer, seconds from now
+        """
+        logging.info('Setting inactivity callback "{}" after {} seconds'.format(callback_state, seconds))
         accept_inactivity_callback.apply_async(
-            (self.session.to_json(), self.context.counter, callback_name, seconds),
+            (self.session.to_json(), self.context.counter, callback_state, seconds),
             countdown=seconds)
 
     def save_inactivity_callback(self):
@@ -453,10 +464,14 @@ class DialogManager:
 
         # add tuples (name, value)
         for name, values in entities.items():
-            if include and name not in include:
-                continue
-            for value in values:
-                if 'value' in value:
-                    entity_set.add((name, value['value']))
+            try:
+                if include and name not in include:
+                    continue
+                for value in values:
+                    if 'value' in value:
+                        entity_set.add((name, value['value']))
+            except Exception:
+                # someone set this entity to something special
+                logging.debug("Skipping entity {} in supported message check".format(name))
 
         return entity_set
