@@ -76,6 +76,9 @@ class DialogManager:
             try:
                 with open(os.path.join(settings.BASE_DIR, filename)) as f:
                     file_flows = yaml.load(f)
+                    if not file_flows:
+                        logging.warning("Skipping empty flow definition {}".format(filename))
+                        break
                     for flow in file_flows:
                         if flow in flows:
                             raise Exception("Error: duplicate flow {}".format(flow))
@@ -83,6 +86,8 @@ class DialogManager:
                         flows[flow]['relpath'] = os.path.dirname(filename)  # directory of relative imports
             except OSError as e:
                 raise ValueError("Unable to open definition {}".format(filename)) from e
+            except TypeError as e:
+                raise ValueError("Unable to read definition {}".format(filename)) from e
         return flows
 
     @staticmethod
