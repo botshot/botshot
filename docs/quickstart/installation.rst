@@ -21,7 +21,7 @@ Running the chatbot
 | First, cd to the chatbot directory you just created.
 | ``cd my_bot``
 | You can now run the chatbot with
-| ``bots run my_bot``.
+| ``bots start my_bot``.
 |
 | The web chat interface should now be running at http://localhost:8000/ .
 | Go ahead and say something to your chatbot!
