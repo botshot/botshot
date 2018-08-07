@@ -16,6 +16,10 @@ BOT_CONFIG = {
     'DEPLOY_URL': os.environ.get('BOTSHOT_DEPLOY_URL', 'http://localhost:8000/'),
     'MSG_LIMIT_SECONDS': 20,
 }
+
+CELERY_BROKER_URL = BOT_CONFIG.get('REDIS_URL').rstrip("/")+'/1'
+CELERY_RESULT_BACKEND =  CELERY_BROKER_URL
+
 """
 
 APPS_STR = """

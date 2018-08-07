@@ -120,8 +120,12 @@ class TextMessage(MessageElement):
         return self.add_quick_reply(quick_reply)
 
     def with_replies(self, replies: Iterable):
-        for reply in replies:
-            self.add_quick_reply(reply)
+        if isinstance(replies, dict):
+            for reply, state in replies.items():
+                self.create_quick_reply(reply, payload={'_state': state})
+        else:
+            for reply in replies:
+                self.add_quick_reply(reply)
         return self
 
     def with_buttons(self, buttons: Iterable):

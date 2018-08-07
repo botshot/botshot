@@ -1,5 +1,6 @@
 import redis
 from django.conf import settings
+from urllib.parse import urlparse
 
 _connection_pool = None
 _redis = None
@@ -9,11 +10,15 @@ def get_redis():
     global _connection_pool
     global _redis
     if not _connection_pool:
-        config = settings.BOT_CONFIG.get('REDIS')
+        redis_url = settings.BOT_CONFIG.get('REDIS_URL')
+        if not redis_url:
+            raise Exception('REDIS_URL cannot be blank')
+        redis_url_parsed = urlparse(redis_url)
+
         _connection_pool = redis.ConnectionPool(
-            host=config['HOST'],
-            port=config['PORT'],
-            password=config['PASSWORD'],
+            host=redis_url_parsed.hostname,
+            port=redis_url_parsed.port,
+            password=redis_url_parsed.password,
             db=0,
             max_connections=2
         )
