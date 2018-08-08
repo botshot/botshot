@@ -1,9 +1,10 @@
-{% load staticfiles %}
 <!DOCTYPE html>
+{% load staticfiles %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="static/css/webchat_login.css">
     <title>Welcome</title>
 </head>
 <body>
@@ -41,80 +42,4 @@
         });
     });
 </script>
-<style>
-    @import url('https://fonts.googleapis.com/css?family=Montserrat:500,700');
-    @import url('https://fonts.googleapis.com/css?family=Ubuntu:400,500|Raleway:800');
-
-    body {
-        background-color: #eeeeee;
-    }
-
-    #login-box {
-        background-color: #ffffff;
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        margin: auto;
-        width: 50vh;
-        height: 50vh;
-        box-shadow: 0px 0px 50px #e0e0e0;
-    }
-
-    #login-inner {
-        width: 100%;
-        height: 100%;
-        margin: 10%;
-    }
-
-    #login-title {
-        color: #0060ff;
-        font-family: 'Raleway', sans-serif;
-        font-weight: 800;
-    }
-
-    #login-text {
-        color: #8c8c8c;
-        font-family: 'Ubuntu', sans-serif;
-        font-weight: 400;
-    }
-
-    .text-input {
-        background: white;
-        border: none;
-        padding: 10px;
-        border-bottom: 2px solid #f0f0f0;
-        position: relative;
-        width: 80%;
-        margin: 20% auto auto;
-        font-family: 'Ubuntu', sans-serif;
-        font-size: 1.2em;
-    }
-
-    .text-input:focus {
-        outline: none;
-        border-bottom: 2px solid black;
-        -webkit-transition: border-color 200ms ease;
-        -moz-transition: border-color 200ms ease;
-        -ms-transition: border-color 200ms ease;
-        -o-transition: border-color 200ms ease;
-        transition: border-color 200ms ease;
-    }
-
-    .material-button {
-        -webkit-border-radius: 50%;
-        -moz-border-radius: 50%;
-        border-radius: 50%;
-        padding: 16px;
-        position: absolute;
-        margin-top: 36px;
-        margin-right: 16px;
-        right: 10%;
-        bottom: 10%;
-        background-color: #2477e9;
-        box-shadow: 0 5px 5px #e0e0e0;
-        outline: 0;
-    }
-</style>
 </html>
