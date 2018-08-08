@@ -5,7 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="static/css/webchat.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/simplebar/2.6.1/simplebar.min.css">
     <title>Botshot chatbot</title>
+    <noscript>
+        <style>
+        [data-simplebar] {
+            overflow: auto;
+        }
+        </style>
+    </noscript>
 </head>
 <body>
 <div id="header">
@@ -212,4 +220,10 @@
     function logout() {
         window.location = "{% url 'do_logout' %}"
     }
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/simplebar/2.6.1/simplebar.min.js"></script>
+
+<script type="text/javascript">
+    var simplebar = new SimpleBar(document.getElementById('list_wrap'))
 </script>
