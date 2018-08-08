@@ -1,9 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import argparse
 import signal
 import subprocess
 import sys
 import os
+from django.core.management import execute_from_command_line
+from shutil import copyfile
+import time
+import atexit
 
 CONFIG_STR = """
 import os
@@ -27,20 +31,17 @@ APPS_STR = """
     'botshot.webgui',
 """
 
+PYTHON_BINARY_PATH = sys.executable
 
-def process_template(text, app_name):
-    return text.replace("{APP_NAME}", app_name)
+BOT_APP_NAME = 'bot'
 
-
-def install_skeleton(dest_dir):
-    if not os.path.isdir(dest_dir):
-        raise ValueError("{} is not a directory".format(dest_dir))
+def install_skeleton(project_app_dir):
+    if not os.path.isdir(project_app_dir):
+        raise ValueError("{} is not a directory".format(project_app_dir))
 
     src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'botshot/bootstrap'))
 
     print('Installing botshot files from {}'.format(src_dir))
-
-    app_name = os.path.basename(os.path.normpath(dest_dir))
 
     for root, dirs, files in os.walk(src_dir):
 
@@ -48,7 +49,7 @@ def install_skeleton(dest_dir):
         rel_dir = os.path.relpath(root, src_dir)
 
         for name in dirs:
-            dest = os.path.join(dest_dir, rel_dir, name)
+            dest = os.path.join(project_app_dir, rel_dir, name)
             print("Create", dest)
             os.mkdir(dest, 0o755)
 
@@ -58,85 +59,96 @@ def install_skeleton(dest_dir):
             new_name = name.rsplit('.tpl', 1)[0]
 
             src = os.path.join(root, name)
-            dest = os.path.join(dest_dir, rel_dir, new_name)
+            dest = os.path.join(project_app_dir, rel_dir, new_name)
             print("Copy", src, dest)
-
-            with open(src, 'r') as f:
-                file_content = process_template(f.read(), app_name)
-            with open(dest, 'w') as f:
-                f.write(file_content)
+            copyfile(src, dest)
 
     print("Adding settings.py imports ...")
-    with open(os.path.join(dest_dir, "settings.py"), "r") as f:
+    with open(os.path.join(project_app_dir, "settings.py"), "r") as f:
         settings_content = f.read()
     # \n is converted by stdlib, stay calm
-    settings_content = process_template(CONFIG_STR, app_name) + "\n" + settings_content
+    settings_content = CONFIG_STR + "\n" + settings_content
 
     idx = settings_content.find("INSTALLED_APPS")
     idx = settings_content.find("\n", idx)
     settings_content = settings_content[:idx] + APPS_STR + settings_content[idx:]
 
-    with open(os.path.join(dest_dir, "settings.py"), "w") as f:
+    with open(os.path.join(project_app_dir, "settings.py"), "w") as f:
         f.write(settings_content)
 
 
-def init_project(bot_name=None):
-    import botshot.bootstrap
+def init_project(project_path):
+    if not project_path:
+        # TODO: Should be handled in the future by required argparse attribute
+        raise AttributeError('Project path cannot be null.')
 
-    if not bot_name:
-        bot_name = input("How do you want to call your chatbot?\n")
+    print("Creating Botshot project in {} ...".format(project_path))
 
-    print("Creating Botshot project in {} ...".format(bot_name))
+    try:
+        os.makedirs(project_path, exist_ok=False)
+    except FileExistsError:
+        print("Error: Project directory already exists: {}".format(project_path))
 
-    retval = subprocess.call(['django-admin', 'startproject', bot_name])
+    retval = subprocess.call(['django-admin', 'startproject', BOT_APP_NAME, project_path])
     # TOOD print output to stdout+stderr
 
     if retval != 0:
         print("Error: Can't create django project!")
         exit(1)
 
-    print("Creating skeleton project ...")
+    print("Copying project files...")
     # install skeleton to django project module
-    project_path = os.path.abspath(os.path.join(os.getcwd(), bot_name, bot_name))
-    install_skeleton(project_path)
+    project_app_path = os.path.abspath(os.path.join(project_path, BOT_APP_NAME))
+    install_skeleton(project_app_path)
 
-    print("Running django migrate ...")
-    # TODO: which python version should we call? can we call this programmatically?
-    #retval = subprocess.call(['python3', './manage.py', 'migrate'])
-    #if retval != 0:
-    #    print("Error in manage.py migrate", file=sys.stderr)
-    #    exit(1)
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", BOT_APP_NAME + ".settings")
+
+    print("Initializing database ...")
+    sys.path.append(project_path)
+    execute_from_command_line(['_', 'migrate'])
 
     print("Everything looks OK!")
-    print("You can start the server inside the directory with: botshot start [django-app]")
+    print("You can start the server inside the directory with: botshot start")
 
+PROCESSES = {}
 
-def start(djangoapp):
-    # TODO handle errors
+def start_subprocess(name, args):
+    if name in PROCESSES:
+        raise AttributeError('Name {} already found in PROCESSES.'.format(name))
+    PROCESSES[name] = subprocess.Popen(args)
 
-    print("Starting Redis database ...")
-    redis = subprocess.Popen(["redis-server"])
+def start():
+    atexit.register(exit_and_close)
 
-    print("Starting Celery ...")
-    django = subprocess.Popen(["celery", "-A", djangoapp, "worker"])
+    start_subprocess('Redis Database', ["redis-server"])
+    start_subprocess('Celery Worker', ["celery", "-A", BOT_APP_NAME, "worker"])
+    start_subprocess('Django Webserver', [PYTHON_BINARY_PATH, "./manage.py", "runserver"])
 
-    print("Starting Django ...")
-    # TODO: which python should we call? can we call this programmatically?
-    celery = subprocess.Popen(["python3", "./manage.py", "runserver"])
-
+    # Wait for first finished process (or for user's interruption)
     while True:
         try:
-            c = sys.stdin.read(1)
+            for name, proc in PROCESSES.items():
+                exit_code = proc.poll()
+                if exit_code is not None:
+                    print('{} exited.'.format(name))
+                    sys.exit(1)
+            time.sleep(1)
         except KeyboardInterrupt:
-            break
+            sys.exit(1)
 
-    print("Stopping ...")
-    os.kill(celery.pid, signal.SIGTERM)
-    os.kill(django.pid, signal.SIGTERM)
-    os.kill(redis.pid, signal.SIGTERM)
+def exit_and_close():
+    print("Stopping...")
+    for name, proc in PROCESSES.items():
+        try:
+            os.kill(proc.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
     # Newline to show that we are finished
-    print('')
-
+    time.sleep(0.2)
+    print('-'*80)
+    print('Botshot stopped.')
+    print('-'*80)
+    exit(1)
 
 def _yesno(query):
     reply = input(query)
@@ -170,10 +182,7 @@ def main():
     if command == 'init':
         init_project(args.djangoapp)
     elif command == 'start':
-        if args.djangoapp is None:
-            argp.error("Django app name must be specified.")
-        djangoapp = args.djangoapp
-        start(djangoapp)
+        start()
     elif command == 'help':
         argp.print_help()
         exit(0)
