@@ -27,12 +27,9 @@ class WebGuiInterface:
     @staticmethod
     def post_message(session, response):
         uid = session.meta.get("uid")
-        WebGuiInterface.messages.append(response)
-        message = WebMessageData()
-        message.uid = uid
-        message.is_response = True
-        message.data = json.dumps(response.to_response())
-        message.save()
+        data = json.dumps(response.to_response())
+
+        WebMessageData.objects.create(uid=uid, is_response=True, data=data)
 
     @staticmethod
     def send_settings(settings):

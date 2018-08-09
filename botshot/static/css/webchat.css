@@ -35,8 +35,7 @@ body {
     position: -webkit-sticky;
     margin-top: auto;
     bottom: 0;
-    padding-bottom: 10px;
-    background-color: white;
+    /*background-color: white;*/
     z-index: 100;
 }
 
@@ -74,17 +73,33 @@ body {
     background-color: #eaeaea;
 }
 
-.message_container {
+.message-wrap {
     font-family: 'Oxygen', sans-serif;
     font-weight: 400;
-    margin: 5px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    display: block;
     clear: both;
+}
+
+.message-wrap:after {
+    content: "";
+    clear: both;
+}
+
+.bot-message {
+    float: left;
+}
+
+.user-message {
+    float: right;
 }
 
 .time {
     color: #8c8c8c;
     font-weight: 400;
     font-size: small;
+    display: block;
 }
 
 #form_msg {
@@ -102,12 +117,7 @@ body {
     display: inline-block;
 }
 
-.msg {
-    position: relative;
-    display: inline-block;
-}
-
-.msg > .text {
+.message > .text {
     background-color: #00d1eb;
     color: white;
     padding: 8px;
@@ -128,6 +138,10 @@ body {
     line-height: 200%;
 }
 
+.right-bubble {
+    float: right;
+}
+
 .right-bubble:after {
     content: "";
     width: 0;
@@ -143,23 +157,24 @@ body {
 }
 
 .left-bubble {
-
+    float: left;
 }
 
-.msg + .time {
-    display: none;
-    background-color: transparent;
-}
-
-.msg:hover + .time {
-
-    display: inline-block;
-    position: relative;
-    background-color: #bbbbbb;
-    color: white;
-    padding: 10px;
-    border-radius: 8px;
-}
+/*.message-wrap + .time {*/
+    /*display: none;*/
+    /*background-color: transparent;*/
+/*}*/
+/**/
+/*.message-wrap:hover + .time {*/
+/**/
+    /*display: inline-block;*/
+    /*position: absolute;*/
+    /*background-color: #bbbbbb;*/
+    /*color: white;*/
+    /*padding: 10px;*/
+    /*border-radius: 8px;*/
+    /*z-index: 100;*/
+/*}*/
 
 .quick-replies > button {
     background-color: #f0f0f0;
@@ -191,10 +206,14 @@ color: black;
 
 .template-element {
     width: 250px;
-    position: relative;
     border: solid 1px rgb(220,226,231);
     margin: 5px;
     background: rgb(243,249,254);
+    white-space: normal;
+}
+
+.carousel-element {
+    display: inline-block;
 }
 
 .template-element > img {
@@ -225,19 +244,34 @@ color: black;
 }
 
 .template-message {
-    width: 100%;
-    display: inline-flex;
+    /*display: flex;*/
+    white-space: nowrap;
+    flex-wrap: nowrap;
     height: auto;
     margin-right: auto;
     margin-left: auto;
+    overflow: hidden;
+    width: 100%;
 }
 
 .carousel-template {
-    display: inline-flex;
+    overflow-x: scroll;
 }
 
 .list-template {
     display: block;
+}
+
+#form_msg {
+    background-color: #0d6ceb;
+    padding-bottom: 10px;
+    padding-top: 10px;
+    margin-top: 10px;
+    box-shadow: 0 -5px 10px #cccccc;
+}
+
+#form_msg > label {
+    display: none;
 }
 
 input[type='submit'] {
@@ -248,45 +282,33 @@ input[type='submit'] {
     color: #222222;
     border: none;
     border-radius: 2px;
-    padding: 12px;
-    box-shadow: 0 5px 10px #aaaaaa;
+    padding: 10px 15px;
     outline: 0;
 }
 
 input[type='submit']:focus, input[type='submit']:hover {
     background-color: #eaeaea;
-    box-shadow: 0 5px 10px #777777;
 }
 
 input[type="text"] {
     padding: 10px;
     border: none;
-    border-bottom: 1px solid #bcbcbc;
+    margin-left: 10px;
     font-family: "Roboto", 'sans-serif';
     background-color: white;
-    box-shadow: 0 3px 10px #aaaaaa;
     color: #777777;
-    -webkit-transition: box-shadow 0.3s, border 0.3s;
-    -moz-transition: box-shadow 0.3s, border 0.3s;
-    -ms-transition: box-shadow 0.3s, border 0.3s;
-    -o-transition: box-shadow 0.3s, border 0.3s;
-    transition: box-shadow 0.3s, border 0.3s;
+    box-shadow: 0 0 1px #aaaaaa;
     width: 90%;
 }
 
-#form_msg > label {
-    color: transparent;
-}
-
 input[type="text"]:focus {
-    border-bottom: 2px solid #00d1eb;
+    border-bottom: 5px solid #00d1eb;
     color: #222222;
-    background-color: white;
-    box-shadow: 0 3px 1px #aaaaaa;
     outline: none;
-    -webkit-transition: border 0.3s;
-    -moz-transition: border 0.3s;
-    -ms-transition: border 0.3s;
-    -o-transition: border 0.3s;
-    transition: border 0.3s;
+
+    -webkit-transition: border-bottom-width 200ms;
+    -moz-transition: border-bottom-width 200ms;
+    -ms-transition: border-bottom-width 200ms;
+    -o-transition: border-bottom-width 200ms;
+    transition: border-bottom-width 200ms;
 }
