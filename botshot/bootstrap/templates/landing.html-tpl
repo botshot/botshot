@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My chatbot landing page</title>
+</head>
+<body>
+Hello World! <a href="/chat/">Let's chat!</a>
+</body>
+</html>
