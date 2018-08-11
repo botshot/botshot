@@ -1,3 +1,4 @@
+
 # Botshot chatbot framework
 
 ![PyPI](https://img.shields.io/pypi/v/botshot.svg)
@@ -8,10 +9,10 @@
 ![GitHub](https://img.shields.io/github/license/the-bots/botshot.svg)
 
 <!-- ![PyPI - Django Version](https://img.shields.io/pypi/djversions/botshot.svg) -->
-
-<p align="center">
-<img src="https://raw.githubusercontent.com/botshot/botshot/devel/docs/images/botshot.png" height="200"/>
+<p>
+<img src="https://raw.githubusercontent.com/botshot/botshot/devel/docs/images/botshot.png" height="100"/>
 </p>
+
 
 #### Botshot is a Python/Django framework for building stateful chatbots.
 
