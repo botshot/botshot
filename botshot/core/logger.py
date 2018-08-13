@@ -76,9 +76,6 @@ def _get_logger_class(classname):
 
 try:
     for item in settings.BOT_CONFIG.get("MESSAGE_LOGGERS", []):
-        package, classname = item.rsplit('.', maxsplit=1)
-        module = importlib.import_module(package)
-        cls = getattr(module, classname)
-        register_logger(cls)
+        register_logger(item)
 except Exception as ex:
     raise ValueError("Error registering message loggers, is your configuration correct?") from ex
