@@ -115,5 +115,8 @@ class MessageLogList(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        chat_id = self.kwargs['chat_id']
-        return MessageLog.objects.order_by('-time','-pk').filter(chat_id=chat_id)
+        queryset = MessageLog.objects.order_by('-time','-pk')
+        chat_id = self.kwargs.get('chat_id')
+        if chat_id:
+            queryset = queryset.filter(chat_id=chat_id)
+        return queryset

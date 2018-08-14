@@ -18,7 +18,7 @@ urlpatterns = [
 
     url(r'^log/?$', views.log),
     url(r'^log/chats/?$', views.ChatLogViewSet.as_view({'get': 'list'})),
-    url(r'^log/messages/(?P<chat_id>[a-zA-Z_0-9]+)/?$', views.MessageLogList.as_view())
+    url(r'^log/messages/(?P<chat_id>[a-zA-Z_0-9]*)/?$', views.MessageLogList.as_view())
 
     #url(r'^log/?$', views.log),
     #url(r'^log/users/?$', views.log_users),
