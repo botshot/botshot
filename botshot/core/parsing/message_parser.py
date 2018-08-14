@@ -9,7 +9,6 @@ from botshot.core.parsing.entity_extractor import EntityExtractor
 
 ENTITY_EXTRACTORS = []
 
-
 def register_extractor(extractor):
     """Registers an entity extractor class."""
     if isinstance(extractor, str):

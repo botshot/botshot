@@ -1,7 +1,6 @@
 import json
 
 from botshot.core.responses.responses import MessageElement, _get_payload_string
-from botshot.core.serialize import json_serialize
 
 
 class QuickReply(MessageElement):
@@ -13,16 +12,6 @@ class QuickReply(MessageElement):
         self.title = title
         self.payload = payload
         self.image_url = image_url
-
-    def to_response(self):
-        response = {
-            "content_type": 'text',
-            'title': self.title[:20],
-            'payload': json.dumps(self.payload if self.payload else {}, default=json_serialize)
-        }
-        if self.image_url:
-            response['image_url'] = self.image_url
-        return response
 
     def __str__(self):
         text = 'quick_reply: '
@@ -41,9 +30,6 @@ class LocationQuickReply(QuickReply):
 
     def __init__(self):
         super().__init__()
-
-    def to_response(self):
-        return {'content_type': 'location'}
 
     def __str__(self):
         return str(super) + " location"

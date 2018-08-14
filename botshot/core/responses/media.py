@@ -7,19 +7,3 @@ class MediaMessage(MessageElement):
         self.media_type = media_type
         self.allow_cache = allow_cache
         self.buttons = buttons or []
-
-    def to_response(self):
-        return {
-            "attachment": {
-                "type": "template",
-                "payload": {
-                    "template_type": "media",
-                    "elements": [
-                        {
-                            "media_type": self.media_type,
-                            "attachment_id": "<ATTACHMENT_ID>"
-                        }
-                    ]
-                }
-            }
-        }

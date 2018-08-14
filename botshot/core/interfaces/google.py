@@ -1,5 +1,5 @@
 from botshot.core.chat_session import ChatSession, Profile
-from botshot.core.message_parser import parse_text_message
+from botshot.core.parsing.message_parser import parse_text_message
 from botshot.core.persistence import get_redis
 from botshot.core.responses import TextMessage
 from botshot.tasks import accept_user_message

@@ -6,16 +6,15 @@ from django.conf import settings
 
 from botshot.core.chat_session import ChatSession
 from botshot.core.interfaces.adapter.facebook import FacebookAdapter
-from botshot.core.message_parser import parse_text_message
+from botshot.core.parsing.message_parser import parse_text_message
 from botshot.core.persistence import get_redis
 from botshot.core.responses.buttons import *
-from botshot.core.responses.quick_reply import QuickReply
 from botshot.core.responses.responses import *
 from botshot.core.responses.settings import ThreadSetting, GreetingSetting, GetStartedSetting, MenuSetting
-from botshot.core.responses.templates import ListTemplate
 from botshot.core.serialize import json_deserialize
 from botshot.tasks import accept_user_message
-
+from botshot.core.chat_session import Profile
+from botshot.core.serialize import json_serialize
 
 class FacebookInterface():
     name = 'facebook'
@@ -33,29 +32,26 @@ class FacebookInterface():
                 ts_datetime = datetime.datetime.fromtimestamp(int(raw_message['timestamp']) / 1000)
                 crr_datetime = datetime.datetime.utcnow()
                 diff = crr_datetime - ts_datetime
-                if diff.total_seconds() < settings.BOT_CONFIG.get('MSG_LIMIT_SECONDS', 15):
-                    # get and persist user and page ids
-                    logging.debug('Incoming raw FB message: {}'.format(raw_message))
-                    user_id = raw_message['sender']['id']
-                    page_id = entry['id']
-                    chat_id = FacebookInterface.create_chat_id(page_id, user_id)
-                    meta = {"user_id": user_id, "page_id": page_id}
-                    session = ChatSession(FacebookInterface, chat_id, meta=meta)
-                    FacebookInterface.fill_session_profile(session)
-                    # Confirm accepted message
-                    FacebookInterface.post_message(session, SenderActionMessage('mark_seen'))
-                    # Add it to the message queue
-                    accept_user_message.delay(session.to_json(), raw_message)
-                elif raw_message.get('timestamp'):
+                if diff.total_seconds() > settings.BOT_CONFIG.get('MSG_LIMIT_SECONDS', 15):
                     logging.warning("Delay {} too big, ignoring message!".format(diff))
+                    continue
+
+                FacebookInterface._accept_message(entry, raw_message)
 
     @staticmethod
-    def chat_id_to_page_id(chat_id):
-        return chat_id.split('_', maxsplit=1)[0]
-
-    @staticmethod
-    def create_chat_id(page_id, fbid):
-        return "{}_{}".format(page_id, fbid)
+    def _accept_message(entry, raw_message):
+        # get and persist user and page ids
+        logging.debug('Incoming raw FB message: {}'.format(raw_message))
+        user_id = raw_message['sender']['id']
+        page_id = entry['id']
+        meta = {"user_id": user_id, "page_id": page_id}
+        page_user_id = "{}_{}".format(page_id, user_id)
+        profile = FacebookInterface.load_profile(user_id, page_id)
+        session = ChatSession(FacebookInterface, unique_id=page_user_id, meta=meta, profile=profile)
+        # Confirm accepted message
+        FacebookInterface.post_message(session, SenderActionMessage('mark_seen'))
+        # Add it to the message queue
+        accept_user_message.delay(session.to_json(), raw_message)
 
     @staticmethod
     def get_page_token(page_id):
@@ -72,24 +68,37 @@ class FacebookInterface():
     def load_profile(user_id, page_id, cache=True):
 
         db = get_redis()
-        key = 'fb_profile_' + user_id
+        key = 'fb_profile_{}_{}'.format(page_id, user_id)
 
         if not cache or not db.exists(key):
             logging.debug('Loading fb profile...')
 
-            url = "https://graph.facebook.com/v2.6/" + user_id
-            params = {
-                'fields': 'first_name,last_name,profile_pic,locale,timezone,gender',
-                'access_token': FacebookInterface.get_page_token(page_id)
-            }
-            res = requests.get(url, params=params)
-            if not res.status_code == requests.codes.ok:
-                logging.error("ERROR loading FB profile! Response: {}".format(res.text))
-                return {}
+            try:
+                url = "https://graph.facebook.com/v2.6/" + user_id
+                params = {
+                    'fields': 'first_name,last_name,profile_pic,locale,timezone,gender',
+                    'access_token': FacebookInterface.get_page_token(page_id)
+                }
+                res = requests.get(url, params=params)
+                if not res.status_code == requests.codes.ok:
+                    logging.error("ERROR loading FB profile! Response: {}".format(res.text))
+                    return {}
 
-            db.set(key, json.dumps(res.json()), ex=3600 * 24 * 14)  # save value, expire in 14 days
+                response = res.json()
+            except Exception as e:
+                print('Error loading user profile:', e)
+                return None
+            db.set(key, json.dumps(response), ex=3600 * 24 * 14)  # save value, expire in 14 days
+        else:
+            response = json.loads(db.get(key).decode('utf-8'))
 
-        return json.loads(db.get(key).decode('utf-8'))
+        profile = Profile(
+            first_name=response.get("first_name"),
+            last_name=response.get("last_name"),
+            image_url=response.get("profile_pic"),
+            locale=response.get("locale")
+        )
+        return profile
 
     @staticmethod
     def fill_session_profile(session: ChatSession):

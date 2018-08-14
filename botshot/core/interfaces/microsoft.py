@@ -7,7 +7,7 @@ import requests
 from django.conf import settings
 
 from botshot.core.interfaces.adapter.microsoft import MicrosoftAdapter
-from botshot.core.message_parser import parse_text_message
+from botshot.core.parsing.message_parser import parse_text_message
 from botshot.core.persistence import get_redis
 from botshot.tasks import accept_user_message
 

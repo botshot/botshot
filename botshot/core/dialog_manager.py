@@ -11,9 +11,9 @@ from botshot.core.responses.responses import TextMessage
 from botshot.tasks import accept_inactivity_callback, accept_schedule_callback
 from .context import Context
 from .flow import load_flows_from_definitions, State
-from .logger import MessageLogging
+from botshot.core.logging import logging_service
 from .persistence import get_redis
-from .serialize import json_deserialize, json_serialize
+from .serialize import json_deserialize, json_serialize, todict
 from .tests import ConversationTestRecorder
 
 
@@ -23,10 +23,8 @@ class DialogManager:
     def __init__(self, session: ChatSession):
         self.session = session
         self.uid = session.chat_id  # for backwards compatibility
-        self.logger = MessageLogging(self)
         self.db = get_redis()
         self.context = None  # type: Context
-
         self.should_log_messages = settings.BOT_CONFIG.get('SHOULD_LOG_MESSAGES', False)
         self.error_message_text = settings.BOT_CONFIG.get('ERROR_MESSAGE_TEXT')
 
@@ -58,7 +56,7 @@ class DialogManager:
         else:
             self.current_state_name = 'default.root'
             logging.info('Creating new session...')
-            self.logger.log_user(self.session)
+            logging_service.log_user.delay(self.session.chat_id, self.session.to_json())
 
         self.context = Context.from_dict(dialog=self, data=context_dict)  # type: Context
 
@@ -126,6 +124,10 @@ class DialogManager:
 
         logging.info('>>> Processing message')
 
+        logging_service.log_user_message.delay(chat_id=self.session.chat_id, message_type=message_type,
+                                               entities=entities, accepted_time=accepted_time,
+                                               state=accepted_state)
+
         if not self._check_state_transition() \
             and not self._check_intent_transition(entities) \
             and not self._check_entity_transition(entities):
@@ -151,9 +153,6 @@ class DialogManager:
                     self.save_state()
 
         self.session.interface.processing_end(self.session)
-
-        # leave logging message to the end so that the user does not wait
-        self.logger.log_user_message(message_type, entities, accepted_time, accepted_state)
 
     def schedule(self, callback_state, at=None, seconds=None):
         """
@@ -434,6 +433,16 @@ class DialogManager:
             if isinstance(response, str):
                 response = TextMessage(text=response)
 
+            # Schedule logging message
+            try:
+                sent_time = time.time()
+                message_text = response.get_text()
+                message_type = type(response).__name__
+                logging_service.log_bot_message.delay(chat_id=self.session.chat_id, sent_time=sent_time, state=self.current_state_name,
+                                                      message_text=message_text, message_type=message_type, message_dict=todict(response))
+            except Exception as e:
+                print('Error scheduling message log', e)
+
             # Send the response
             self.session.interface.post_message(self.session, response)
 
@@ -441,9 +450,6 @@ class DialogManager:
             if self.recording:
                 ConversationTestRecorder.record_bot_message(response)
 
-        for response in responses:
-            # Log the response
-            self.logger.log_bot_message(response, self.current_state_name)
 
     def send(self, responses):
         """

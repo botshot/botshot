@@ -19,6 +19,9 @@ BOT_CONFIG = {
     "REDIS_URL": os.environ.get('BOTSHOT_REDIS_URL', "redis://localhost:6379/"),
     'DEPLOY_URL': os.environ.get('BOTSHOT_DEPLOY_URL', 'http://localhost:8000/'),
     'MSG_LIMIT_SECONDS': 20,
+    'MESSAGE_LOGGERS': [
+        'botshot.core.logging.db.DbLogger',
+    ]
 }
 
 CELERY_BROKER_URL = BOT_CONFIG.get('REDIS_URL').rstrip("/")+'/1'
@@ -27,8 +30,9 @@ CELERY_RESULT_BACKEND =  CELERY_BROKER_URL
 """
 
 APPS_STR = """
-    'botshot',
-    'botshot.webgui',
+    'botshot.apps.BotshotConfig',
+    'botshot.webchat',
+
 """
 
 PYTHON_BINARY_PATH = sys.executable
@@ -120,8 +124,8 @@ def start_subprocess(name, args):
 def start():
     atexit.register(exit_and_close)
 
-    start_subprocess('Redis Database', ["redis-server"])
-    start_subprocess('Celery Worker', ["celery", "-A", BOT_APP_NAME, "worker"])
+    start_subprocess('Redis Database', ["redis-server", "--loglevel", "warning"])
+    start_subprocess('Celery Worker', ["celery", "-A", BOT_APP_NAME, "worker", "-l", "warn"])
     start_subprocess('Django Webserver', [PYTHON_BINARY_PATH, "./manage.py", "runserver"])
 
     # Wait for first finished process (or for user's interruption)

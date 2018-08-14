@@ -7,10 +7,11 @@ from celery.task.schedules import crontab
 from celery.utils.log import get_task_logger
 from django.conf import settings
 
-from botshot.core import message_logger  # this should register the celery log task
 from botshot.core.chat_session import ChatSession
 from botshot.core.interfaces.all import create_from_name
 from botshot.core.persistence import get_redis
+# Load logging service to be registered by celery
+from botshot.core.logging import logging_service
 
 logger = get_task_logger(__name__)
 
@@ -24,12 +25,6 @@ def accept_user_message(session: dict, raw_message):
     dialog = DialogManager(session)
     parsed = session.interface.parse_message(raw_message)
     _process_message(dialog, parsed)
-
-    should_log_messages = settings.BOT_CONFIG.get('SHOULD_LOG_MESSAGES', False)
-
-    if should_log_messages and 'text' in raw_message:
-        text = raw_message['text']
-        message_logger.on_message.delay(session, text, dialog, from_user=True)
     return True  # FIXME
 
 
