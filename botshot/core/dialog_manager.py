@@ -113,8 +113,7 @@ class DialogManager:
         self.context.counter += 1
 
         entities = self.context.add_entities(entities)
-        # remove keys with empty values
-        entities = {k: v for k, v in entities.items() if v is not None}
+        entities = self._remove_empty_items(entities)
 
         if self.test_record_message(message_type, entities):
             return
@@ -124,7 +123,7 @@ class DialogManager:
         if message_type != 'schedule':
             self.save_inactivity_callback()
 
-        logging.info('>>> Processing message')
+        logging.debug('>>> Processing message')
 
         if not self._check_state_transition() \
             and not self._check_intent_transition(entities) \
@@ -136,6 +135,7 @@ class DialogManager:
                     self.save_state()
                 else:
                     # run 'unsupported' action of the state
+                    logging.debug("Message unsupported")
                     entities['_unsupported'] = [{"value": True}]
 
                     if self.get_state().unsupported:
@@ -166,9 +166,9 @@ class DialogManager:
         if at:
             if at.tzinfo is None or at.tzinfo.utcoffset(at) is None:
                 raise Exception('Use datetime with timezone, e.g. "from django.utils import timezone"')
-            accept_schedule_callback.apply_async((self.session.to_json(), callback_state), eta=at)
+            return accept_schedule_callback.apply_async((self.session.to_json(), callback_state), eta=at)
         elif seconds:
-            accept_schedule_callback.apply_async((self.session.to_json(), callback_state), countdown=seconds)
+            return accept_schedule_callback.apply_async((self.session.to_json(), callback_state), countdown=seconds)
         else:
             raise Exception('Specify either "at" or "seconds" parameter')
 
@@ -265,6 +265,7 @@ class DialogManager:
 
         entity_values = self._get_entity_value_tuples(entities, include=("intent", "_message_text"))
         if self.get_state().is_supported(entity_values):
+            logging.debug("Intent or text supported, no intent transition")
             return False
 
         # move to the flow whose 'intent' field matches intent
@@ -294,6 +295,7 @@ class DialogManager:
         # first check if supported, if yes, abort
         entity_values = self._get_entity_value_tuples(entities)
         if self.get_state().is_supported(entity_values):
+            logging.debug("Entity supported, no entity transition")
             return False
 
         # TODO check states of current flow for 'accepted' first
@@ -326,7 +328,7 @@ class DialogManager:
 
     def _move_to(self, new_state_name, initializing=False, save_identical=False):
         """Moves to a state by its full name."""
-        logging.info("Trying to move to {}".format(new_state_name))
+        logging.debug("Trying to move to {}".format(new_state_name))
 
         # if flow prefix is not present, add the current one
         if isinstance(new_state_name, int):
@@ -475,3 +477,6 @@ class DialogManager:
                 logging.debug("Skipping entity {} in supported message check".format(name))
 
         return entity_set
+
+    def _remove_empty_items(self, entities: dict):
+        return {entity: value for entity, value in entities.items() if value is not None and value != []}
