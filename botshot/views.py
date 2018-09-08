@@ -1,14 +1,13 @@
 import datetime
 import json
 import logging
-import time
-import traceback
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http.response import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.template import loader
+from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import generic
 from django.views.decorators.csrf import csrf_exempt
@@ -17,11 +16,10 @@ from botshot.core.interfaces import init_webhooks
 from botshot.core.interfaces.facebook import FacebookInterface
 from botshot.core.interfaces.microsoft import MicrosoftInterface
 from botshot.core.interfaces.telegram import TelegramInterface
-from botshot.core.persistence import get_redis
 from botshot.core.logging.elastic import get_elastic
-from botshot.core.tests import ConversationTest, ConversationTestRecorder, ConversationTestException, TestLog, \
-    UserTextMessage
-
+from botshot.core.persistence import get_redis
+from botshot.core.tests import ConversationTestRecorder, UserTextMessage, _get_test_modules, _run_test_module, \
+    _run_test_actions
 
 print("Initializing webhooks ...")
 init_webhooks()
@@ -98,9 +96,10 @@ class SkypeView(generic.View):
     def dispatch(self, request, *args, **kwargs):
         return generic.View.dispatch(self, request, *args, **kwargs)
 
-@login_required
+
+@login_required(login_url=reverse_lazy('login'))
 def run_all_tests(request):
-    modules = _get_test_modules('./tests/')
+    modules = _get_test_modules()
 
     print('Running tests: {}'.format(modules))
     tests = []
@@ -114,12 +113,9 @@ def run_all_tests(request):
 
     return JsonResponse(data=tests, safe=False)
 
-def _get_test_modules(path):
-    from os import listdir
-    from os.path import join
-    return sorted([f.replace('.py','') for f in listdir(path) if join(path, f).endswith('.py') and not f.startswith('_')])
 
-@login_required
+# TODO this really needs improvement
+@login_required(login_url=reverse_lazy('login'))
 def test(request):
     db = get_redis()
     results = db.hgetall('test_results')
@@ -158,35 +154,6 @@ def run_test(request, name):
 def run_test_message(request, message):
     return _run_test_actions('message', [UserTextMessage(message)])
 
-def _run_test_module(name, benchmark=False):
-    import importlib
-
-    module = importlib.import_module('tests.'+name)
-    importlib.reload(module)
-
-    result = _run_test_actions(name, module.actions, benchmark=benchmark)
-    test = {'name':name, 'result':result}
-    db = get_redis()
-    db.hset('test_results', name, json.dumps(test))
-    return test
-
-def _run_test_actions(name, actions, benchmark=False):
-    test = ConversationTest(name, actions, benchmark=benchmark)
-    start_time = time.time()
-    report = None
-    try:
-      report = test.run()
-    except Exception as e:
-      log = TestLog.get()
-      fatal = not isinstance(e, ConversationTestException)
-      if fatal:
-        trace = traceback.format_exc()
-        print(trace)
-        log.append(trace)
-      return {'status': 'exception' if fatal else 'failed', 'log':log, 'message':str(e), 'report':report}
-
-    elapsed_time = time.time() - start_time
-    return {'status': 'passed', 'log':TestLog.get(), 'duration':elapsed_time, 'report':report}
 
 def test_record(request):
     response = ConversationTestRecorder.get_result()
@@ -195,7 +162,8 @@ def test_record(request):
     response['Content-Disposition'] = 'attachment; filename=mytest.py'
     return response
 
-@login_required
+
+@login_required(login_url=reverse_lazy('login'))
 def log_tests(request):
 
     es = get_elastic()
@@ -222,7 +190,8 @@ def log_tests(request):
     template = loader.get_template('botshot/log.html')
     return HttpResponse(template.render(context,request))
 
-@login_required
+
+@login_required(login_url=reverse_lazy('login'))
 def log(request, user_limit):
 
     user_limit = int(user_limit) if user_limit else 100
