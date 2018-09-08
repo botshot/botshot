@@ -1,4 +1,4 @@
-from botshot.core.interfaces.all import create_from_prefix
+from botshot.core.interfaces import create_from_prefix
 
 
 class ChatSession:

@@ -9,7 +9,7 @@ from django.conf import settings
 
 from botshot.core import message_logger  # this should register the celery log task
 from botshot.core.chat_session import ChatSession
-from botshot.core.interfaces.all import create_from_name
+from botshot.core.interfaces import create_from_name
 from botshot.core.persistence import get_redis
 
 logger = get_task_logger(__name__)

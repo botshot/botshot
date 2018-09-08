@@ -13,6 +13,7 @@ from django.utils.decorators import method_decorator
 from django.views import generic
 from django.views.decorators.csrf import csrf_exempt
 
+from botshot.core.interfaces import init_webhooks
 from botshot.core.interfaces.facebook import FacebookInterface
 from botshot.core.interfaces.microsoft import MicrosoftInterface
 from botshot.core.interfaces.telegram import TelegramInterface
@@ -20,6 +21,10 @@ from botshot.core.persistence import get_redis
 from botshot.core.logging.elastic import get_elastic
 from botshot.core.tests import ConversationTest, ConversationTestRecorder, ConversationTestException, TestLog, \
     UserTextMessage
+
+
+print("Initializing webhooks ...")
+init_webhooks()
 
 
 class FacebookView(generic.View):
