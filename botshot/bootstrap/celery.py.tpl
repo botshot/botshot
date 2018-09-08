@@ -10,10 +10,8 @@ except ModuleNotFoundError:
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bot.settings')
 
-redis_url = settings.CELERY_BROKER_URL
+app = Celery('bot')
 
-app = Celery('bot', backend='redis', broker=redis_url)
-app.conf.update(BROKER_URL=redis_url,
-                CELERY_RESULT_BACKEND=redis_url)
+app.config_from_object('django.conf:settings', namespace='CELERY')
 
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)

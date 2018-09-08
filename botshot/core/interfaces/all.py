@@ -7,7 +7,7 @@ _interfaces = []
 def add_interface(classname):
     """
     Adds a messaging interface for a messaging platform.
-    :param classname: 
+    :param classname:
     :return:
     """
     import importlib
@@ -28,8 +28,9 @@ def get_interfaces():
     from botshot.core.interfaces.microsoft import MicrosoftInterface
     from botshot.core.interfaces.google import GoogleActionsInterface
     from botshot.core.interfaces.test import TestInterface
+    from botshot.webchat.interface import WebchatInterface
     return [FacebookInterface, TelegramInterface, MicrosoftInterface, GoogleActionsInterface,
-                         TestInterface] + _interfaces
+                         TestInterface, WebchatInterface] + _interfaces
 
 
 def create_from_name(name):
@@ -37,6 +38,7 @@ def create_from_name(name):
     for interface in ifs:
         if interface.name == name:
             return interface
+    raise ValueError('Interface with name "{}" not registered'.format(name))
 
 
 def create_from_prefix(prefix):
@@ -44,11 +46,7 @@ def create_from_prefix(prefix):
     for interface in ifs:
         if interface.prefix == prefix:
             return interface
-
-
-def create_from_chat_id(chat_id):
-    prefix = chat_id.split("_", maxsplit=1)[0]
-    return create_from_prefix(prefix)
+    raise ValueError('Interface with prefix "{}" not registered'.format(prefix))
 
 
 def init_webhooks():

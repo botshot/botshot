@@ -1,6 +1,4 @@
 from typing import Iterable
-from botshot.core.serialize import json_serialize
-
 
 class MenuElement:
     def __init__(self, type, title, payload=None, url=None,

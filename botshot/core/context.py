@@ -7,6 +7,7 @@ from functools import reduce
 
 from botshot.core.entity_query import EntityQuery
 from botshot.core.entity_value import EntityValue
+from botshot.core.parsing.user_message import UserMessage
 
 
 class Context(object):
@@ -50,12 +51,12 @@ class Context(object):
         entities = data.get("entities", {})
         return Context(dialog=dialog, entities=entities, history=history, counter=counter)
 
-    def add_entities(self, new_entities):
-        if new_entities is None:
-            return {}
-
-        # add all new entities
-        for entity_name, entity_values in new_entities.items():
+    def add_message(self, message: UserMessage):
+        if message.text:
+            self.add_entity_dict('_message_text', {'value': message.text})
+        if not message.payload:
+            return
+        for entity_name, entity_values in message.payload.items():
             # allow also direct passing of {'entity' : 'value'}
 
             if not isinstance(entity_values, dict) and not isinstance(entity_values, list):
@@ -64,12 +65,9 @@ class Context(object):
                 entity_values = [entity_values]
 
             # FIXME use a factory to build the correct subclass with right arguments
-
             # prepend each value to start of the list with 0 age
             for value in entity_values:
                 self.add_entity_dict(entity_name, value)
-        self.debug()
-        return new_entities
 
     def add_entity_dict(self, entity_name, entity_dict):
 

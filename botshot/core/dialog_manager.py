@@ -1,158 +1,59 @@
-import json
 import logging
-import os
-import time
 from typing import Optional
-
 from django.conf import settings
-
 from botshot.core.chat_session import ChatSession
+from botshot.core.flow import FLOWS, Flow, State
+from botshot.core.persistence import get_redis, json_serialize, json_deserialize
+import logging
+import json
+from botshot.core.context import Context
 from botshot.core.responses.responses import TextMessage
-from botshot.tasks import accept_inactivity_callback, accept_schedule_callback
-from .context import Context
-from .flow import load_flows_from_definitions, State
+from botshot.core.parsing.user_message import UserMessage
 from botshot.core.logging import logging_service
-from .persistence import get_redis
-from .serialize import json_deserialize, json_serialize, todict
-from .tests import ConversationTestRecorder
+import time
 
 
 class DialogManager:
-    version = '1.34'
 
     def __init__(self, session: ChatSession):
-        self.session = session
-        self.uid = session.chat_id  # for backwards compatibility
         self.db = get_redis()
-        self.context = None  # type: Context
-        self.should_log_messages = settings.BOT_CONFIG.get('SHOULD_LOG_MESSAGES', False)
+        self.session = session
         self.error_message_text = settings.BOT_CONFIG.get('ERROR_MESSAGE_TEXT')
+        if FLOWS is None:
+            raise ValueError('Flows not initialized, init_flows() should be called at startup!')
+        self.flows = FLOWS
+        if self.field_exists('session_state'):
+            self.current_state_name = self.get_field('session_state')
+            logging.info('Session exists at state {}'.format(self.current_state_name))
 
-        context_dict = {}
-        version = self.db.get('dialog_version')
-        logging.info('Initializing dialog for chat %s...' % session.chat_id)
-        self.current_state_name = None
-        self._init_flows()
+            # TODO: is this necessary?
+            if self.current_state_name.endswith(':'):
+                self.current_state_name = self.current_state_name[:-1] # to avoid infinite loop
 
-        if self.get_state("default.root") is None:
-            raise Exception("Required state default.root was not found. "
-                            "Please add this state, Botshot uses it as the first state when starting a conversation.")
-
-        if version and version.decode('utf-8') == DialogManager.version and \
-                self.db.hexists('session_context', self.session.chat_id):
-
-            state = self.db.hget('session_state', self.session.chat_id).decode('utf-8')
-            logging.info('Session exists at state %s' % state)
-
-            if not state:
-                logging.error("State was NULL, sending user to default.root!")
-                state = 'default.root'
-            elif state.endswith(':'):
-                state = state[:-1]  # to avoid infinite loop
-
-            self._move_to(state, initializing=True)
-            context_string = self.db.hget('session_context', self.session.chat_id)
-            context_dict = json.loads(context_string.decode('utf-8'), object_hook=json_deserialize)
+            context_dict = self.get_field_json('session_context')
         else:
             self.current_state_name = 'default.root'
+            context_dict = {}
             logging.info('Creating new session...')
-            logging_service.log_user.delay(self.session.chat_id, self.session.to_json())
+        self.context = Context.from_dict(dialog=self, data=context_dict)
 
-        self.context = Context.from_dict(dialog=self, data=context_dict)  # type: Context
+    def clear(self):
+        """Clears all context for this conversation."""
+        self.db.hdel('session_state', self.session.chat_id)
+        self.db.hdel('session_context', self.session.chat_id)
 
-    def _init_flows(self):
-        flow_definitions = self._create_flows()
-        self.flows = load_flows_from_definitions(flow_definitions)
-        self.current_state_name = 'default.root'
+    def save(self):
+        logging.info('Saving state at {}'.format(self.current_state_name))
+        self.set_field('session_state', self.current_state_name)
+        self.set_field_json('session_context', self.context.to_dict())
+        self.set_field('session_interface', self.session.interface.name)
 
-    def _create_flows(self):
-        """Creates flows from their YAML definitions."""
-        import yaml
-        flows = {}  # a dict with all the flows loaded from YAML
-        BOTS = settings.BOT_CONFIG.get('BOTS', [])
-        for filename in BOTS:
-            try:
-                with open(os.path.join(settings.BASE_DIR, filename)) as f:
-                    file_flows = yaml.load(f)
-                    if not file_flows:
-                        logging.warning("Skipping empty flow definition {}".format(filename))
-                        break
-                    for flow in file_flows:
-                        if flow in flows:
-                            raise Exception("Error: duplicate flow {}".format(flow))
-                        flows[flow] = file_flows[flow]
-                        flows[flow]['relpath'] = os.path.dirname(filename)  # directory of relative imports
-            except OSError as e:
-                raise ValueError("Unable to open definition {}".format(filename)) from e
-            except TypeError as e:
-                raise ValueError("Unable to read definition {}".format(filename)) from e
-        return flows
+    def get_active_time(self):
+        return float(self.get_field('session_active'))
 
     @staticmethod
-    def clear_chat(chat_id):
-        """Clears all context for this conversation."""
-        db = get_redis()
-        db.hdel('session_state', chat_id)
-        db.hdel('session_context', chat_id)
-
-    def process(self, message_type, entities):
-        self.session.interface.processing_start(self.session)
-        accepted_time = time.time()
-        accepted_state = self.current_state_name
-        # Only process messages and postbacks (not 'seen_by's, etc)
-        if message_type not in ['message', 'postback', 'schedule']:
-            return
-
-        logging.info('>>> Received user message')
-
-        # if message_type != 'schedule':
-        # TODO don't increment when @ requires -> input and it's valid
-        # TODO what to say and do on invalid requires -> input?
-        self.context.counter += 1
-
-        entities = self.context.add_entities(entities)
-        # remove keys with empty values
-        entities = {k: v for k, v in entities.items() if v is not None}
-
-        if self.test_record_message(message_type, entities):
-            return
-        elif self._special_message(message_type, entities):
-            return
-
-        if message_type != 'schedule':
-            self.save_inactivity_callback()
-
-        logging.info('>>> Processing message')
-
-        logging_service.log_user_message.delay(chat_id=self.session.chat_id, message_type=message_type,
-                                               entities=entities, accepted_time=accepted_time,
-                                               state=accepted_state)
-
-        if not self._check_state_transition() \
-            and not self._check_intent_transition(entities) \
-            and not self._check_entity_transition(entities):
-
-                entity_values = self._get_entity_value_tuples(entities)
-                if self.get_state().is_supported(entity_values):
-                    self._run_accept(save_identical=True)
-                    self.save_state()
-                else:
-                    # run 'unsupported' action of the state
-                    entities['_unsupported'] = [{"value": True}]
-
-                    if self.get_state().unsupported:
-                        self._run_action(self.get_state().unsupported)
-                    # if not provided, run 'unsupported' action of the flow
-                    elif self.get_flow().unsupported:
-                        self._run_action(self.get_flow().unsupported)
-                    # if not provided, give up and go to default.root
-                    else:
-                        raise Exception("Missing required 'unsupported' action field in flow {}.".format(
-                            self.get_flow().name)
-                        )
-                    self.save_state()
-
-        self.session.interface.processing_end(self.session)
+    def get_interface_chat_ids():
+        return get_redis().hgetall('session_interface')
 
     def schedule(self, callback_state, at=None, seconds=None):
         """
@@ -161,13 +62,14 @@ class DialogManager:
         :param at:              A datetime with timezone
         :param seconds:         An integer, seconds from now
         """
+        from botshot.tasks import accept_schedule_callback
         logging.info('Scheduling callback "{}": at {} / seconds: {}'.format(callback_state, at, seconds))
         if at:
             if at.tzinfo is None or at.tzinfo.utcoffset(at) is None:
                 raise Exception('Use datetime with timezone, e.g. "from django.utils import timezone"')
-            accept_schedule_callback.apply_async((self.session.to_json(), callback_state), eta=at)
+            accept_schedule_callback.apply_async((self, callback_state), eta=at)
         elif seconds:
-            accept_schedule_callback.apply_async((self.session.to_json(), callback_state), countdown=seconds)
+            accept_schedule_callback.apply_async((self, callback_state), countdown=seconds)
         else:
             raise Exception('Specify either "at" or "seconds" parameter')
 
@@ -177,66 +79,135 @@ class DialogManager:
         :param callback_state:  The state to move to.
         :param seconds:         An integer, seconds from now
         """
+        from botshot.tasks import accept_inactivity_callback
         logging.info('Setting inactivity callback "{}" after {} seconds'.format(callback_state, seconds))
         accept_inactivity_callback.apply_async(
-            (self.session.to_json(), self.context.counter, callback_state, seconds),
+            (self, self.context.counter, callback_state, seconds),
             countdown=seconds)
 
-    def save_inactivity_callback(self):
-        self.db.hset('session_active', self.session.chat_id, time.time())
-        callbacks = settings.BOT_CONFIG.get('INACTIVE_CALLBACKS')
-        if not callbacks:
+    def send(self, responses):
+        """
+        Send one or more messages to the user.
+        Shortcut for send_response().
+        :param responses:       Instance of MessageElement, str or Iterable.
+        """
+
+        if responses is None:
             return
-        for name in callbacks:
-            seconds = callbacks[name]
-            self.inactive(name, seconds)
 
-    def test_record_message(self, message_type, entities):
-        record, record_age = self.context.get_age('test_record')
-        self.recording = False
-        if not record:
+        logging.info('>>> Sending chatbot message')
+
+        if not (isinstance(responses, list) or isinstance(responses, tuple)):
+            responses = [responses]
+
+        for response in responses:
+            if isinstance(response, str):
+                response = TextMessage(text=response)
+
+            # Schedule logging message
+            try:
+                sent_time = time.time()
+                logging_service.log_bot_message.delay(session=self.session, sent_time=sent_time,
+                                                      state=self.current_state_name, response=response)
+            except Exception as e:
+                print('Error scheduling message log', e)
+
+            # Send the response
+            self.session.interface.post_message(response)
+
+    def get_field(self, field):
+        value = self.db.hget(field, self.session.chat_id)
+        return value.decode('utf-8') if value is not None else None
+
+    def set_field(self, field, value):
+        return self.db.hset(field, self.session.chat_id, value)
+
+    def set_field_json(self, field, value):
+        return self.set_field(field, json.dumps(value, default=json_serialize))
+
+    def get_field_json(self, field):
+        value = self.get_field(field)
+        return json.loads(value, object_hook=json_deserialize) if value else None
+
+    def field_exists(self, field):
+        return self.db.hexists(field, self.session.chat_id)
+
+    def process(self, message: UserMessage):
+        self.session.interface.processing_start()
+        accepted_state = self.current_state_name
+        # Only process messages and postbacks (not 'seen_by's, etc)
+        if message.message_type not in ['message', 'postback', 'schedule']:
+            return
+
+        logging.info('>>> Received user message')
+
+        # if message_type != 'schedule':
+        # TODO don't increment when @ requires -> input and it's valid
+        # TODO what to say and do on invalid requires -> input?
+        self.context.counter += 1
+
+        self.context.add_message(message)
+        self.context.debug()
+        # FIXME: Get all current entities from context as EntityValues
+        entities = message.payload
+
+        if message.message_type != 'schedule':
+            self.set_field('session_active', time.time())
+
+        logging.info('>>> Processing message')
+
+        logging_service.log_user_message.delay(session=self.session, message=message, entities=entities,
+                                               state=accepted_state)
+
+        if self._special_message(message.text):
+            return
+        if self._check_state_transition():
+            return
+        if self._check_intent_transition(entities):
+            return
+        if self._check_entity_transition(entities):
+            return
+
+        entity_values = self._get_entity_value_tuples(entities)
+        if self.get_state().is_supported(entity_values):
+            self._run_accept()
+            return
+
+        # run 'unsupported' action of the state
+        if self.get_state().unsupported:
+            self._run_action(self.get_state().unsupported)
+        # if not provided, run 'unsupported' action of the flow
+        elif self.get_flow().unsupported:
+            self._run_action(self.get_flow().unsupported)
+        # if not provided, give up and go to default.root
+        else:
+            raise Exception("Missing required 'unsupported' action field in flow {}.".format(
+                self.get_flow().name)
+            )
+
+        self.save()
+        self.session.interface.processing_end()
+
+    def _special_message(self, text):
+        if not text:
             return False
-        if record_age == 0:
-            if record.value == 'start':
-                self.send_response(ConversationTestRecorder.record_start())
-            elif record.value == 'stop':
-                self.send_response(ConversationTestRecorder.record_stop())
-            else:
-                self.send_response("Use /test_record/start/ or /test_record/stop/")
-            self.save_state()
+        if text == '/areyoubotshot':
+            # FIXME add Botshot version
+            self.send("Botshot Framework")
             return True
-        if record == 'start':
-            ConversationTestRecorder.record_user_message(message_type, entities)
-            self.recording = True
         return False
 
-    def _special_message(self, type, entities):
-        text = entities.get("_message_text", [])
-        text = text[0] if len(text) else None
-        text = text.get("value") if text else None
-
-        if not isinstance(text, str):
-            return False
-        elif text == '/areyoubotshot':
-            self.send_response("Botshot Framework Dialog Manager v{}".format(self.version))
-            return True
-        elif text.startswith('/intent/'):
-            intent = text.replace('/intent/', '', count=1)
-            self.context.set_value("intent", intent)
-            return True
-        return False
-
-    def _run_accept(self, save_identical=False):
+    def _run_accept(self):
         """Runs action of the current state."""
         state = self.get_state()
         if self.current_state_name != 'default.root' and not state.check_requirements(self.context):
             requirement = state.get_first_requirement(self.context)
             self._run_action(requirement.action)
-        else:
-            if not state.action:
-                logging.warning('State {} does not have an action.'.format(self.current_state_name))
-                return
-            self._run_action(state.action)
+            return
+        if not state.action:
+            logging.warning('State {} does not have an action.'.format(self.current_state_name))
+            return
+        self._run_action(state.action)
 
     def _run_action(self, fn):
         if not callable(fn):
@@ -251,7 +222,7 @@ class DialogManager:
 
     def _check_state_transition(self):
         """Checks if entity _state was received in current message (and moves to the state)"""
-        new_state_name = self.context._state.get_value(this_msg=True)
+        new_state_name = self.context.get_value(entity='_state', max_age=0)
         if new_state_name is not None:
             return self._move_to(new_state_name)
         return False
@@ -311,7 +282,7 @@ class DialogManager:
 
         return False
 
-    def get_flow(self, flow_name=None):
+    def get_flow(self, flow_name=None) -> Flow:
         """Returns a Flow object by its name. Defaults to current flow."""
         if not flow_name:
             flow_name, _ = self.current_state_name.split('.', 1)
@@ -340,7 +311,7 @@ class DialogManager:
         else:
             action = False
 
-        if ('.' not in new_state_name):
+        if '.' not in new_state_name:
             new_state_name = self.current_state_name.split('.')[0] + '.' + new_state_name
         if not self.get_state(new_state_name):
             logging.warning('Error: State %s does not exist! Staying at %s.' % (new_state_name, self.current_state_name))
@@ -356,9 +327,6 @@ class DialogManager:
 
             # notify the interface that the state was changed
             self.session.interface.state_change(self.current_state_name)
-            # record change if recording tests
-            if self.recording:
-                ConversationTestRecorder.record_state_change(self.current_state_name)
 
             try:
                 if previous_state != new_state_name and action:
@@ -392,72 +360,15 @@ class DialogManager:
                 )
 
                 if self.error_message_text:
-                    self.send_response([self.error_message_text])
+                    self.send([self.error_message_text])
 
                 # Raise the error if we are in a test
                 if self.session.is_test:
                     raise e
 
-        self.save_state()
+        self.save()
         return True
 
-    def save_state(self):
-        if not self.context:
-            return
-        logging.info('Saving state at %s' % (self.current_state_name))
-        self.db.hset('session_state', self.session.chat_id, self.current_state_name)
-        context_json = json.dumps(self.context.to_dict(), default=json_serialize)
-        self.db.hset('session_context', self.session.chat_id, context_json)
-        self.db.hset('session_interface', self.session.chat_id, self.session.interface.name)
-        self.db.set('dialog_version', DialogManager.version)
-
-        # save chat session to redis, TODO
-        session = json.dumps(self.session.to_json())
-        self.db.hset("chat_session", self.session.chat_id, session)
-
-    def send_response(self, responses):
-        """
-        Send one or more messages to the user.
-        :param responses:       Instance of MessageElement, str or Iterable.
-        """
-
-        if responses is None:
-            return
-
-        logging.info('>>> Sending chatbot message')
-
-        if not (isinstance(responses, list) or isinstance(responses, tuple)):
-            return self.send_response([responses])
-
-        for response in responses:
-            if isinstance(response, str):
-                response = TextMessage(text=response)
-
-            # Schedule logging message
-            try:
-                sent_time = time.time()
-                message_text = response.get_text()
-                message_type = type(response).__name__
-                logging_service.log_bot_message.delay(chat_id=self.session.chat_id, sent_time=sent_time, state=self.current_state_name,
-                                                      message_text=message_text, message_type=message_type, message_dict=todict(response))
-            except Exception as e:
-                print('Error scheduling message log', e)
-
-            # Send the response
-            self.session.interface.post_message(self.session, response)
-
-            # Record if recording
-            if self.recording:
-                ConversationTestRecorder.record_bot_message(response)
-
-
-    def send(self, responses):
-        """
-        Send one or more messages to the user.
-        Shortcut for send_response().
-        :param responses:       Instance of MessageElement, str or Iterable.
-        """
-        return self.send_response(responses)
 
     def _get_entity_value_tuples(self, entities: dict, include=tuple()):
         """

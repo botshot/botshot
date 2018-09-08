@@ -152,7 +152,7 @@ class TelegramInterface:
                 meta = {"chat_id": chat_id, "uid": uid}
                 session = ChatSession(TelegramInterface, str(chat_id), meta=meta)
                 TelegramInterface.fill_session_profile(session)
-                accept_user_message.delay(session.to_json(), body)
+                accept_user_message.delay(session, body)
                 return True
             else:
                 logging.warning('No sender specified, ignoring message')
@@ -186,7 +186,6 @@ class TelegramInterface:
             data = TelegramInterface.retrieve_callback(callback_query.get('data'))
             if data:
                 payload = json.loads(data)
-                payload['_message_text'] = [{'value': None}]
                 return {'entities': payload, 'type': 'postback'}
         return {'type': 'undefined'}
 

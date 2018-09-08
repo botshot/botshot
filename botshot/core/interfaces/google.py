@@ -99,7 +99,7 @@ class GoogleActionsInterface():
         meta = {"uid": uid, "chat_id": chat_id}
         profile = Profile(uid, None, None)
         session = ChatSession(GoogleActionsInterface, chat_id, meta, profile)
-        accept_user_message.delay(session.to_json(), body).get()
+        accept_user_message.delay(session, body).get()
         # responses = GoogleActionsInterface.response_cache.get(session.chat_id)
         responses = get_redis().get("response_for_{id}".format(id=session.chat_id))  # TODO
         return GoogleActionsInterface.convert_responses(session, responses.decode('utf8'))

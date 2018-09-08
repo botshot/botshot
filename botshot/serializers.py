@@ -4,7 +4,7 @@ from rest_framework import serializers
 class ChatLogSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = ChatLog
-        fields = ('chat_id', 'first_name', 'last_name', 'image_url', 'locale', 'last_message_time')
+        fields = ('chat_id', 'first_name', 'last_name', 'image', 'locale', 'last_message_time')
 
 class MessageLogSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:

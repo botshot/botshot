@@ -4,8 +4,10 @@ import logging
 import emoji
 import re
 from django.conf import settings
+import time
 
 from botshot.core.parsing.entity_extractor import EntityExtractor
+from botshot.core.parsing.user_message import UserMessage
 
 ENTITY_EXTRACTORS = []
 
@@ -45,20 +47,22 @@ def add_default_extractors():
 add_default_extractors()
 
 
-def parse_text_message(text, num_tries=1):
-    if len(ENTITY_EXTRACTORS) <= 0:
-        logging.warning('No entity extractors configured!')
-        return {'type': 'message', 'entities': {'_message_text': [{'value': text}]}}
+def parse_text_message(text, num_tries=1) -> UserMessage:
+    accepted_time = time.time()
 
     entities = {}
 
-    for extractor in ENTITY_EXTRACTORS:
-        append = extractor.extract_entities(text)
-        for entity, values in append.items():
-            entities.setdefault(entity, []).extend(values)
+    if len(ENTITY_EXTRACTORS) <= 0:
+        logging.warning('No entity extractors configured!')
+    else:
+        for extractor in ENTITY_EXTRACTORS:
+            append = extractor.extract_entities(text)
+            for entity, values in append.items():
+                entities.setdefault(entity, []).extend(values)
 
-    logging.debug('Extracted entities:', entities)
-    append = parse_additional_entities(text)
+        logging.debug('Extracted entities:', entities)
+
+    append = parse_special_text_entities(text)
 
     for (entity, value) in re.findall(re.compile(r'/([^/]+)/([^/]+)/'), text):
         if not entity in append:
@@ -71,9 +75,7 @@ def parse_text_message(text, num_tries=1):
             entities[entity] = []
         entities[entity] += values
 
-    entities['_message_text'] = [{'value': text}]
-
-    parsed = {'entities': entities, 'type': 'message'}
+    parsed = UserMessage('message', accepted_time=accepted_time, text=text, payload=entities)
 
     if settings.DEBUG:
         print("Parsed message:", parsed)
@@ -81,7 +83,7 @@ def parse_text_message(text, num_tries=1):
     return parsed
 
 
-def parse_additional_entities(text):
+def parse_special_text_entities(text):
     # TODO custom nlp might receive them preprocessed (or not)
     entities = {}
     chars = {':)': ':slightly_smiling_face:', '(y)': ':thumbs_up_sign:', ':(': ':disappointed_face:',

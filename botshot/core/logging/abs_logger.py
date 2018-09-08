@@ -6,15 +6,13 @@ class MessageLogger(ABC):
         pass
 
     @abstractmethod
-    def log_user_message(self, chat_id, accepted_time: float, state, message_text, message_type, entities):
+    def log_user_message(self, session, state, message, entities):
         pass
 
     @abstractmethod
-    def log_bot_message(self, chat_id, accepted_time: float, state, message_text, message_type, message_dict):
+    def log_bot_message(self, session, sent_time: float, state, response):
         pass
 
-    def log_error(self, chat_id, state, exception):
+    def log_error(self, session, state, exception):
         pass
 
-    def log_user(self, chat_id, session_dict):
-        pass

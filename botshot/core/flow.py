@@ -1,10 +1,47 @@
 from typing import Optional
-
 import importlib
 import re
 from abc import abstractmethod, ABC
-
+from django.conf import settings
 from botshot.core.responses import AttachmentMessage
+import os
+import logging
+from inspect import getsource
+
+FLOWS = None
+
+
+def init_flows():
+    """Creates flows from their YAML definitions."""
+    global FLOWS
+    import yaml
+    flows = {}  # a dict with all the flows loaded from YAML
+    BOTS = settings.BOT_CONFIG.get('BOTS', [])
+    for filename in BOTS:
+        try:
+            with open(os.path.join(settings.BASE_DIR, filename)) as f:
+                definitions = yaml.load(f)
+                if not definitions:
+                    logging.warning("Skipping empty flow definition {}".format(filename))
+                    break
+                for flow_name in definitions:
+                    if flow_name in flows:
+                        raise Exception("Error: duplicate flow {}".format(flow_name))
+                    definition = definitions[flow_name]
+                    flow = Flow.load(flow_name, definition, relpath=os.path.dirname(filename))
+                    flows[flow_name] = flow
+        except OSError as e:
+            raise ValueError("Unable to open definition {}".format(filename)) from e
+        except TypeError as e:
+            raise ValueError("Unable to read definition {}".format(filename)) from e
+
+    if not flows.get('default') or not flows.get('default').get_state('root'):
+        raise Exception("Required state default.root was not found. "
+                        "Please add this state, Botshot uses it as the first state when starting a conversation.")
+
+    print('Initialized {} flows: {}'.format(len(flows), sorted(list(flows.keys()))))
+
+    FLOWS = flows
 
 
 class State:
@@ -201,6 +238,9 @@ class State:
                 return requirement
         return True
 
+    def get_action_code(self):
+        return getsource(self.action) if callable(self.action) else None
+
     def is_supported(self, msg_entities: set) -> bool:
         """Checks whether this state can handle a message with given entities."""
         return not self.supported.isdisjoint(msg_entities)
@@ -229,8 +269,7 @@ class Flow:
         self.unsupported = unsupported
 
     @staticmethod
-    def load(name, data: dict):
-        relpath = data.get("relpath")  # directory of relative imports
+    def load(name, data: dict, relpath: str):
         states = dict(State.load(s, relpath) for s in data["states"])
         intent = data.get("intent", name)
         unsupported = None
@@ -317,14 +356,6 @@ class ConditionRequirement(Requirement):
 
     def matches(self, context) -> bool:
         return self.condition(context)
-
-
-def load_flows_from_definitions(data: dict):
-    flows = {}
-    for flow_name, flow_definition in data.items():
-        flow = Flow.load(flow_name, flow_definition)
-        flows[flow_name] = flow
-    return flows
 
 
 def dynamic_response_fn(messages, next=None):

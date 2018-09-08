@@ -11,10 +11,8 @@ from botshot.core.persistence import get_redis
 from botshot.core.responses.buttons import *
 from botshot.core.responses.responses import *
 from botshot.core.responses.settings import ThreadSetting, GreetingSetting, GetStartedSetting, MenuSetting
-from botshot.core.serialize import json_deserialize
 from botshot.tasks import accept_user_message
 from botshot.core.chat_session import Profile
-from botshot.core.serialize import json_serialize
 
 class FacebookInterface():
     name = 'facebook'
@@ -51,7 +49,7 @@ class FacebookInterface():
         # Confirm accepted message
         FacebookInterface.post_message(session, SenderActionMessage('mark_seen'))
         # Add it to the message queue
-        accept_user_message.delay(session.to_json(), raw_message)
+        accept_user_message.delay(session, raw_message)
 
     @staticmethod
     def get_page_token(page_id):
@@ -76,7 +74,7 @@ class FacebookInterface():
             try:
                 url = "https://graph.facebook.com/v2.6/" + user_id
                 params = {
-                    'fields': 'first_name,last_name,profile_pic,locale,timezone,gender',
+                    'fields': 'first_name,last_name,profile_pic,picture.type(normal),locale,timezone,gender',
                     'access_token': FacebookInterface.get_page_token(page_id)
                 }
                 res = requests.get(url, params=params)
@@ -92,10 +90,12 @@ class FacebookInterface():
         else:
             response = json.loads(db.get(key).decode('utf-8'))
 
+        image_url = response.get("picture", {}).get('data', {}).get('url')
         profile = Profile(
             first_name=response.get("first_name"),
             last_name=response.get("last_name"),
-            image_url=response.get("profile_pic"),
+            tmp_image_url=image_url,
+            tmp_image_extension='.jpeg',
             locale=response.get("locale")
         )
         return profile
@@ -154,7 +154,7 @@ class FacebookInterface():
 
         r = requests.post(post_message_url,
                           headers={"Content-Type": "application/json"},
-                          data=json.dumps(response_dict, default=json_serialize))
+                          data=json.dumps(response_dict))
         if r.status_code != 200:
             logging.error('ERROR: MESSAGE REFUSED: {}'.format(response_dict))
             logging.error('ERROR: {}'.format(r.text))
@@ -169,7 +169,7 @@ class FacebookInterface():
             }
         elif isinstance(response, GetStartedSetting):
             return {
-                "call_to_actions": [{'payload': json.dumps(response.payload, default=json_serialize)}],
+                "call_to_actions": [{'payload': json.dumps(response.payload)}],
                 "setting_type": "call_to_actions",
                 "thread_state": "new_thread"
             }
@@ -185,7 +185,7 @@ class FacebookInterface():
                 "type": response.type,
             }
             if response.payload:
-                r['payload'] = json.dumps(response.payload, default=json_serialize)
+                r['payload'] = json.dumps(response.payload)
             if response.url:
                 r['url'] = response.url
             return r
@@ -280,8 +280,7 @@ class FacebookInterface():
     @staticmethod
     def parse_message(raw_message, num_tries=1):
         if 'postback' in raw_message:
-            payload = json.loads(raw_message['postback']['payload'], object_hook=json_deserialize)
-            payload['_message_text'] = [{'value': None}]
+            payload = json.loads(raw_message['postback']['payload'])
             return {'entities': payload, 'type': 'postback'}
         elif 'message' in raw_message:
             if 'sticker_id' in raw_message['message']:
@@ -290,9 +289,8 @@ class FacebookInterface():
                 attachments = raw_message['message']['attachments']
                 return FacebookInterface.parse_attachments(attachments)
             if 'quick_reply' in raw_message['message']:
-                payload = json.loads(raw_message['message']['quick_reply'].get('payload'), object_hook=json_deserialize)
+                payload = json.loads(raw_message['message']['quick_reply'].get('payload'))
                 if payload:
-                    payload['_message_text'] = [{'value': raw_message['message']['text']}]
                     return {'entities': payload, 'type': 'postback'}
             if 'text' in raw_message['message']:
                 return parse_text_message(raw_message['message']['text'])
@@ -301,17 +299,16 @@ class FacebookInterface():
     @staticmethod
     def parse_sticker(sticker_id):
         if sticker_id in [369239383222810, 369239343222814, 369239263222822]:
-            return {'entities': {'emoji': 'thumbs_up_sign', '_message_text': None}, 'type': 'message'}
+            return {'entities': {'emoji': 'thumbs_up_sign'}, 'type': 'message'}
 
-        return {'entities': {'sticker_id': sticker_id, '_message_text': None}, 'type': 'message'}
+        return {'entities': {'sticker_id': sticker_id}, 'type': 'message'}
 
     @staticmethod
     def parse_attachments(attachments):
         entities = {
             'intent': [],
             'current_location': [],
-            'attachment': [],
-            '_message_text': [{'value': None}]
+            'attachment': []
         }
         for attachment in attachments:
             if 'coordinates' in attachment['payload']:

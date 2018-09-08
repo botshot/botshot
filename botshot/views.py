@@ -8,13 +8,9 @@ from django.template import loader
 from django.utils.decorators import method_decorator
 from django.views import generic
 from django.views.decorators.csrf import csrf_exempt
-from django.core import serializers
-
 from botshot.core.interfaces.facebook import FacebookInterface
 from botshot.core.interfaces.microsoft import MicrosoftInterface
 from botshot.core.interfaces.telegram import TelegramInterface
-from botshot.core.logging.elastic import get_elastic
-from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from botshot.models import ChatLog, MessageLog
 from botshot.serializers import ChatLogSerializer, MessageLogSerializer
 from rest_framework import viewsets, renderers, generics, pagination
@@ -91,6 +87,20 @@ class SkypeView(generic.View):
     def dispatch(self, request, *args, **kwargs):
         return generic.View.dispatch(self, request, *args, **kwargs)
 
+#@login_required
+def index(request):
+    context = {}
+    template = loader.get_template('botshot/index.html')
+    return HttpResponse(template.render(context,request))
+
+#@login_required
+def flows(request):
+    from botshot.core.flow import FLOWS
+    context = {
+        'flows': FLOWS
+    }
+    template = loader.get_template('botshot/flows.html')
+    return HttpResponse(template.render(context,request))
 
 #@login_required
 def log(request):

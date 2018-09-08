@@ -16,6 +16,8 @@ urlpatterns = [
     url(r'^skype/{}/?$'.format(secret_url),
         view=views.SkypeView.as_view(), name='skype'),
 
+    url(r'^$', views.index),
+    url(r'^flows/?$', views.flows),
     url(r'^log/?$', views.log),
     url(r'^log/chats/?$', views.ChatLogViewSet.as_view({'get': 'list'})),
     url(r'^log/messages/(?P<chat_id>[a-zA-Z_0-9]*)/?$', views.MessageLogList.as_view())

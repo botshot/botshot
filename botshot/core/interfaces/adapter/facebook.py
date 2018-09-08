@@ -101,7 +101,7 @@ class FacebookAdapter(MessageAdapter):
         return {
             'title': button.title,
             'type': 'postback',
-            'payload': json.dumps(button.payload, default=json_serialize)
+            'payload': json.dumps(button.payload)
         }
 
     def _phone_button(self, button: PhoneButton):
@@ -121,7 +121,7 @@ class FacebookAdapter(MessageAdapter):
         response = {
             "content_type": 'text',
             'title': reply.title[:20],
-            'payload': json.dumps(reply.payload if reply.payload else {}, default=json_serialize)
+            'payload': json.dumps(reply.payload or {})
         }
         if reply.image_url:
             response['image_url'] = reply.image_url
