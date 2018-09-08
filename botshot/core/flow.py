@@ -219,8 +219,8 @@ class Flow:
         :param unsupported      a function to handle unsupported messages
         """
 
-        if unsupported is None:
-            raise ValueError("Missing required 'unsupported' action field in flow {}.".format(name))
+        # if unsupported is None:
+        #     raise ValueError("Missing required 'unsupported' action field in flow {}.".format(name))
 
         self.name = str(name)
         self.states = states or {}
