@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.http.response import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.template import loader
+from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import generic
 from django.views.decorators.csrf import csrf_exempt
@@ -98,7 +99,8 @@ class SkypeView(generic.View):
     def dispatch(self, request, *args, **kwargs):
         return generic.View.dispatch(self, request, *args, **kwargs)
 
-@login_required
+
+@login_required(login_url=reverse_lazy('login'))
 def run_all_tests(request):
     modules = _get_test_modules('./tests/')
 
@@ -119,7 +121,8 @@ def _get_test_modules(path):
     from os.path import join
     return sorted([f.replace('.py','') for f in listdir(path) if join(path, f).endswith('.py') and not f.startswith('_')])
 
-@login_required
+
+@login_required(login_url=reverse_lazy('login'))
 def test(request):
     db = get_redis()
     results = db.hgetall('test_results')
@@ -195,7 +198,8 @@ def test_record(request):
     response['Content-Disposition'] = 'attachment; filename=mytest.py'
     return response
 
-@login_required
+
+@login_required(login_url=reverse_lazy('login'))
 def log_tests(request):
 
     es = get_elastic()
@@ -222,7 +226,8 @@ def log_tests(request):
     template = loader.get_template('botshot/log.html')
     return HttpResponse(template.render(context,request))
 
-@login_required
+
+@login_required(login_url=reverse_lazy('login'))
 def log(request, user_limit):
 
     user_limit = int(user_limit) if user_limit else 100

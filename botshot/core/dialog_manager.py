@@ -145,9 +145,10 @@ class DialogManager:
                         self._run_action(self.get_flow().unsupported)
                     # if not provided, give up and go to default.root
                     else:
-                        raise Exception("Missing required 'unsupported' action field in flow {}.".format(
-                            self.get_flow().name)
-                        )
+                        # raise Exception("Missing required 'unsupported' action field in flow {}.".format(
+                        #     self.get_flow().name)
+                        # )
+                        self._move_to("default.root:")
                     self.save_state()
 
         self.session.interface.processing_end(self.session)

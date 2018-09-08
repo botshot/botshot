@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "botshot/base.html" %}
 
 {% block title %}Tests{% endblock %}
 {% block content %}
@@ -81,7 +81,7 @@ $(function(){
   $('.run-tests').click(function(){
     var $button = $(this)
     $button.text('Running...')
-    $.get('/golem/run_all_tests', {}, function(e){
+    $.get('{% url 'run_all_tests' %}', {}, function(e){
       $button.text('Done.')
       window.location.reload()
     }).fail(function() {
@@ -95,7 +95,7 @@ $(function(){
     $button.text('Running...')
     $button.css('visibility','visible')
     var module = $(this).data('module')
-    $.get('/golem/run_test/'+module, {}, function(e){
+    $.get('{% url 'run_test' 'foo' %}'.replace('foo', module), {}, function(e){
       $button.text('Done.')
       window.location.reload()
     }).fail(function() {
