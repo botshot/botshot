@@ -1,16 +1,20 @@
+import importlib
 import logging
-import time
+import os
 import random
+import time
+import traceback
+
+from django.conf import settings
 
 from botshot.core.persistence import get_redis
 from botshot.core.responses import CarouselTemplate
-from botshot.core.responses.responses import *
 from botshot.core.responses.buttons import *
-from django.conf import settings
+from botshot.core.responses.responses import *
+from .chat_session import ChatSession
 from .interfaces.test import TestInterface
 from .message_parser import parse_text_message
 from .serialize import json_deserialize
-from .chat_session import ChatSession
 
 
 class ConversationTestException(Exception):
@@ -306,3 +310,44 @@ class TestLog:
     @staticmethod
     def get():
         return TestLog.messages
+
+
+def _get_test_modules():
+    path = settings.BOT_CONFIG.get("TEST_MODULE", 'tests')
+    path = path.replace('.', '/')
+    print("Loading tests from directory: ", path)
+    files = filter(lambda f: os.path.join(path, f).endswith('.py') and not f.startswith('_'), os.listdir(path))
+    return sorted([f.replace('.py','') for f in files])
+
+
+def _run_test_module(name, benchmark=False):
+
+    path = settings.BOT_CONFIG.get("TEST_MODULE", 'tests')
+
+    module = importlib.import_module("." + name, package=path)
+    importlib.reload(module)
+
+    result = _run_test_actions(name, module.actions, benchmark=benchmark)
+    test = {'name': name, 'result': result}
+    db = get_redis()
+    db.hset('test_results', name, json.dumps(test))
+    return test
+
+
+def _run_test_actions(name, actions, benchmark=False):
+    test = ConversationTest(name, actions, benchmark=benchmark)
+    start_time = time.time()
+    report = None
+    try:
+      report = test.run()
+    except Exception as e:
+      log = TestLog.get()
+      fatal = not isinstance(e, ConversationTestException)
+      if fatal:
+        trace = traceback.format_exc()
+        print(trace)
+        log.append(trace)
+      return {'status': 'exception' if fatal else 'failed', 'log':log, 'message':str(e), 'report':report}
+
+    elapsed_time = time.time() - start_time
+    return {'status': 'passed', 'log':TestLog.get(), 'duration':elapsed_time, 'report':report}
