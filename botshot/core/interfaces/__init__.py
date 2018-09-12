@@ -45,13 +45,12 @@ def get_interfaces():
     """
     :returns: List of all registered chat interface classes.
     """
-    from botshot.webgui.interface import WebGuiInterface
     from botshot.core.interfaces.facebook import FacebookInterface
     from botshot.core.interfaces.telegram import TelegramInterface
     from botshot.core.interfaces.microsoft import MicrosoftInterface
     from botshot.core.interfaces.google import GoogleActionsInterface
     from botshot.core.interfaces.test import TestInterface
-    return [WebGuiInterface, FacebookInterface, TelegramInterface, MicrosoftInterface, GoogleActionsInterface,
+    return [FacebookInterface, TelegramInterface, MicrosoftInterface, GoogleActionsInterface,
                          TestInterface] + _interfaces
 
 

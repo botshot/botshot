@@ -20,12 +20,12 @@ $(function(){
   var $chats = $('#log-chats')
   var $content = $('#content')
 
- $.get(url='/botshot/log/chats?page='+page, {}, function(data){
+ $.get(url='{% url 'log/chats' %}?page='+page, {}, function(data){
     console.log(data)
 
     var hash_id = window.location.hash ? window.location.hash.replace('#','') : null
     var chat_id = null
-    if(!data.results){
+    if(data.results === undefined || data.results.length == 0){
       console.log('No chats:', data)
       return;
     }
@@ -87,7 +87,7 @@ $(function(){
       if(page == 1){
         $content.html('')
       }
-      $.get(url='/botshot/log/messages/'+id+'?page='+page, {}, function(data){
+      $.get(url='{% url 'log/messages' '' %}'+id+'?page='+page, {}, function(data){
         if(!data.results){
           console.log('No messages:', data)
           return;
@@ -99,7 +99,7 @@ $(function(){
         $older.click(function(){
           $(this).hide()
           page += 1
-          load_group(id, page)
+          load_group(id, page)  // FIXME implement load_group
         })
 
         for(var i in data.results){

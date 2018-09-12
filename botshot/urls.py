@@ -20,8 +20,8 @@ urlpatterns = [
     url(r'^login/$', auth_views.LoginView.as_view(template_name='botshot/login/login.html'), name='login'),
 
     url(r'^log/?$', views.log, name='log'),
-    url(r'^log/chats/?$', views.ChatLogViewSet.as_view({'get': 'list'})),
-    url(r'^log/messages/(?P<chat_id>[a-zA-Z_0-9]*)/?$', views.MessageLogList.as_view()),
+    url(r'^log/chats/?$', views.ChatLogViewSet.as_view({'get': 'list'}), name="log/chats"),
+    url(r'^log/messages/(?P<chat_id>[a-zA-Z_0-9]*)/?$', views.MessageLogList.as_view(), name="log/messages"),
     # url(r'^log/tests/?$', views.log_tests) TODO log tests
 
     #url(r'^log/users/?$', views.log_users),
