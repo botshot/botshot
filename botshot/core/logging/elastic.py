@@ -19,27 +19,19 @@ class ElasticsearchLogger(MessageLogger):
         super().__init__()
         self.test_id = -1  # FIXME
 
-    def log_user_message(self, dialog, time, state, message, type_, entities):
-
-        entities = entities.copy()
-        text = None
-        if '_message_text' in entities:
-            text = entities['_message_text'][0]['value']
-            del (entities['_message_text'])
-
-        message = {
+    def log_user_message(self, dialog, time: float, state, message_text, message_type, entities):
+        self._log_message({
             'uid': dialog.session.chat_id,
             'test_id': self.test_id,
             'created': time,
             'is_user': True,
-            'text': text,
+            'text': message_text,
             'state': state,
-            'type': type_,
+            'type': message_type,
             'entities': entities
-        }
-        self._log_message(message)
+        })
 
-    def log_bot_message(self, dialog, time, state, message):
+    def log_bot_message(self, dialog, time: float, state, message):
         from botshot.core.responses import TextMessage
         type_ = type(message).__name__ if message else 'TextMessage'
         response = json.loads(
@@ -47,7 +39,7 @@ class ElasticsearchLogger(MessageLogger):
 
         text = message.text if hasattr(message, 'text') else str(message)
 
-        message = {
+        self._log_message({
             'uid': dialog.session.chat_id,
             'test_id': self.test_id,
             'created': time,
@@ -56,11 +48,10 @@ class ElasticsearchLogger(MessageLogger):
             'state': state,
             'type': type_,
             'response': response,
-        }
-        self._log_message(message)
+        })
 
     def log_error(self, dialog, state, exception):
-        message = {
+        self._log_message({
             'uid': dialog.chat_id,
             'test_id' : self.test_id,
             'created': time.time(),
@@ -68,8 +59,7 @@ class ElasticsearchLogger(MessageLogger):
             'text': str(exception),
             'state': state,
             'type': 'error'
-        }
-        self._log_message(message)
+        })
 
     def _log_message(self, message):
         es = get_elastic()

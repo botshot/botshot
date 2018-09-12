@@ -13,7 +13,7 @@ from botshot.core.responses.buttons import *
 from botshot.core.responses.responses import *
 from .chat_session import ChatSession
 from .interfaces.test import TestInterface
-from .message_parser import parse_text_message
+from botshot.core.parsing.message_parser import parse_text_message
 from .serialize import json_deserialize
 
 

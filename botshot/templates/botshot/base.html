@@ -29,8 +29,8 @@
 {#        <a href="/content/preview/" class="btn btn-default {% if request.path == '/content/preview/' %}btn-info active{% endif %}">Content</a>#}
 {#        <a href="/content/export/" class="btn btn-default {% if request.path == '/content/export/' %}btn-info active{% endif %}">Export</a>#}
 {#        <a href="/content/stats/" class="btn btn-default {% if request.path == '/content/stats/' %}btn-info active{% endif %}">Stats</a>#}
-        <a href="{% url 'log' '' %}" class="btn btn-default {% if request.resolver_match.url_name == 'log' %}btn-info active{% endif %}">Messages</a>
-        <a href="{% url 'log_tests' %}" class="btn btn-default {% if request.resolver_match.url_name == 'log_tests' %}btn-info active{% endif %}">Examples</a>
+        <a href="{% url 'log' %}" class="btn btn-default {% if request.resolver_match.url_name == 'log' %}btn-info active{% endif %}">Messages</a>
+{#        <a href="{% url 'log_tests' %}" class="btn btn-default {% if request.resolver_match.url_name == 'log_tests' %}btn-info active{% endif %}">Examples</a>#}
         <a href="{% url 'test' %}" class="btn btn-default {% if request.resolver_match.url_name == 'test' %}btn-info active{% endif %}">Tests</a>
       </div>
     </div>

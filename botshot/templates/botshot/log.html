@@ -4,13 +4,7 @@
 {% block content %}
   <div class="row">
     <div class="col-xs-6 col-sm-3">
-      <div id="log-conversations">
-      {% for group in groups %}
-        <a class="log-conversation" href="#{{ group.id }}">
-        <strong>{{ group.name }}</strong>
-        </a>
-        
-      {% endfor %}
+      <div id="log-chats">
       </div>
     </div>
     <div class="col-xs-6 col-sm-9" id="content">
@@ -23,14 +17,38 @@
 var page = 1;
 $(function(){
 
-  var id = window.location.hash.replace('#','');
-  if(!id) {
-    id = $('.log-conversation').eq(0).attr('href').replace('#','')
-  }
-  load_group(id, page);
+  var $chats = $('#log-chats')
+  var $content = $('#content')
+
+ $.get(url='/botshot/log/chats?page='+page, {}, function(data){
+    console.log(data)
+
+    var hash_id = window.location.hash ? window.location.hash.replace('#','') : null
+    var chat_id = null
+    if(!data.results){
+      console.log('No chats:', data)
+      return;
+    }
+    for(var i in data.results){
+      console.log(i)
+      var result = data.results[i]
+      // Accept hash ID if it exists in list
+      if(result.chat_id == hash_id){
+        chat_id = hash_id
+      }
+      var name = result.first_name + ' ' + result.last_name
+      var $chat = $('<a />').attr({'class':'log-chat','href':'#'+result.chat_id}).text(name)
+      $chats.append($chat)
+    }
+    if(!chat_id){
+      chat_id = data.results[0].chat_id
+    }
+    load_chat(chat_id, page);
+
+  });
   $(window).bind('hashchange', function(){
     page = 1;
-    load_group(window.location.hash.replace('#',''), page)
+    load_chat(window.location.hash.replace('#',''), page)
   })
   $(document).on('click', '.message', function(){
       meta = $(this).data('meta')
@@ -49,46 +67,64 @@ $(function(){
       }
     })
 
+    function format_message(message){
+      var $message = $('<div />')
+      if(message.is_from_user){
+        $message.addClass('message-user pull-right')
+      } else {
+        $message.addClass('message-bot pull-left')
+      }
+      var $bubble = $('<div />').addClass('message-bubble').text(message.text)
+      $message.append($bubble)
+      return $message
+    }
+
+    function load_chat(id, page){
+      if(!id) return;
+      $('.log-chat').removeClass('active');
+      $('a.log-chat[href="#'+id+'"]').addClass('active');
+
+      if(page == 1){
+        $content.html('')
+      }
+      $.get(url='/botshot/log/messages/'+id+'?page='+page, {}, function(data){
+        if(!data.results){
+          console.log('No messages:', data)
+          return;
+        }
+        var $div = $('<div />')
+        var $older = $('<a/>')
+        $older.attr('class','show-older')
+        $older.text('Load older...')
+        $older.click(function(){
+          $(this).hide()
+          page += 1
+          load_group(id, page)
+        })
+
+        for(var i in data.results){
+          var result = data.results[i]
+          console.log(result)
+          var $message = format_message(result)
+          $div.prepend('<div class="clearfix"></div>')
+          $div.prepend($message)
+        }
+        $div.prepend($older)
+
+        $content.prepend($div)
+
+        if(page == 1){
+          // Scroll down
+          setTimeout(function(){
+            $content.scrollTop($content.prop("scrollHeight"));
+          }, 100)
+        }
+      })
+
+    }
 })
 
 
-  
-
-function load_group(id, page){
-  if(!id) return;
-  $('.log-conversation').removeClass('active');
-  $('a[href="#'+id+'"]').addClass('active');
-
-
-  var $content = $('#content')
-  if(page == 1){
-    $content.html('')
-  }
-  $.get(url='{% url 'log_conversation' %}'+id+'/'+page, {}, function(data){
-    var $div = $('<div />')
-    var $older = $('<a/>')
-
-    $older.attr('class','show-older')
-    $older.text('Load older...')
-    $older.click(function(){
-      $(this).hide()
-      page += 1
-      load_group(id, page)
-    })
-    $div.append($older)
-    $div.append(data)
-
-    $content.prepend($div)
-
-    if(page == 1){
-      setTimeout(function(){
-        $content.scrollTop($content.prop("scrollHeight"));
-      }, 100)
-    }
-  })
-
-
-}
 </script>
 {% endblock %}
 
@@ -196,7 +232,7 @@ body{
   box-shadow: inset 2px 2px 6px 0px rgba(5,28,69,0.7);
 
 }
-.log-conversation {
+.log-chat {
   display: block;
   padding: 10px 15px;
   border-bottom: 1px solid #bbb;
@@ -204,16 +240,12 @@ body{
   text-decoration: none;
   color: black;
 }
-.log-conversation strong {
-  text-decoration: none;
-  color: black;
-}
-.log-conversation:hover {
+.log-chat:hover {
   background: #f8f8f8;
   text-decoration: none;
   color: #222;
 }
-.log-conversation.active {
+.log-chat.active {
   background: white;
   text-decoration: none;
   color: black;
@@ -227,7 +259,7 @@ body{
   overflow: auto;
   overflow-x: hidden;
 }
-#log-conversations {
+#log-chats {
   border: 1px solid #bbb;
   height: 85vh;
   overflow-y: auto;

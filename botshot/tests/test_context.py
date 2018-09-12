@@ -56,6 +56,6 @@ class TestContext(TestCase):
     def test_set(self):
         context = Context(dialog=self.dialog, entities={}, history=[], counter=0)
         context.myent = "foo"
-        context.foo = EntityValue(context, "foo", raw={"value": "foo"})
+        context.foo = EntityValue("foo", counter=context.counter, state_set=context.get_state_name(), raw={"value": "foo"})
         self.assertEqual(context.myent.get_value(this_msg=True), "foo")
         self.assertEqual(context.foo.get_value(this_msg=True), "foo")

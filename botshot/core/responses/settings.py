@@ -2,8 +2,7 @@ from botshot.core.responses.responses import MenuElement
 
 
 class ThreadSetting():
-    def to_response(self):
-        pass
+    pass
 
 
 class GreetingSetting(ThreadSetting):

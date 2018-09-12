@@ -48,22 +48,18 @@ class ChatSession:
 
 
 class Profile:
-    def __init__(self, profile_id=None, first_name=None, last_name=None):
-        self.profile_id = profile_id
+    def __init__(self, first_name=None, last_name=None, image_url=None, locale=None):
         self.first_name = first_name
         self.last_name = last_name
+        self.image_url = image_url
+        self.locale = locale
 
     def to_json(self):
-        return {
-            "profile_id": self.profile_id,
-            "first_name": self.first_name,
-            "last_name": self.last_name
-        }
+        return self.__dict__
 
     @staticmethod
     def from_json(data: dict):
-        return Profile(
-            profile_id=data['profile_id'],
-            first_name=data['first_name'],
-            last_name=data['last_name']
-        )
+        return Profile(**data)
+
+    def __str__(self):
+        return 'Profile({})'.format(str(self.__dict__))

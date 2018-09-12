@@ -1,4 +1,5 @@
 from typing import Iterable
+from botshot.core.serialize import json_serialize
 
 
 class MenuElement:
@@ -23,14 +24,10 @@ class MessageElement:
     """
     Base class for message elements.
     """
-    def to_message(self, fbid):
-        return {"recipient": {"id": fbid}, "message": self.to_response()}
 
-    def to_response(self):
-        pass
-
-    def get_response_for(self, platform='fb'):
-        return str(self)  # TODO
+    def get_text(self):
+        # FIXME: get text in more foolproof way
+        return self.text if hasattr(self, 'text') else None
 
     def set_message_tag(self, tag):
         self.tag = tag
@@ -69,23 +66,6 @@ class TextMessage(MessageElement):
         self.text = text
         self.buttons = buttons if buttons else []
         self.quick_replies = [QuickReply(**reply) for reply in quick_replies or []]
-
-    def to_response(self):
-        if len(self.buttons):
-            return {
-                "attachment": {
-                    "type": "template",
-                    "payload": {
-                        "template_type": "button",
-                        "text": self.text,
-                        "buttons": [button.to_response() for button in self.buttons]
-                    }
-                }
-            }
-        response = {'text': self.text}
-        if self.quick_replies:
-            response["quick_replies"] = [reply.to_response() for reply in self.quick_replies]
-        return response
 
     def __str__(self):
         text = self.text
@@ -138,16 +118,6 @@ class AttachmentMessage(MessageElement):
     def __init__(self, attachment_type, url):
         self.attachment_type = attachment_type
         self.url = url
-
-    def to_response(self):
-        return {
-            "attachment": {
-                "type": self.attachment_type,
-                "payload": {
-                    "url": self.url
-                }
-            }
-        }
 
 
 # TODO stickers not yet supported by Messenger :(

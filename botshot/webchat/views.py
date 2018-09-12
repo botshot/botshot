@@ -8,21 +8,19 @@ from django.shortcuts import render, redirect
 
 from botshot.core.responses import TextMessage
 from .forms import MessageForm
-from .interface import WebGuiInterface
-from .models import WebMessageData
 
 
-def webgui(request):
+def webchat(request):
     if 'uid' not in request.session:
         return render(request, 'botshot/webchat/welcome.html')
 
     uid = request.session['uid']
 
     if request.method == 'POST':
-        # message received via webgui
+        # message received via webchat
         if request.POST.get('message'):
             message_text = request.POST.get('message')
-            data = json.dumps(TextMessage(message_text).to_response())
+            #data = json.dumps(TextMessage(message_text).to_response())
 
             msg = WebMessageData.objects.create(uid=uid, is_response=False, data=data)
 
@@ -30,9 +28,9 @@ def webgui(request):
             msg.save()
             if request.POST.get("postback"):
                 postback = request.POST.get("postback")
-                WebGuiInterface.accept_postback(msg, postback)
+                WebchatInterface.accept_postback(msg, postback)
             else:
-                WebGuiInterface.accept_request(msg)
+                WebchatInterface.accept_request(msg)
         else:
             print("Error, message not set in POST")
             return HttpResponseBadRequest()
@@ -42,8 +40,8 @@ def webgui(request):
     context = {
         'uid': uid, 'messages': messages,
         'form': MessageForm, 'timestamp': datetime.now().timestamp(),
-        'user_img': settings.BOT_CONFIG.get('WEBGUI_USER_IMAGE', 'images/icon_user.png'),
-        'bot_img': settings.BOT_CONFIG.get('WEBGUI_BOT_IMAGE', 'images/icon_robot.png')
+        'user_img': settings.BOT_CONFIG.get('WEBCHAT_USER_IMAGE', 'images/icon_user.png'),
+        'bot_img': settings.BOT_CONFIG.get('WEBCHAT_BOT_IMAGE', 'images/icon_robot.png')
     }
     return render(request, 'botshot/webchat/index.html', context)
 
@@ -51,7 +49,7 @@ def webgui(request):
 def do_login(request):
     if request.method == 'POST' and 'username' in request.POST:
         username = request.POST.get('username')
-        uid = WebGuiInterface.make_uid(username)
+        uid = WebchatInterface.make_uid(username)
         request.session['uid'] = uid
         request.session['username'] = username
         return HttpResponse()
@@ -61,10 +59,10 @@ def do_login(request):
 
 def do_logout(request):
     if 'uid' in request.session:
-        WebGuiInterface.destroy_uid(request.session['uid'])
+        WebchatInterface.destroy_uid(request.session['uid'])
         del request.session['uid']
         del request.session['username']
-    return redirect('webgui')
+    return redirect('webchat')
 
 
 def get_last_change(request):
