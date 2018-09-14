@@ -100,6 +100,7 @@ body {
     font-weight: 400;
     font-size: small;
     display: block;
+    padding: 5px 0;
 }
 
 #form_msg {
@@ -136,28 +137,26 @@ body {
     border-radius: 20px;
     z-index: 1;
     line-height: 200%;
+    display: block;
+}
+.bubble-postback {
+    border: 2px solid blue;
+}
+.message-wrap {
+    padding: 10px 0;
 }
 
-.right-bubble {
+.message-wrap.bot-wrap .circle-image,
+.message-wrap.bot-wrap .bubble {
+    float: left
+}
+
+.message-wrap.user-wrap {
+text-align: right
+}
+.message-wrap.user-wrap .circle-image,
+.message-wrap.user-wrap .bubble {
     float: right;
-}
-
-.right-bubble:after {
-    content: "";
-    width: 0;
-    height: 0;
-    background: transparent;
-
-    /*position: absolute;*/
-    /*right: 16px;*/
-    /*bottom: 10px;*/
-    /*border-left: 25px solid transparent;*/
-    /*border-bottom: 25px solid transparent;*/
-    /*border-right: 20px solid rgba(43,103,204,1);*/
-}
-
-.left-bubble {
-    float: left;
 }
 
 /*.message-wrap + .time {*/
@@ -175,20 +174,35 @@ body {
     /*border-radius: 8px;*/
     /*z-index: 100;*/
 /*}*/
-
+.quick-replies {
+text-align: center
+}
+.quick-replies > button:disabled {
+    opacity: 0.6;
+}
 .quick-replies > button {
     background-color: #f0f0f0;
-    padding: 6px;
+    padding: 10px 15px;
     margin: 5px 5px;
     border: none;
-    border-radius: 3px;
+    border-radius: 5px;
 color: black;
 }
 
-.quick-replies > button:focus, .quick-replies > button:hover {
+.quick-replies > button:focus, .quick-replies > button:hover:not(:disabled) {
     background-color: #dddddd;
+    cursor: pointer;
 }
 
+.clearfix:before, .clearfix:after {
+    display: table;
+    content: " ";
+
+}
+
+.clearfix:after {
+    clear: both;
+}
 .buttons > button {
     background-color: #ffffff;
     padding: 6px;

@@ -1,4 +1,7 @@
 from django import template
+from django.utils.safestring import mark_safe
+
+import json
 
 register = template.Library()
 
@@ -17,3 +20,6 @@ def duration(seconds):
       return ''
     return '{} ms'.format(int(seconds * 1000))
 
+@register.filter(name='json')
+def json_dumps(data):
+    return json.dumps(data)

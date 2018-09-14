@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Flows{% endblock %}
+{% block content %}
+  <div class="row">
+    <div class="col-xs-12">
+      <ul class="nav nav-tabs" role="tablist">
+        {% for flow_name, flow in flows.items %}
+          <li class="nav-item">
+            <a class="nav-link {% if forloop.first %}active{% endif %}" id="flow-{{ flow.name }}-tab" data-toggle="tab" href="#flow-{{ flow.name }}" role="tab" aria-controls="home" aria-selected="true">
+              {{ flow.name }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+        <br>
+        <div class="tab-content">
+          {% for flow_name, flow in flows.items %}
+            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="flow-{{ flow.name }}" role="tabpanel" aria-labelledby="flow-{{ flow.name }}-tab">
+              <h2>{{ flow.name }}</h2>
+              <p>Intent: {{ flow.intent }}</p>
+              <p>
+                Accepted entities:
+                {{ flow.accepted }}
+              </p>
+              <p>Unsupported action: {{ flow.unsupported }}</p>
+              <h4>States:</h4>
+              {% for state_name, state in flow.states.items %}
+                <h4>{{state.name}}</h4>
+                <table class="table table-bordered">
+                    <tr>
+                      <td>Intent</td>
+                      <td><pre>intent</pre></td>
+                      <td>{{ state.intent }}</td>
+                    </tr>
+                    <tr>
+                      <td>Action</td>
+                      <td><pre>action</pre></td>
+                      <td>{{ state.action }}
+                      <br><pre>{{ state.get_action_code }}</pre>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Temporary</td>
+                      <td><pre>temporary</pre></td>
+                      <td>{{ state.temporary }}</td>
+                    </tr>
+                    <tr>
+                      <td>Required entities</td>
+                      <td><pre>requires</pre></td>
+                      <td>{{ state.requires }}</td>
+                    </tr>
+                    <tr>
+                      <td>Supported entities</td>
+                      <td><pre>supported</pre></td>
+                      <td>{{ state.supported }}</td>
+                    </tr>
+                    <tr>
+                      <td>Unsupported entities</td>
+                      <td><pre>unsupported</pre></td>
+                      <td>{{ state.unsupported }}</td>
+                    </tr>
+                  </table>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+    </div>
+  </div>
+{% endblock %}

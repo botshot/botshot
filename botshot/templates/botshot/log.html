@@ -37,7 +37,11 @@ $(function(){
         chat_id = hash_id
       }
       var name = result.first_name + ' ' + result.last_name
-      var $chat = $('<a />').attr({'class':'log-chat','href':'#'+result.chat_id}).text(name)
+      var $chat = $('<a />').attr({'class':'log-chat clearfix','href':'#'+result.chat_id})
+      console.log(result.image)
+      var $chatImage = $('<span />').attr({'class': 'log-chat-image'}).css({'background-image': 'url('+result.image+')'})
+      var $chatText = $('<span />').addClass('log-chat-text').text(name)
+      $chat.append($chatImage).append($chatText)
       $chats.append($chat)
     }
     if(!chat_id){
@@ -70,9 +74,9 @@ $(function(){
     function format_message(message){
       var $message = $('<div />')
       if(message.is_from_user){
-        $message.addClass('message-user pull-right')
+        $message.addClass('message-user float-right')
       } else {
-        $message.addClass('message-bot pull-left')
+        $message.addClass('message-bot float-left')
       }
       var $bubble = $('<div />').addClass('message-bubble').text(message.text)
       $message.append($bubble)
@@ -99,7 +103,7 @@ $(function(){
         $older.click(function(){
           $(this).hide()
           page += 1
-          load_group(id, page)  // FIXME implement load_group
+          load_chat(id, page)
         })
 
         for(var i in data.results){
@@ -109,8 +113,9 @@ $(function(){
           $div.prepend('<div class="clearfix"></div>')
           $div.prepend($message)
         }
-        $div.prepend($older)
-
+        if(data.next){
+          $div.prepend($older)
+        }
         $content.prepend($div)
 
         if(page == 1){
@@ -234,11 +239,23 @@ body{
 }
 .log-chat {
   display: block;
-  padding: 10px 15px;
   border-bottom: 1px solid #bbb;
   background: #eee;
   text-decoration: none;
   color: black;
+}
+.log-chat .log-chat-image {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    float: left;
+    background: no-repeat white top left;
+    background-size: cover;
+}
+.log-chat .log-chat-text {
+    padding: 10px 10px;
+    display: inline-block;
+    float: left;
 }
 .log-chat:hover {
   background: #f8f8f8;
@@ -249,6 +266,7 @@ body{
   background: white;
   text-decoration: none;
   color: black;
+  font-weight: bold;
 }
 #header {
   height: 10vh;

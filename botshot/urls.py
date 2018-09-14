@@ -15,15 +15,17 @@ urlpatterns = [
     url(r'^skype/{}/?$'.format(secret_url),
         view=views.SkypeView.as_view(), name='skype'),
 
-    url(r'^test/run/(?P<name>[a-zA-Z0-9_\-]+)/?$', views.run_test, name='run_test'),
-    url(r'^test/?$', views.test, name='test'),
+    url(r'^$', views.index, name='dashboard'),
     url(r'^login/$', auth_views.LoginView.as_view(template_name='botshot/login/login.html'), name='login'),
+
+    url(r'^flows/?$', views.flows, name='flows'),
+
+    url(r'^test/?$', views.test, name='test'),
+    url(r'^test/run/(?P<name>[a-zA-Z0-9_\-]+)/?$', views.run_test, name='run_test'),
 
     url(r'^log/?$', views.log, name='log'),
     url(r'^log/chats/?$', views.ChatLogViewSet.as_view({'get': 'list'}), name="log/chats"),
     url(r'^log/messages/(?P<chat_id>[a-zA-Z_0-9]*)/?$', views.MessageLogList.as_view(), name="log/messages"),
-    # url(r'^log/tests/?$', views.log_tests) TODO log tests
-
-    #url(r'^log/users/?$', views.log_users),
-    #url(r'^log/messages/(?P<user_id>[a-zA-Z_0-9]+)/?$', views.log_messages)
+    # url(r'^log/tests/?$', views.log_tests), TODO log tests and users
+    # url(r'^log/users/?$', views.log_users),
 ]

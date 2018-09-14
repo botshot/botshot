@@ -215,6 +215,5 @@ class MicrosoftInterface():
             return parse_text_message(raw['text'])
         elif 'value' in raw:
             payload = raw['value']
-            payload['_message_text'] = [{'value': None}]
             return {'entities': payload, 'type': 'postback'}
         return {'type': 'undefined'}

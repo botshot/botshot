@@ -93,6 +93,23 @@ class SkypeView(generic.View):
         return generic.View.dispatch(self, request, *args, **kwargs)
 
 
+@login_required(login_url=reverse_lazy('login'))
+def index(request):
+    context = {}
+    template = loader.get_template('botshot/index.html')
+    return HttpResponse(template.render(context,request))
+
+
+@login_required(login_url=reverse_lazy('login'))
+def flows(request):
+    from botshot.core.flow import FLOWS
+    context = {
+        'flows': FLOWS
+    }
+    template = loader.get_template('botshot/flows.html')
+    return HttpResponse(template.render(context,request))
+
+
 # TODO this really needs improvement
 @login_required(login_url=reverse_lazy('login'))
 def test(request):

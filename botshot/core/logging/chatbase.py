@@ -32,7 +32,7 @@ class ChatbaseLogger(MessageLogger):
             "platform": self._interface_to_platform(dialog.session.interface.name),
             "message": message_text,
             "intent": dialog.context.intent.get_value(),
-            "session_id": state,
+            "chat_id": state,
             "not_handled": unsupported,
             "version": settings.BOT_CONFIG.get("VERSION", "1.0")
         }
@@ -51,7 +51,7 @@ class ChatbaseLogger(MessageLogger):
             "platform": self._interface_to_platform(dialog.session.interface.name),
             "message": str(message),
             "intent": dialog.context.intent.get_value(this_msg=True),
-            "session_id": state,
+            "chat_id": state,
             "not_handled": False,  # only for user messages
             "version": settings.BOT_CONFIG.get("VERSION", "1.0")
         }

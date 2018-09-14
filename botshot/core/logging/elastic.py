@@ -52,7 +52,7 @@ class ElasticsearchLogger(MessageLogger):
 
     def log_error(self, dialog, state, exception):
         self._log_message({
-            'uid': dialog.chat_id,
+            'uid': dialog.session.chat_id,
             'test_id' : self.test_id,
             'created': time.time(),
             'is_user': False,
@@ -70,18 +70,4 @@ class ElasticsearchLogger(MessageLogger):
             es.index(index="message-log", doc_type='message', body=message)
         except Exception as e:
             print('Unable to log message to Elasticsearch.')
-            print(e)
-
-    def log_user(self, dialog, session: ChatSession):
-        user = {
-            'uid': session.chat_id,
-            'profile': session.profile.to_json() if session.profile else None
-        }
-        es = get_elastic()
-        if not es:
-            return
-        try:
-            es.create(index="message-log", id=user['uid'], doc_type='user', body=user)
-        except Exception as e:
-            print('Unable to log user profile to Elasticsearch.')
             print(e)
