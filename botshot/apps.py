@@ -11,6 +11,3 @@ class BotshotConfig(AppConfig):
         init_webhooks()
         init_flows()
         logging_service.init()
-        # TODO skip webhooks if just running task like django migrate
-        print("Initializing webhooks ...")
-        init_webhooks()

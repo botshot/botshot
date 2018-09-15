@@ -1,16 +1,19 @@
-import logging
 from typing import Optional
-from django.conf import settings
-from botshot.core.chat_session import ChatSession
-from botshot.core.flow import FLOWS, Flow, State
-from botshot.core.persistence import get_redis, json_serialize, json_deserialize
-import logging
 import json
-from botshot.core.context import Context
-from botshot.core.responses.responses import TextMessage
-from botshot.core.parsing.user_message import UserMessage
-from botshot.core.logging import logging_service
+import logging
 import time
+from typing import Optional
+
+from django.conf import settings
+
+from botshot.core import flow
+from botshot.core.chat_session import ChatSession
+from botshot.core.context import Context
+from botshot.core.flow import Flow, State
+from botshot.core.logging import logging_service
+from botshot.core.parsing.user_message import UserMessage
+from botshot.core.persistence import get_redis, json_serialize, json_deserialize
+from botshot.core.responses.responses import TextMessage
 
 
 class DialogManager:
@@ -19,9 +22,10 @@ class DialogManager:
         self.db = get_redis()
         self.session = session
         self.error_message_text = settings.BOT_CONFIG.get('ERROR_MESSAGE_TEXT')
-        if FLOWS is None:
-            raise ValueError('Flows not initialized, init_flows() should be called at startup!')
-        self.flows = FLOWS
+        if flow.FLOWS is None:
+            flow.init_flows()
+            # raise ValueError('Flows not initialized, init_flows() should be called at startup!')
+        self.flows = flow.FLOWS
         if self.field_exists('session_state'):
             self.current_state_name = self.get_field('session_state')
             logging.info('Session exists at state {}'.format(self.current_state_name))
@@ -67,9 +71,9 @@ class DialogManager:
         if at:
             if at.tzinfo is None or at.tzinfo.utcoffset(at) is None:
                 raise Exception('Use datetime with timezone, e.g. "from django.utils import timezone"')
-            return accept_schedule_callback.apply_async((self, callback_state), eta=at)
+            return accept_schedule_callback.apply_async((self.session, callback_state), eta=at)
         elif seconds:
-            return accept_schedule_callback.apply_async((self, callback_state), countdown=seconds)
+            return accept_schedule_callback.apply_async((self.session, callback_state), countdown=seconds)
         else:
             raise Exception('Specify either "at" or "seconds" parameter')
 
