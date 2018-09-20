@@ -1,4 +1,3 @@
-from typing import Optional
 import json
 import logging
 import time
@@ -85,8 +84,8 @@ class DialogManager:
         """
         from botshot.tasks import accept_inactivity_callback
         logging.info('Setting inactivity callback "{}" after {} seconds'.format(callback_state, seconds))
-        accept_inactivity_callback.apply_async(
-            (self, self.context.counter, callback_state, seconds),
+        return accept_inactivity_callback.apply_async(
+            (self.session, self.context.counter, callback_state, seconds),
             countdown=seconds)
 
     def send(self, responses):
@@ -117,7 +116,7 @@ class DialogManager:
                 print('Error scheduling message log', e)
 
             # Send the response
-            self.session.interface.post_message(response)
+            self.session.interface.post_message(self.session, response)
 
     def get_field(self, field):
         value = self.db.hget(field, self.session.chat_id)
@@ -137,7 +136,7 @@ class DialogManager:
         return self.db.hexists(field, self.session.chat_id)
 
     def process(self, message: UserMessage):
-        self.session.interface.processing_start()
+        self.session.interface.processing_start(self.session)
         accepted_state = self.current_state_name
         # Only process messages and postbacks (not 'seen_by's, etc)
         if message.message_type not in ['message', 'postback', 'schedule']:
@@ -193,7 +192,7 @@ class DialogManager:
             self._move_to("default.root:")
 
         self.save()
-        self.session.interface.processing_end()
+        self.session.interface.processing_end(self.session)
 
     def _special_message(self, text):
         if not text:

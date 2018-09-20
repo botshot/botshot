@@ -5,14 +5,16 @@ import requests
 from django.conf import settings
 
 from botshot.core.chat_session import ChatSession
+from botshot.core.chat_session import Profile
 from botshot.core.interfaces.adapter.facebook import FacebookAdapter
 from botshot.core.parsing.message_parser import parse_text_message
+from botshot.core.parsing.user_message import UserMessage
 from botshot.core.persistence import get_redis
 from botshot.core.responses.buttons import *
 from botshot.core.responses.responses import *
 from botshot.core.responses.settings import ThreadSetting, GreetingSetting, GetStartedSetting, MenuSetting
 from botshot.tasks import accept_user_message
-from botshot.core.chat_session import Profile
+
 
 class FacebookInterface():
     name = 'facebook'
@@ -281,7 +283,7 @@ class FacebookInterface():
     def parse_message(raw_message, num_tries=1):
         if 'postback' in raw_message:
             payload = json.loads(raw_message['postback']['payload'])
-            return {'entities': payload, 'type': 'postback'}
+            return UserMessage('postback', payload=payload)
         elif 'message' in raw_message:
             if 'sticker_id' in raw_message['message']:
                 return FacebookInterface.parse_sticker(raw_message['message']['sticker_id'])
@@ -291,10 +293,10 @@ class FacebookInterface():
             if 'quick_reply' in raw_message['message']:
                 payload = json.loads(raw_message['message']['quick_reply'].get('payload'))
                 if payload:
-                    return {'entities': payload, 'type': 'postback'}
+                    return UserMessage(message_type='postback', payload=payload)
             if 'text' in raw_message['message']:
                 return parse_text_message(raw_message['message']['text'])
-        return {'type': 'undefined'}
+        return UserMessage(message_type='undefined', text=None, payload={})
 
     @staticmethod
     def parse_sticker(sticker_id):

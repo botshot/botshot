@@ -1,15 +1,17 @@
 
 class ChatSession:
-    def __init__(self, interface, profile=None, is_test=False):
+    def __init__(self, interface, unique_id, profile=None, is_test=False, meta=None):
         """
         :param interface: Chat interface object
+        :param unique_id: Identifier of this chat
         """
         if interface is None:
             raise ValueError("Interface must be set")
         self.interface = interface
+        self.chat_id = unique_id
         self.profile = profile or Profile()
-        self.chat_id = ChatSession.create_chat_id(interface)
         self.is_test = is_test
+        self.meta = meta
 
     def accept(self, raw_message):
         from botshot.tasks import accept_user_message

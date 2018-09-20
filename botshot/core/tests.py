@@ -7,14 +7,13 @@ import traceback
 
 from django.conf import settings
 
+from botshot.core.parsing.message_parser import parse_text_message
 from botshot.core.persistence import get_redis
 from botshot.core.responses import CarouselTemplate
 from botshot.core.responses.buttons import *
 from botshot.core.responses.responses import *
 from .chat_session import ChatSession
 from .interfaces.test import TestInterface
-from botshot.core.parsing.message_parser import parse_text_message
-from .serialize import json_deserialize
 
 
 class ConversationTestException(Exception):
