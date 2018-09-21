@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load botshot_extras %}
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -19,22 +20,7 @@
 <div class="container">
   <div class="row">
     <div class="col-xs-12" id="toolbar">
-
-      <ul class="nav nav-pills">
-        <li class="nav-item">
-          <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a>
-        </li>
-        <li class="nav-item">
-          <a href="{% url 'flows' %}" class="nav-link {% if request.resolver_match.url_name == 'flows' %}active{% endif %}">Flows</a>
-        </li>
-        <li class="nav-item">
-          <a href="{% url 'log' %}" class="nav-link {% if request.resolver_match.url_name == 'log' %}active{% endif %}">Messages</a>
-        </li>
-        <li class="nav-item">
-          <a href="{% url 'test' %}" class="nav-link {% if request.resolver_match.url_name == 'test' %}active{% endif %}">Tests</a>
-        </li>
-      </ul>
-    <!-- TODO custom menu items -->
+    {% show_menu_items %}
     </div>
   </div>
   {% block content %}{% endblock content %}

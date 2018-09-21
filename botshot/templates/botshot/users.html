@@ -9,7 +9,11 @@
     {% for user in users %}
         <div class="user">
             <h3>{{ user.uid }}</h3>
-            <span>Name: {{ user.name }} {{ user.surname }}</span><br>
+            {% if user.name or user.surname %}
+                <span>Name: {{ user.name | default: "" }} {{ user.surname | default: "" }}</span><br>
+            {% else %}
+                <span>Name: (Unknown)</span><br>
+            {% endif %}
             <span>Last active: {{ user.last_active }}</span><br>
             <span>Total messages: {{ user.message_cnt }}</span><br>
             <span>Active chats: </span>
