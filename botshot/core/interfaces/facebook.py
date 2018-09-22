@@ -13,12 +13,26 @@ from botshot.core.responses.responses import *
 from botshot.core.responses.settings import ThreadSetting, GreetingSetting, GetStartedSetting, MenuSetting
 from botshot.tasks import accept_user_message
 from botshot.core.chat_session import Profile
+from django.http.response import HttpResponse
 
 class FacebookInterface():
     name = 'facebook'
     prefix = 'fb'
     TEXT_LENGTH_LIMIT = 320
     adapter = FacebookAdapter()
+
+    def get_request(self, request):
+        if request.GET.get('hub.verify_token') == settings.BOT_CONFIG.get('FB_VERIFY_TOKEN'):
+            return HttpResponse(request.GET['hub.challenge'])
+        else:
+            return HttpResponse('Error, invalid token')
+
+    # Post function to handle Facebook messages
+    def post_request(self, request):
+        # Converts the text payload into a python dictionary
+        request_body = json.loads(request.body.decode('utf-8'))
+        FacebookInterface.accept_request(request_body)
+        return HttpResponse()
 
     # Post function to handle Facebook messages
     @staticmethod

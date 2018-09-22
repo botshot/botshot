@@ -19,6 +19,8 @@ BOT_CONFIG = {
     "BOTS": {
         "{APP_NAME}/bots/default.yaml"
     },
+    # Change this secret url to hide your public webhooks!
+    "WEBHOOK_SECRET_URL": "8gu20xksls94udjv840f1",
     "REDIS_URL": os.environ.get('BOTSHOT_REDIS_URL', "redis://localhost:6379/"),
     'DEPLOY_URL': os.environ.get('BOTSHOT_DEPLOY_URL', 'http://localhost:8000/'),
     'MSG_LIMIT_SECONDS': 20,

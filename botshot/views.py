@@ -16,25 +16,6 @@ from botshot.serializers import ChatLogSerializer, MessageLogSerializer
 from rest_framework import viewsets, renderers, generics, pagination
 
 
-class FacebookView(generic.View):
-
-    def get(self, request, *args, **kwargs):
-        if self.request.GET.get('hub.verify_token') == settings.BOT_CONFIG.get('WEBHOOK_VERIFY_TOKEN'):
-            return HttpResponse(self.request.GET['hub.challenge'])
-        else:
-            return HttpResponse('Error, invalid token')
-
-    @method_decorator(csrf_exempt)
-    def dispatch(self, request, *args, **kwargs):
-        return generic.View.dispatch(self, request, *args, **kwargs)
-
-    # Post function to handle Facebook messages
-    def post(self, request, *args, **kwargs):
-        # Converts the text payload into a python dictionary
-        request_body = json.loads(self.request.body.decode('utf-8'))
-        FacebookInterface.accept_request(request_body)
-        return HttpResponse()
-
 
 class TelegramView(generic.View):
 
