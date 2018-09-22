@@ -4,6 +4,7 @@ import pickle
 
 from django.conf import settings
 from wit import Wit
+from wit.wit import WitError
 
 from botshot.core.parsing import date_utils
 from botshot.core.parsing.entity_extractor import EntityExtractor
@@ -34,7 +35,7 @@ class WitExtractor(EntityExtractor):
             entities = self._process_wit_entities(entities)
             self.save_to_cache(text, entities)
             return entities
-        except Exception:
+        except WitError:
             self.log.exception('Wit error:')
             return self.extract_entities(text, max_retries - 1)
 

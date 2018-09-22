@@ -1,16 +1,18 @@
-import logging
-from typing import Optional
-from django.conf import settings
-from botshot.core.chat_session import ChatSession
-from botshot.core.flow import FLOWS, Flow, State
-from botshot.core.persistence import get_redis, json_serialize, json_deserialize
-import logging
 import json
-from botshot.core.context import Context
-from botshot.core.responses.responses import TextMessage
-from botshot.core.parsing.user_message import UserMessage
-from botshot.core.logging import logging_service
+import logging
 import time
+from typing import Optional
+
+from django.conf import settings
+
+from botshot.core import flow
+from botshot.core.chat_session import ChatSession
+from botshot.core.context import Context
+from botshot.core.flow import Flow, State
+from botshot.core.logging import logging_service
+from botshot.core.parsing.user_message import UserMessage
+from botshot.core.persistence import get_redis, json_serialize, json_deserialize
+from botshot.core.responses.responses import TextMessage
 
 
 class DialogManager:
@@ -19,9 +21,10 @@ class DialogManager:
         self.db = get_redis()
         self.session = session
         self.error_message_text = settings.BOT_CONFIG.get('ERROR_MESSAGE_TEXT')
-        if FLOWS is None:
-            raise ValueError('Flows not initialized, init_flows() should be called at startup!')
-        self.flows = FLOWS
+        if flow.FLOWS is None:
+            flow.init_flows()
+            # raise ValueError('Flows not initialized, init_flows() should be called at startup!')
+        self.flows = flow.FLOWS
         if self.field_exists('session_state'):
             self.current_state_name = self.get_field('session_state')
             logging.info('Session exists at state {}'.format(self.current_state_name))
@@ -67,9 +70,9 @@ class DialogManager:
         if at:
             if at.tzinfo is None or at.tzinfo.utcoffset(at) is None:
                 raise Exception('Use datetime with timezone, e.g. "from django.utils import timezone"')
-            accept_schedule_callback.apply_async((self, callback_state), eta=at)
+            return accept_schedule_callback.apply_async((self.session, callback_state), eta=at)
         elif seconds:
-            accept_schedule_callback.apply_async((self, callback_state), countdown=seconds)
+            return accept_schedule_callback.apply_async((self.session, callback_state), countdown=seconds)
         else:
             raise Exception('Specify either "at" or "seconds" parameter')
 
@@ -81,8 +84,8 @@ class DialogManager:
         """
         from botshot.tasks import accept_inactivity_callback
         logging.info('Setting inactivity callback "{}" after {} seconds'.format(callback_state, seconds))
-        accept_inactivity_callback.apply_async(
-            (self, self.context.counter, callback_state, seconds),
+        return accept_inactivity_callback.apply_async(
+            (self.session, self.context.counter, callback_state, seconds),
             countdown=seconds)
 
     def send(self, responses):
@@ -113,7 +116,7 @@ class DialogManager:
                 print('Error scheduling message log', e)
 
             # Send the response
-            self.session.interface.post_message(response)
+            self.session.interface.post_message(self.session, response)
 
     def get_field(self, field):
         value = self.db.hget(field, self.session.chat_id)
@@ -133,7 +136,7 @@ class DialogManager:
         return self.db.hexists(field, self.session.chat_id)
 
     def process(self, message: UserMessage):
-        self.session.interface.processing_start()
+        self.session.interface.processing_start(self.session)
         accepted_state = self.current_state_name
         # Only process messages and postbacks (not 'seen_by's, etc)
         if message.message_type not in ['message', 'postback', 'schedule']:
@@ -146,6 +149,7 @@ class DialogManager:
         # TODO what to say and do on invalid requires -> input?
         self.context.counter += 1
 
+        self._remove_empty_items(message)
         self.context.add_message(message)
         self.context.debug()
         # FIXME: Get all current entities from context as EntityValues
@@ -154,7 +158,7 @@ class DialogManager:
         if message.message_type != 'schedule':
             self.set_field('session_active', time.time())
 
-        logging.info('>>> Processing message')
+        logging.debug('>>> Processing message')
 
         logging_service.log_user_message.delay(session=self.session, message=message, entities=entities,
                                                state=accepted_state)
@@ -170,6 +174,7 @@ class DialogManager:
 
         entity_values = self._get_entity_value_tuples(entities)
         if self.get_state().is_supported(entity_values):
+            logging.debug("Entity supported, no entity transition")
             self._run_accept()
             return
 
@@ -181,12 +186,13 @@ class DialogManager:
             self._run_action(self.get_flow().unsupported)
         # if not provided, give up and go to default.root
         else:
-            raise Exception("Missing required 'unsupported' action field in flow {}.".format(
-                self.get_flow().name)
-            )
+            # raise Exception("Missing required 'unsupported' action field in flow {}.".format(
+            #     self.get_flow().name)
+            # )
+            self._move_to("default.root:")
 
         self.save()
-        self.session.interface.processing_end()
+        self.session.interface.processing_end(self.session)
 
     def _special_message(self, text):
         if not text:
@@ -235,6 +241,7 @@ class DialogManager:
 
         entity_values = self._get_entity_value_tuples(entities, include=("intent", "_message_text"))
         if self.get_state().is_supported(entity_values):
+            logging.debug("Intent or text supported, no intent transition")
             return False
 
         # move to the flow whose 'intent' field matches intent
@@ -264,6 +271,7 @@ class DialogManager:
         # first check if supported, if yes, abort
         entity_values = self._get_entity_value_tuples(entities)
         if self.get_state().is_supported(entity_values):
+            logging.debug("Entity supported, no entity transition")
             return False
 
         # TODO check states of current flow for 'accepted' first
@@ -296,7 +304,7 @@ class DialogManager:
 
     def _move_to(self, new_state_name, initializing=False, save_identical=False):
         """Moves to a state by its full name."""
-        logging.info("Trying to move to {}".format(new_state_name))
+        logging.debug("Trying to move to {}".format(new_state_name))
 
         # if flow prefix is not present, add the current one
         if isinstance(new_state_name, int):
@@ -392,3 +400,7 @@ class DialogManager:
                 logging.debug("Skipping entity {} in supported message check".format(name))
 
         return entity_set
+
+    def _remove_empty_items(self, message: UserMessage):
+        entities = message.payload
+        message.payload = {entity: value for entity, value in entities.items() if value is not None and value != []}

@@ -8,7 +8,8 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 
 from botshot.core.chat_session import ChatSession
-from botshot.core.interfaces.all import create_from_name
+from botshot.core.interfaces import create_from_name
+from botshot.core.persistence import get_redis
 from botshot.core.parsing.user_message import UserMessage
 # Load logging service to be registered by celery
 from botshot.core.logging import logging_service

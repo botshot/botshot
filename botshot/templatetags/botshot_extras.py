@@ -1,7 +1,7 @@
-from django import template
-from django.utils.safestring import mark_safe
-
 import json
+
+from django import template
+from django.conf import settings
 
 register = template.Library()
 
@@ -23,3 +23,16 @@ def duration(seconds):
 @register.filter(name='json')
 def json_dumps(data):
     return json.dumps(data)
+
+
+@register.inclusion_tag('botshot/nav.html')
+def show_menu_items():
+    return {"items": ADMIN_VIEWS + settings.BOT_CONFIG.get("ADMIN_VIEWS", [])}
+
+
+ADMIN_VIEWS = [
+    {"name": "Dashboard", "view": "dashboard"},
+    {"name": "Flows", "view": "flows"},
+    {"name": "Messages", "view": "log"},
+    {"name": "Tests", "view": "test"},
+]

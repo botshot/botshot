@@ -282,6 +282,7 @@ color: black;
     padding-top: 10px;
     margin-top: 10px;
     box-shadow: 0 -5px 10px #cccccc;
+    display: flex;
 }
 
 #form_msg > label {
@@ -297,6 +298,7 @@ input[type='submit'] {
     border: none;
     border-radius: 2px;
     padding: 10px 15px;
+    margin: 0 5px;
     outline: 0;
 }
 
@@ -312,7 +314,7 @@ input[type="text"] {
     background-color: white;
     color: #777777;
     box-shadow: 0 0 1px #aaaaaa;
-    width: 90%;
+    width: 100%;
 }
 
 input[type="text"]:focus {

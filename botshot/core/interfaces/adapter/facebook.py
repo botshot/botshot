@@ -2,7 +2,7 @@ from botshot.core.interfaces.adapter.message_adapter import MessageAdapter
 from botshot.core.responses import *
 
 
-class FacebookAdapter(MessageAdapter):
+class MessengerAdapter(MessageAdapter):
 
     def __init__(self):
         super().__init__()
@@ -32,17 +32,18 @@ class FacebookAdapter(MessageAdapter):
             MediaMessage: self._media_message,
         }
 
-    def transform_message(self, message: MessageElement, session=None):
+    def transform_message(self, message: MessageElement, session_meta=None):
+        if isinstance(message, MediaMessage):
+            # FIXME: media messages upload
+            raise NotImplementedError("Media messages are not supported yet.")
+            #if not self._is_facebook_url(message) and not self._retrieve_attachment(message.url):
+            #    self._upload_attachment(session, message.url, message.media_type, message.allow_cache)
         message_type = type(message)
         fn = self.functions.get(message_type)
         if not fn:
             raise Exception("Response {} is not supported in Facebook Messenger at the moment!".format(message_type))
         return fn(message)
 
-    def prepare_message(self, message: MessageElement, session):
-        if isinstance(message, MediaMessage):
-            if not self._is_facebook_url(message) and not self._retrieve_attachment(message.url):
-                self._upload_attachment(session, message.url, message.media_type, message.allow_cache)
 
     def _is_facebook_url(self, url):
         """Used to check whether an attachment needs to be uploaded to Facebook before sending."""
@@ -51,7 +52,7 @@ class FacebookAdapter(MessageAdapter):
     def _upload_attachment(self, session, url, type, allow_cache):
         """Uploads an attachment to FB servers."""
         from botshot.core.persistence import get_redis
-        from botshot.core.interfaces.facebook import FacebookInterface
+        from botshot.core.interfaces.messenger import FacebookInterface
 
         redis = get_redis()
         att_id = FacebookInterface.upload_attachment(session, url, type, allow_cache)

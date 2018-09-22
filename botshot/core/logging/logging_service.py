@@ -1,14 +1,12 @@
-import logging
-import time
 import importlib
+import logging
 from typing import List
-from celery import shared_task
 
+from celery import shared_task
 from django.conf import settings
 
 from botshot.core.logging.abs_logger import MessageLogger
 from botshot.core.chat_session import ChatSession
-import traceback
 
 MESSAGE_LOGGERS: List[MessageLogger] = []
 
@@ -60,8 +58,7 @@ def log_all_safe(func):
         try:
             func(logger)
         except Exception as e:
-            print('Error logging to "{}": {}'.format(logger, e))
-            traceback.print_exc()
+            logging.exception('Error logging to "{}"'.format(logger))
 
 
 def _import_full_name(classname):
