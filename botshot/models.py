@@ -1,9 +1,11 @@
 from django.db import models
-from botshot.core.persistence import todict
-import json
+
 import requests
 import tempfile
 import os
+from enum import Enum
+from jsonfield import JSONField
+
 
 def save_temporary_image(image_url):
     request = requests.get(image_url, stream=True)
@@ -23,17 +25,33 @@ def save_temporary_image(image_url):
 
     return tmpfile
 
-class ChatSession(models.Model):
-    session_id = models.CharField(max_length=256, primary_key=True)
+
+class ChatConversation(models.Model):
+    conversation_id = models.BigAutoField(primary_key=True)
+    raw_conversation_id = models.CharField(max_length=256)
     name = models.CharField(max_length=64, blank=True, null=True)
+    interface_name = models.CharField(max_length=64, null=False)
     last_message_time = models.DateTimeField(blank=True, null=True)
+    state = models.CharField(max_length=128, blank=True, null=True)
+    is_test = models.BooleanField()
+    meta = JSONField(null=True)
+    context_dict = JSONField(null=True)
+
+    @property
+    def interface(self):
+        from botshot.core.interface_factory import InterfaceFactory
+        if not self._interface or self._interface.name != self.interface_name:
+            self._interface = InterfaceFactory.from_name(self.interface_name)
+        return self._interface
+
 
 class ChatUser(models.Model):
-    user_id = models.CharField(max_length=256, primary_key=True)
-    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='users')
+    user_id = models.BigAutoField(primary_key=True)
+    raw_user_id = models.CharField(max_length=256)
+    conversation: ChatConversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='users')
     first_name = models.CharField(max_length=64, blank=True, null=True)
     last_name = models.CharField(max_length=64, blank=True, null=True)
-    image = models.ImageField(upload_to='profile_pic', default='profile_pic/None/no-img.jpg')
+    image = models.ImageField(upload_to='profile_pic', default='images/icon_user.png')
     locale = models.CharField(max_length=16, blank=True, null=True)
     last_message_time = models.DateTimeField(blank=True, null=True)
 
@@ -47,32 +65,22 @@ class ChatUser(models.Model):
             raise ValueError('Image extension has to start with "."')
         self.image.save('{}{}'.format(self.user_id, extension), tmpfile)
 
+
+class MessageType(Enum):
+    MESSAGE = 'message'
+    BUTTON = 'button'
+    SCHEDULE = 'schedule'
+    EVENT = 'event'
+
+
 class ChatMessage(models.Model):
     message_id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(ChatUser, on_delete=models.CASCADE, related_name='messages')
+    user: ChatUser = models.ForeignKey(ChatUser, on_delete=models.CASCADE, related_name='messages')
+    type = models.TextField(max_length=16, choices=[(key, key.value) for key in MessageType], null=False)
     text = models.TextField(blank=True, null=True)
-    message_type = models.TextField(max_length=32, blank=True, null=True, db_index=True)
     is_from_user = models.BooleanField()
     time = models.DateTimeField(db_index=True, null=False)
     intent = models.TextField(max_length=64, blank=True, null=True, db_index=True)
     state = models.TextField(max_length=128, blank=True, null=True, db_index=True)
-    meta_raw = models.TextField(blank=True, null=True, db_index=False)
-
-    @property
-    def entities(self):
-        if not self.is_from_user:
-            return None
-        return json.loads(self.meta_raw)
-
-    @property
-    def response_dict(self):
-        if self.is_from_user:
-            return None
-        return json.loads(self.meta_raw)
-
-    def set_entities(self, entities):
-        self.meta_raw = json.dumps(entities)
-
-    def set_response(self, response):
-        response_dict = todict(response)
-        self.meta_raw = json.dumps(response_dict)
+    entities = JSONField()
+    response_dict = JSONField()

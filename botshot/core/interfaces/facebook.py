@@ -1,6 +1,6 @@
 import logging
 import requests
-from botshot.core.interfaces.adapter.messenger import MessengerAdapter
+from botshot.core.interfaces.adapter.facebook import FacebookAdapter
 from botshot.core.parsing.raw_message import RawMessage
 from botshot.core.responses.buttons import *
 from botshot.core.responses.responses import *
@@ -12,26 +12,27 @@ from botshot.models import MessageType, ChatMessage, ChatUser
 
 
 class FacebookInterface(BasicAsyncInterface):
-    name = 'messenger'
+    name = 'facebook'
 
     def __init__(self):
+        super().__init__()
         self.verify_token = config.get_required('FB_VERIFY_TOKEN')
         self.pages = self._init_pages()
-        self.adapter = MessengerAdapter()
+        self.adapter = FacebookAdapter()
 
     def _init_pages(self):
         page_configs = config.get_required('FB_PAGES')
         pages = []
         for page_config in page_configs:
-            name = page_config.get('name')
+            name = page_config.get('NAME')
             if name is None:
-                raise ValueError("FB_PAGES page property 'name' is missing.")
-            token = page_config.get('token')
+                raise ValueError("FB_PAGES page property 'NAME' is missing.")
+            token = page_config.get('TOKEN')
             if token is None:
-                raise ValueError("FB_PAGES page '{}' property 'token' is missing.".format(name))
-            page_id = page_config.get('page_id')
+                raise ValueError("FB_PAGES page '{}' property 'TOKEN' is missing.".format(name))
+            page_id = page_config.get('PAGE_ID')
             if page_id is None and len(page_configs) > 1:
-                raise ValueError("FB_PAGES page '{}' property 'page_id' has to be specified "
+                raise ValueError("FB_PAGES page '{}' property 'PAGE_ID' has to be specified "
                                  "when multiple pages are present.".format(name))
             pages.append(MessengerPage(name=name, token=token, page_id=page_id))
         return pages
@@ -62,8 +63,8 @@ class FacebookInterface(BasicAsyncInterface):
         timestamp = event['timestamp']
         user_id = event['sender']['id']
         page_id = event['recipient']['id']
-        page_user_id = "{}_{}".format(page_id, user_id)
-        session_meta = {"page_id": page_id}
+        raw_conversation_id = "{}_{}".format(page_id, user_id)
+        conversation_meta = {"page_id": page_id}
         text = None
 
         if 'postback' in event:
@@ -100,14 +101,14 @@ class FacebookInterface(BasicAsyncInterface):
             elif 'quick_reply' in message:
                 payload = json.loads(message['quick_reply'].get('payload'))
         else:
-            logging.info("Ignoring unrecognized Messenger webhook event: %s", event)
+            logging.warning("Ignoring unrecognized Messenger webhook event: %s", event)
             return None
 
-        yield RawMessage(
+        return RawMessage(
             interface=self,
             raw_user_id=user_id,
-            raw_session_id=page_user_id,
-            session_meta=session_meta,
+            raw_conversation_id=raw_conversation_id,
+            conversation_meta=conversation_meta,
             type=type,
             text=text,
             payload=payload,
@@ -118,7 +119,7 @@ class FacebookInterface(BasicAsyncInterface):
         # Confirm accepted message
         self._send_responses(
             fbid=raw_message.raw_user_id,
-            session_meta=raw_message.session_meta,
+            conversation_meta=raw_message.conversation_meta,
             responses=[SenderActionMessage('mark_seen')]
         )
 
@@ -131,7 +132,7 @@ class FacebookInterface(BasicAsyncInterface):
             url = "https://graph.facebook.com/v2.6/" + user.raw_user_id
             params = {
                 'fields': 'first_name,last_name,profile_pic,picture.type(normal),locale,timezone,gender',
-                'access_token': self.get_page(user.session.meta.get('page_id')).token
+                'access_token': self.get_page(user.conversation.meta.get('page_id')).token
             }
             res = requests.get(url, params=params)
             if not res.status_code == requests.codes.ok:
@@ -141,19 +142,18 @@ class FacebookInterface(BasicAsyncInterface):
             response = res.json()
 
             image_url = response.get("picture", {}).get('data', {}).get('url')
+            user.save_image(image_url, extension='.jpeg')
             user.first_name = response.get("first_name")
             user.last_name = response.get("last_name")
             user.locale = response.get("locale")
-            # TODO: check if this fails when the user is not saved yet
-            user.save_image(image_url, extension='.jpeg')
         except:
             logging.error('Unexpected error loading FB user profile')
 
     def send_responses(self, user: ChatUser, responses):
-        self._send_responses(fbid=user.raw_user_id, session_meta=user.session.meta, responses=responses)
+        self._send_responses(fbid=user.raw_user_id, conversation_meta=user.conversation.meta, responses=responses)
 
-    def _send_responses(self, fbid, session_meta, responses):
-        page_id = session_meta.get('page_id')
+    def _send_responses(self, fbid, conversation_meta, responses):
+        page_id = conversation_meta.get('page_id')
         token = self.get_page(page_id).token
 
         if not isinstance(responses, list):
@@ -168,7 +168,7 @@ class FacebookInterface(BasicAsyncInterface):
                 }
             elif isinstance(response, MessageElement):
                 message_tag = response.get_message_tag()
-                message = self.adapter.transform_message(response, session_meta=session_meta)
+                message = self.adapter.transform_message(response, conversation_meta=conversation_meta)
 
                 response_dict = {
                     "recipient": {"id": fbid},
@@ -235,7 +235,7 @@ class FacebookInterface(BasicAsyncInterface):
     #         return r
     #     raise ValueError('Error: Invalid setting type: {}: {}'.format(type(response), response))
 
-    # def upload_attachment(self, session, attachment_url, type, is_reusable=True):
+    # def upload_attachment(self, conversation, attachment_url, type, is_reusable=True):
     #     """
     #     Uploads a file from the given URL to Facebook's servers.
     #     :returns: Id of the attachment if uploaded successfully, None otherwise.
@@ -254,7 +254,7 @@ class FacebookInterface(BasicAsyncInterface):
     #     }
     #
     #     prefix_post_message_url = 'https://graph.facebook.com/v2.6/me/'
-    #     page_id = session.meta.get("page_id")
+    #     page_id = conversation.meta.get("page_id")
     #     token = self.get_page(page_id).token
     #     post_message_url = prefix_post_message_url + "message_attachments" + '?access_token=' + token
     #     r = requests.post(url=post_message_url, data=json.dumps(data), headers={"Content-Type": "application/json"})

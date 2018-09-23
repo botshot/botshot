@@ -9,34 +9,6 @@ from shutil import copyfile
 import time
 import atexit
 
-CONFIG_STR = """
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(STATIC_ROOT, 'media')
-
-BOT_CONFIG = {
-    "BOTS": {
-        "{APP_NAME}/bots/default.yaml"
-    },
-    # Change this secret url to hide your public webhooks!
-    "WEBHOOK_SECRET_URL": "8gu20xksls94udjv840f1",
-    "REDIS_URL": os.environ.get('BOTSHOT_REDIS_URL', "redis://localhost:6379/"),
-    'DEPLOY_URL': os.environ.get('BOTSHOT_DEPLOY_URL', 'http://localhost:8000/'),
-    'MSG_LIMIT_SECONDS': 20,
-    'MESSAGE_LOGGERS': [
-        'botshot.core.logging.db.DbLogger',
-    ]
-}
-
-CELERY_BROKER_URL = BOT_CONFIG.get('REDIS_URL').rstrip("/")+'/1'
-CELERY_RESULT_BACKEND = CELERY_BROKER_URL
-CELERY_ACCEPT_CONTENT = ['pickle']
-CELERY_TASK_SERIALIZER = 'pickle'
-CELERY_RESULT_SERIALIZER = 'pickle'
-
-"""
-
 APPS_STR = """
     'botshot.apps.BotshotConfig',
     'botshot.webchat',
@@ -76,10 +48,14 @@ def install_skeleton(project_app_dir):
             copyfile(src, dest)
 
     print("Adding settings.py imports ...")
+
     with open(os.path.join(project_app_dir, "settings.py"), "r") as f:
         settings_content = f.read()
-    # \n is converted by stdlib, stay calm
-    settings_content = CONFIG_STR + "\n" + settings_content
+
+    with open(os.path.join(src_dir, "botshot_settings.py"), "r") as f:
+        botshot_settings = f.read()
+
+    settings_content = settings_content + "\n" + botshot_settings
 
     idx = settings_content.find("INSTALLED_APPS")
     idx = settings_content.find("\n", idx)
@@ -134,7 +110,8 @@ def start():
 
     start_subprocess('Redis Database', ["redis-server", "--loglevel", "warning"])
     start_subprocess('Celery Worker', ["celery", "-A", BOT_APP_NAME, "worker", "-l", "info"])
-    start_subprocess('Django Webserver', [PYTHON_BINARY_PATH, "./manage.py", "runserver", "-v", "0"])
+    # Run django development server. Don't reload on file changes until celery worker reload is implemented.
+    start_subprocess('Django Webserver', [PYTHON_BINARY_PATH, "./manage.py", "runserver", "-v", "0", "--noreload"])
 
     # Wait for first finished process (or for user's interruption)
     while True:

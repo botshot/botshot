@@ -2,61 +2,26 @@ import json
 import logging
 import time
 from typing import Optional
-
-from django.conf import settings
-
-from botshot.core import flow
-from botshot.core.chat_session import ChatSession
 from botshot.core.context import Context
 from botshot.core.flow import Flow, State
+from botshot.core import config
 from botshot.core.logging import logging_service
-from botshot.core.parsing.user_message import UserMessage
-from botshot.core.persistence import get_redis, json_serialize, json_deserialize
+from botshot.models import ChatMessage
 from botshot.core.responses.responses import TextMessage
-
+from botshot.tasks import run_async
 
 class DialogManager:
 
-    def __init__(self, session: ChatSession):
-        self.db = get_redis()
-        self.session = session
-        self.error_message_text = settings.BOT_CONFIG.get('ERROR_MESSAGE_TEXT')
-        if flow.FLOWS is None:
-            flow.init_flows()
-            # raise ValueError('Flows not initialized, init_flows() should be called at startup!')
-        self.flows = flow.FLOWS
-        if self.field_exists('session_state'):
-            self.current_state_name = self.get_field('session_state')
-            logging.info('Session exists at state {}'.format(self.current_state_name))
-
-            # TODO: is this necessary?
-            if self.current_state_name.endswith(':'):
-                self.current_state_name = self.current_state_name[:-1] # to avoid infinite loop
-
-            context_dict = self.get_field_json('session_context')
-        else:
-            self.current_state_name = 'default.root'
-            context_dict = {}
-            logging.info('Creating new session...')
-        self.context = Context.from_dict(dialog=self, data=context_dict)
-
-    def clear(self):
-        """Clears all context for this conversation."""
-        self.db.hdel('session_state', self.session.chat_id)
-        self.db.hdel('session_context', self.session.chat_id)
-
-    def save(self):
-        logging.info('Saving state at {}'.format(self.current_state_name))
-        self.set_field('session_state', self.current_state_name)
-        self.set_field_json('session_context', self.context.to_dict())
-        self.set_field('session_interface', self.session.interface.name)
-
-    def get_active_time(self):
-        return float(self.get_field('session_active'))
-
-    @staticmethod
-    def get_interface_chat_ids():
-        return get_redis().hgetall('session_interface')
+    def __init__(self, flows, message, message_manager):
+        from botshot.core.message_manager import MessageManager
+        self.message: ChatMessage = message
+        self.message_manager: MessageManager = message_manager
+        self.error_message_text = config.get('ERROR_MESSAGE_TEXT')
+        if flows is None:
+            raise ValueError("Flows have not been initialized.")
+        self.flows = flows
+        self.current_state_name = self.message.user.conversation.state or 'default.root'
+        self.context = Context.from_dict(dialog=self, data=message.user.conversation.context_dict)
 
     def schedule(self, callback_state, at=None, seconds=None):
         """
@@ -65,28 +30,16 @@ class DialogManager:
         :param at:              A datetime with timezone
         :param seconds:         An integer, seconds from now
         """
-        from botshot.tasks import accept_schedule_callback
         logging.info('Scheduling callback "{}": at {} / seconds: {}'.format(callback_state, at, seconds))
-        if at:
-            if at.tzinfo is None or at.tzinfo.utcoffset(at) is None:
-                raise Exception('Use datetime with timezone, e.g. "from django.utils import timezone"')
-            return accept_schedule_callback.apply_async((self.session, callback_state), eta=at)
-        elif seconds:
-            return accept_schedule_callback.apply_async((self.session, callback_state), countdown=seconds)
-        else:
+        if not at and not seconds:
             raise Exception('Specify either "at" or "seconds" parameter')
-
-    def inactive(self, callback_state, seconds):
-        """
-        Schedules a state transition in the future, if the user doesn't say anything until then.
-        :param callback_state:  The state to move to.
-        :param seconds:         An integer, seconds from now
-        """
-        from botshot.tasks import accept_inactivity_callback
-        logging.info('Setting inactivity callback "{}" after {} seconds'.format(callback_state, seconds))
-        return accept_inactivity_callback.apply_async(
-            (self.session, self.context.counter, callback_state, seconds),
-            countdown=seconds)
+        return run_async(
+            self.message_manager.process_delayed,
+            at=at,
+            seconds=seconds,
+            user_id=self.message.user.user_id,
+            callback_state=callback_state
+        )
 
     def send(self, responses):
         """
@@ -110,69 +63,40 @@ class DialogManager:
             # Schedule logging message
             try:
                 sent_time = time.time()
-                logging_service.log_bot_message.delay(session=self.session, sent_time=sent_time,
-                                                      state=self.current_state_name, response=response)
+                # TODO log bot message
+                #logging_service.log_bot_message.delay(session=self.session, sent_time=sent_time,
+                #                                      state=self.current_state_name, response=response)
             except Exception as e:
                 print('Error scheduling message log', e)
 
             # Send the response
-            self.session.interface.post_message(self.session, response)
+            self.message.user.conversation.interface.send_responses(self.message.user, response)
 
-    def get_field(self, field):
-        value = self.db.hget(field, self.session.chat_id)
-        return value.decode('utf-8') if value is not None else None
-
-    def set_field(self, field, value):
-        return self.db.hset(field, self.session.chat_id, value)
-
-    def set_field_json(self, field, value):
-        return self.set_field(field, json.dumps(value, default=json_serialize))
-
-    def get_field_json(self, field):
-        value = self.get_field(field)
-        return json.loads(value, object_hook=json_deserialize) if value else None
-
-    def field_exists(self, field):
-        return self.db.hexists(field, self.session.chat_id)
-
-    def process(self, message: UserMessage):
-        self.session.interface.processing_start(self.session)
+    def run(self):
         accepted_state = self.current_state_name
-        # Only process messages and postbacks (not 'seen_by's, etc)
-        if message.message_type not in ['message', 'postback', 'schedule']:
-            return
 
-        logging.info('>>> Received user message')
-
-        # if message_type != 'schedule':
         # TODO don't increment when @ requires -> input and it's valid
         # TODO what to say and do on invalid requires -> input?
         self.context.counter += 1
 
-        self._remove_empty_items(message)
-        self.context.add_message(message)
+        self.context.add_entities(self.message.entities)
         self.context.debug()
-        # FIXME: Get all current entities from context as EntityValues
-        entities = message.payload
-
-        if message.message_type != 'schedule':
-            self.set_field('session_active', time.time())
 
         logging.debug('>>> Processing message')
 
-        logging_service.log_user_message.delay(session=self.session, message=message, entities=entities,
-                                               state=accepted_state)
+        #logging_service.log_user_message.delay(session=self.session, message=message, entities=self.message.entities,
+        #                                       state=accepted_state)
 
-        if self._special_message(message.text):
+        if self._special_message(self.message.text):
             return
         if self._check_state_transition():
             return
-        if self._check_intent_transition(entities):
+        if self._check_intent_transition(self.message.entities):
             return
-        if self._check_entity_transition(entities):
+        if self._check_entity_transition(self.message.entities):
             return
 
-        entity_values = self._get_entity_value_tuples(entities)
+        entity_values = self._get_entity_value_tuples(self.message.entities)
         if self.get_state().is_supported(entity_values):
             logging.debug("Entity supported, no entity transition")
             self._run_accept()
@@ -191,8 +115,9 @@ class DialogManager:
             # )
             self._move_to("default.root:")
 
-        self.save()
-        self.session.interface.processing_end(self.session)
+
+        self.message.user.conversation.state = self.current_state_name
+        self.message.user.conversation.context_dict = self.context.to_dict()
 
     def _special_message(self, text):
         if not text:
@@ -333,9 +258,6 @@ class DialogManager:
         self.current_state_name = new_state_name
         if not initializing:
 
-            # notify the interface that the state was changed
-            self.session.interface.state_change(self.current_state_name)
-
             try:
                 if previous_state != new_state_name and action:
                     logging.info("Moving from {} to {} and executing action".format(
@@ -361,20 +283,27 @@ class DialogManager:
                 logging.exception(
                               '*****************************************************\n'
                               'Exception occurred while running action {} of state {}\n'
-                              'Chat id: {}\n'
+                              'Message: {}\n'
+                              'User: {}\n'
+                              'Conversation: {}\n'
                               'Context: {}\n'
                               '*****************************************************'
-                              .format(action, new_state_name, self.session.chat_id, context_debug)
+                              .format(
+                                  action, new_state_name,
+                                  self.message.__dict__,
+                                  self.message.user.__dict__,
+                                  self.message.user.conversation.__dict__,
+                                  context_debug
+                              )
                 )
 
                 if self.error_message_text:
                     self.send([self.error_message_text])
 
                 # Raise the error if we are in a test
-                if self.session.is_test:
+                if self.message.user.conversation.is_test:
                     raise e
 
-        self.save()
         return True
 
 
@@ -401,6 +330,3 @@ class DialogManager:
 
         return entity_set
 
-    def _remove_empty_items(self, message: UserMessage):
-        entities = message.payload
-        message.payload = {entity: value for entity, value in entities.items() if value is not None and value != []}

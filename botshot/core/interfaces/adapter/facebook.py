@@ -2,7 +2,7 @@ from botshot.core.interfaces.adapter.message_adapter import MessageAdapter
 from botshot.core.responses import *
 
 
-class MessengerAdapter(MessageAdapter):
+class FacebookAdapter(MessageAdapter):
 
     def __init__(self):
         super().__init__()
@@ -32,12 +32,12 @@ class MessengerAdapter(MessageAdapter):
             MediaMessage: self._media_message,
         }
 
-    def transform_message(self, message: MessageElement, session_meta=None):
+    def transform_message(self, message: MessageElement, conversation_meta=None):
         if isinstance(message, MediaMessage):
             # FIXME: media messages upload
             raise NotImplementedError("Media messages are not supported yet.")
             #if not self._is_facebook_url(message) and not self._retrieve_attachment(message.url):
-            #    self._upload_attachment(session, message.url, message.media_type, message.allow_cache)
+            #    self._upload_attachment(conversation, message.url, message.media_type, message.allow_cache)
         message_type = type(message)
         fn = self.functions.get(message_type)
         if not fn:
@@ -49,13 +49,13 @@ class MessengerAdapter(MessageAdapter):
         """Used to check whether an attachment needs to be uploaded to Facebook before sending."""
         return False  # FIXME
 
-    def _upload_attachment(self, session, url, type, allow_cache):
+    def _upload_attachment(self, conversation, url, type, allow_cache):
         """Uploads an attachment to FB servers."""
         from botshot.core.persistence import get_redis
-        from botshot.core.interfaces.messenger import FacebookInterface
+        from botshot.core.interfaces.facebook import FacebookInterface
 
         redis = get_redis()
-        att_id = FacebookInterface.upload_attachment(session, url, type, allow_cache)
+        att_id = FacebookInterface.upload_attachment(conversation, url, type, allow_cache)
         if att_id is not None:
             expiry = 60 * 60 * 24  # a day
             redis.set("FB_ATTACHMENT_FOR_{url}".format(url=url), att_id, ex=expiry)

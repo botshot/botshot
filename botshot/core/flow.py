@@ -7,6 +7,7 @@ from botshot.core.responses import AttachmentMessage
 import os
 import logging
 from inspect import getsource
+from django.utils.module_loading import import_string
 
 FLOWS = None
 
@@ -141,13 +142,13 @@ class State:
             # dynamically load the function
 
             try:
-                rel_module, fn_name = action.rsplit(".", maxsplit=1)
+                module_path, fn_name = action.rsplit(".", maxsplit=1)
                 try:
-                    # try to import as relative path
-                    module = importlib.import_module(rel_module)
-                except:
                     # try to import as absolute path
-                    abs_module = relpath + "." + rel_module
+                    module = importlib.import_module(module_path)
+                except:
+                    # try to import relative to flow module
+                    abs_module = relpath + "." + module_path
                     module = importlib.import_module(abs_module)
 
                 fn = getattr(module, fn_name)

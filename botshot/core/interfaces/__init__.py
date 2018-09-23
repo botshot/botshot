@@ -1,72 +1,73 @@
+from botshot.tasks import run_async
+from botshot.models import ChatConversation, ChatUser, ChatMessage
+from botshot.core.parsing.raw_message import RawMessage
+from botshot.core import config
+from django.http.response import HttpResponse, HttpResponseBadRequest
+import json
 import logging
+import time
+
+class BotshotInterface():
+    name = None
+
+    def webhook(self, request):
+        raise NotImplementedError()
+
+    def send_responses(self, user: ChatUser, responses):
+        raise NotImplementedError()
+
+    def broadcast_responses(self, users, responses):
+        raise NotImplementedError()
+
+    def fill_conversation_details(self, conversation: ChatConversation):
+        pass
+
+    def fill_user_details(self, user: ChatUser):
+        pass
+
+    def on_message_processing_start(self, message: ChatMessage):
+        pass
+
+    def on_server_startup(self):
+        # TODO: run this function at startup
+        pass
 
 
-def init_webhooks():
-    """
-    Registers webhooks for telegram messages.
-    """
-    logging.debug('Trying to register telegram webhook')
-    try:
-        from botshot.core.interfaces.telegram import TelegramInterface
-        TelegramInterface.init_webhooks()
-    except Exception as e:
-        logging.exception('Couldn\'t init webhooks')
+class BasicAsyncInterface(BotshotInterface):
 
+    def __init__(self):
+        self.msg_limit_seconds = config.get('MSG_LIMIT_SECONDS', 15)
 
-def create_from_name(name):
-    ifs = get_interfaces()
-    for interface in ifs:
-        if interface.name == name:
-            return interface
+    def webhook(self, request):
+        from botshot.core.message_manager import MessageManager
+        if request.method == "POST":
+            manager = MessageManager()
+            request_body = json.loads(request.body.decode('utf-8'))
+            raw_messages = self.parse_raw_messages(request_body)
+            print(raw_messages)
+            for raw_message in raw_messages:
+                print(raw_message)
+                diff_seconds = time.time() - raw_message.timestamp / 1000
+                if diff_seconds > self.msg_limit_seconds:
+                    logging.warning("Delay {} seconds too big, ignoring message!".format(diff_seconds))
+                    continue
+                self.on_message_received(raw_message)
+                run_async(manager.process, raw_message=raw_message)
+            return HttpResponse()
 
+        elif request.method == "GET":
+            return self.webhook_get(request)
 
-def create_from_chat_id(chat_id):
-    prefix = chat_id.split("_", maxsplit=1)[0]
-    return create_from_prefix(prefix)
+        return HttpResponseBadRequest()
 
+    def on_message_received(self, raw_message: RawMessage):
+        pass
 
-def uid_to_interface_name(uid: str):
-    prefix = str(uid).split('_')[0]
+    def webhook_get(self, request):
+        pass
 
-    for i in get_interfaces():
-        if i.prefix == prefix:
-            return i.name
-    raise Exception('No interface for {}'.format(uid))
+    def parse_raw_messages(self, request):
+        raise NotImplementedError()
 
-
-def create_from_prefix(prefix):
-    ifs = get_interfaces()
-    for interface in ifs:
-        if interface.prefix == prefix:
-            return interface
-
-
-def get_interfaces():
-    """
-    :returns: List of all registered chat interface classes.
-    """
-    from botshot.core.interfaces.facebook import FacebookInterface
-    from botshot.core.interfaces.telegram import TelegramInterface
-    from botshot.core.interfaces.microsoft import MicrosoftInterface
-    from botshot.core.interfaces.google import GoogleActionsInterface
-    from botshot.core.interfaces.test import TestInterface
-    return [FacebookInterface, TelegramInterface, MicrosoftInterface, GoogleActionsInterface,
-                         TestInterface] + _interfaces
-
-
-def add_interface(classname):
-    """
-    Adds a messaging interface for a messaging platform.
-    :param classname:
-    :return:
-    """
-    import importlib
-
-    package, classname = classname.rsplit(".", maxsplit=1)
-    module = importlib.import_module(package)
-    cls = getattr(module, classname)
-
-    _interfaces.append(cls)
-
-
-_interfaces = []
+    def on_server_startup(self):
+        pass

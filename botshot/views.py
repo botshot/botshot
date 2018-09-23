@@ -2,7 +2,6 @@ import json
 import logging
 from datetime import datetime
 
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http.response import HttpResponse, JsonResponse
 from django.template import loader
@@ -12,15 +11,16 @@ from django.views import generic
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, renderers, generics, pagination
 
-from botshot.core.interfaces.facebook import FacebookInterface
-from botshot.core.interfaces.microsoft import MicrosoftInterface
-from botshot.core.interfaces.telegram import TelegramInterface
+from botshot.core.interface_factory import InterfaceFactory
 from botshot.core.persistence import get_redis
 from botshot.core.tests import _run_test_module
-from botshot.models import ChatLog, MessageLog
-from botshot.serializers import ChatLogSerializer, MessageLogSerializer
+from botshot.models import ChatMessage, ChatConversation
+from botshot.serializers import ChatConversationSerializer, ChatUserSerializer, ChatMessageSerializer
 
-
+@csrf_exempt
+def interface_webhook(request, interface_name):
+    interface = InterfaceFactory.from_name(interface_name)
+    return interface.webhook(request)
 
 class TelegramView(generic.View):
 
@@ -146,21 +146,21 @@ class StandardResultsSetPagination(pagination.PageNumberPagination):
     max_page_size = 1000
 
 
-class ChatLogViewSet(viewsets.ModelViewSet):
-    queryset = ChatLog.objects.order_by('-last_message_time')
-    serializer_class = ChatLogSerializer
+class ChatConversationViewSet(viewsets.ModelViewSet):
+    queryset = ChatConversation.objects.order_by('-last_message_time')
+    serializer_class = ChatConversationSerializer
     renderer_classes = [renderers.JSONRenderer]
     pagination_class = StandardResultsSetPagination
 
 
-class MessageLogList(generics.ListAPIView):
-    serializer_class = MessageLogSerializer
+class ChatMessageList(generics.ListAPIView):
+    serializer_class = ChatMessageSerializer
     renderer_classes = [renderers.JSONRenderer]
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        queryset = MessageLog.objects.order_by('-time','-pk')
-        chat_id = self.kwargs.get('chat_id')
-        if chat_id:
-            queryset = queryset.filter(chat_id=chat_id)
+        queryset = ChatMessage.objects.order_by('-time','-pk')
+        conversation_id = self.kwargs.get('conversation_id')
+        if conversation_id:
+            queryset = queryset.filter(user__conversation_id=conversation_id)
         return queryset

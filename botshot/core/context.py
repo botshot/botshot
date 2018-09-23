@@ -7,7 +7,6 @@ from functools import reduce
 
 from botshot.core.entity_query import EntityQuery
 from botshot.core.entity_value import EntityValue
-from botshot.core.parsing.user_message import UserMessage
 
 
 class Context(object):
@@ -51,12 +50,8 @@ class Context(object):
         entities = data.get("entities", {})
         return Context(dialog=dialog, entities=entities, history=history, counter=counter)
 
-    def add_message(self, message: UserMessage):
-        if message.text:
-            self.add_entity_dict('_message_text', {'value': message.text})
-        if not message.payload:
-            return
-        for entity_name, entity_values in message.payload.items():
+    def add_entities(self, entities):
+        for entity_name, entity_values in entities.items():
             # allow also direct passing of {'entity' : 'value'}
 
             if not isinstance(entity_values, dict) and not isinstance(entity_values, list):

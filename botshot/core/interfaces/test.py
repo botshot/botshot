@@ -1,5 +1,3 @@
-from botshot.core.chat_session import ChatSession, Profile
-
 class TestInterface():
     name = 'test'
     prefix = 'test'
@@ -12,7 +10,7 @@ class TestInterface():
         TestInterface.states = []
 
     @staticmethod
-    def fill_session_profile(session: ChatSession):
+    def fill_session_profile(session):
         if not session:
             raise ValueError("Session is None")
         session.profile = Profile(first_name='Test', last_name='')

@@ -1,5 +1,3 @@
-import os
-
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 MEDIA_URL = '/media/'
@@ -18,9 +16,7 @@ BOT_CONFIG = {
     "REDIS_URL": os.environ.get('BOTSHOT_REDIS_URL', "redis://localhost:6379/"),
     'DEPLOY_URL': os.environ.get('BOTSHOT_DEPLOY_URL', 'http://localhost:8000/'),
     'MSG_LIMIT_SECONDS': 20,
-    'MESSAGE_LOGGERS': [
-        'botshot.core.logging.db.DbLogger',
-    ]
+    'MESSAGE_LOGGERS': []
 }
 
 CELERY_BROKER_URL = BOT_CONFIG.get('REDIS_URL').rstrip("/")+'/1'

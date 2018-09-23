@@ -1,20 +1,17 @@
-import importlib
 import logging
-
 import emoji
 import re
-from django.conf import settings
 import time
-
+from django.conf import settings
 from botshot.core.parsing.entity_extractor import EntityExtractor
-from botshot.core.parsing.user_message import UserMessage
+from django.utils.module_loading import import_string
 
 ENTITY_EXTRACTORS = []
 
 def register_extractor(extractor):
     """Registers an entity extractor class."""
     if isinstance(extractor, str):
-        cls = _get_logger_class(extractor)
+        cls = import_string(extractor)
         logging.debug("Registering entity extractor %s", cls)
         ENTITY_EXTRACTORS.append(cls())
     elif issubclass(extractor, EntityExtractor):
@@ -24,12 +21,6 @@ def register_extractor(extractor):
         raise ValueError("Error: Please register entity extractor class instead of instance.")
     else:
         raise ValueError("Error: Entity extractor must be a subclass of botshot.core.parsing.entity_extractor.EntityExtractor")
-
-
-def _get_logger_class(classname):
-    package, classname = classname.rsplit('.', maxsplit=1)
-    module = importlib.import_module(package)
-    return getattr(module, classname)
 
 
 for classname in settings.BOT_CONFIG.get("ENTITY_EXTRACTORS", []):
@@ -47,9 +38,7 @@ def add_default_extractors():
 add_default_extractors()
 
 
-def parse_text_message(text, num_tries=1) -> UserMessage:
-    accepted_time = time.time()
-
+def parse_text_entities(text, num_tries=1):
     entities = {}
 
     if len(ENTITY_EXTRACTORS) <= 0:
@@ -59,8 +48,6 @@ def parse_text_message(text, num_tries=1) -> UserMessage:
             append = extractor.extract_entities(text)
             for entity, values in append.items():
                 entities.setdefault(entity, []).extend(values)
-
-        logging.debug('Extracted entities:', entities)
 
     append = parse_special_text_entities(text)
 
@@ -75,12 +62,9 @@ def parse_text_message(text, num_tries=1) -> UserMessage:
             entities[entity] = []
         entities[entity] += values
 
-    parsed = UserMessage('message', accepted_time=accepted_time, text=text, payload=entities)
+    logging.debug("Parsed entities:", entities)
 
-    if settings.DEBUG:
-        print("Parsed message:", parsed)
-
-    return parsed
+    return entities
 
 
 def parse_special_text_entities(text):

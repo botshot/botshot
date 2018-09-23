@@ -1,21 +1,18 @@
-from botshot.core.interfaces.messenger import MessengerInterface
-from botshot.core.interfaces.telegram import TelegramInterface
-from botshot.core.interfaces.microsoft import MicrosoftInterface
-from botshot.core.interfaces.google import GoogleActionsInterface
-from botshot.core.interfaces.test import TestInterface
+from botshot.core.interfaces import BotshotInterface
+from botshot.core import config
+from django.utils.module_loading import import_string
 
-INTERFACES = {
-    "messenger": MessengerInterface,
-    "telegram": TelegramInterface,
-    "microsoft": MicrosoftInterface,
-    "google": GoogleActionsInterface,
-    "test": TestInterface
-}
 
 class InterfaceFactory:
 
     @staticmethod
-    def from_name(name) -> :
-        if name not in INTERFACES:
-            raise ValueError("Unknown interface name '{}'".format(name))
-        return INTERFACES.get(name)()
+    def from_name(name) -> BotshotInterface:
+        for interface_class in InterfaceFactory.get_interfaces():
+            if interface_class.name == name:
+                return interface_class()
+        raise ValueError("Unknown interface name '{}'. Did you register the class in INTERFACES config property?".format(name))
+
+    @staticmethod
+    def get_interfaces():
+        interface_paths = config.get_required('INTERFACES')
+        return [import_string(path) for path in interface_paths]

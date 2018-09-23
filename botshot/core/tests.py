@@ -6,13 +6,13 @@ import time
 import traceback
 
 from django.conf import settings
+from django.utils.module_loading import import_string
 
-from botshot.core.parsing.message_parser import parse_text_message
+from botshot.core.parsing.message_parser import parse_text_entities
 from botshot.core.persistence import get_redis
 from botshot.core.responses import CarouselTemplate
 from botshot.core.responses.buttons import *
 from botshot.core.responses.responses import *
-from .chat_session import ChatSession
 from .interfaces.test import TestInterface
 
 
@@ -35,24 +35,24 @@ class UserTextMessage(UserMessage):
 
     def get_parsed(self):
         TestLog.log('Sending user message "{}".'.format(self.text))
-        parsed = parse_text_message(self.text)
+        entities = parse_text_entities(self.text)
 
-        for entity, values in parsed['entities'].items():
+        for entity, values in entities.items():
             TestLog.log('- Entity {}: {}'.format(entity, values))
 
         for entity in self.entities:
             expected_value = self.entities[entity]
-            if entity not in parsed['entities']:
+            if entity not in entities:
                 raise ConversationTestException('- Expected entity "{}" not extracted from message "{}".'.format(entity, self.text))
             elif expected_value:
-                value = parsed['entities'][entity][0]['value']
+                value = entities[entity][0]['value']
                 if expected_value != value:
                     raise ConversationTestException('- Extracted "{}" instead of "{}" in entity "{}" from message "{}".'.format(value, expected_value, entity, self.text))
                 TestLog.log('- Extracted expected value "{}" of entity "{}".'.format(value, entity))
             else:
                 TestLog.log('- Extracted expected entity "{}".'.format(entity))
 
-        return parsed
+        return entities
 
 class UserPostbackMessage(UserMessage):
     def __init__(self, payload):
@@ -166,7 +166,7 @@ class ConversationTest:
             dialog = DialogManager(session=self.session)
             time_init = time.time() - start_time
             start_time = time.time()
-            parsed = action.get_parsed()
+            entities = action.get_parsed()
             time_parsing = time.time() - start_time
             start_time = time.time()
             dialog.process(parsed['type'], parsed['entities'])
