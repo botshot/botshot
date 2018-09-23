@@ -12,8 +12,8 @@ class MessageProcessor:
 
     def __init__(self, flows, message, chat_manager):
         from botshot.core.chat_manager import ChatManager
-        self.message: ChatMessage = message
-        self.chat_manager: ChatManager = chat_manager
+        self.message = message  # type: ChatMessage
+        self.chat_manager = chat_manager  # type: ChatManager
         self.send_exceptions = config.get("SEND_EXCEPTIONS", default=settings.DEBUG)
         if flows is None:
             raise ValueError("Flows have not been initialized.")

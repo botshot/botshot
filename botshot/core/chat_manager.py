@@ -23,7 +23,7 @@ class ChatManager:
 
         with transaction.atomic():
             try:
-                conversation: ChatConversation = ChatConversation.objects.select_for_update().get(
+                conversation = ChatConversation.objects.select_for_update().get(
                     interface_name=raw_message.interface.name,
                     raw_conversation_id=raw_message.raw_conversation_id
                 )
@@ -66,7 +66,7 @@ class ChatManager:
 
     def accept_delayed(self, user_id, payload):
         with transaction.atomic():
-            user: ChatUser = ChatUser.objects.select_for_update().select_related('conversation').get(pk=user_id)
+            user = ChatUser.objects.select_for_update().select_related('conversation').get(pk=user_id)
             message = ChatMessage()
             message.user = user
             message.type = ChatMessage.SCHEDULE

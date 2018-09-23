@@ -1,7 +1,8 @@
+import logging
+
 from botshot.core.responses.responses import TextMessage
 from botshot.models import ChatMessage
 from botshot.tasks import run_async
-import logging
 
 
 class Dialog:
@@ -10,8 +11,8 @@ class Dialog:
         from botshot.core.chat_manager import ChatManager
         from botshot.core.context import Context
         self.message = message
-        self.chat_manager: ChatManager = chat_manager
-        self.context: Context = context
+        self.chat_manager = chat_manager  # type: ChatManager
+        self.context = context  # type: Context
 
     def schedule(self, payload, at=None, seconds=None):
         """
