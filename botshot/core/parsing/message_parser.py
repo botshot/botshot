@@ -12,10 +12,10 @@ def register_extractor(extractor):
     """Registers an entity extractor class."""
     if isinstance(extractor, str):
         cls = import_string(extractor)
-        logging.debug("Registering entity extractor %s", cls)
+        logging.info("Registering entity extractor %s", cls)
         ENTITY_EXTRACTORS.append(cls())
     elif issubclass(extractor, EntityExtractor):
-        logging.debug("Registering entity extractor %s", extractor)
+        logging.info("Registering entity extractor %s", extractor)
         ENTITY_EXTRACTORS.append(extractor())
     elif isinstance(extractor, EntityExtractor):
         raise ValueError("Error: Please register entity extractor class instead of instance.")

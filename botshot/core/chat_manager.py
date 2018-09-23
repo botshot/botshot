@@ -19,7 +19,7 @@ class ChatManager:
 
     def accept(self, raw_message: RawMessage):
         entities = self.parse_raw_message_entities(raw_message)
-        logging.debug("Parsed entities from message %s: %s", raw_message, entities)
+        logging.info("Parsed entities from message %s: %s", raw_message, entities)
 
         with transaction.atomic():
             try:
@@ -77,7 +77,7 @@ class ChatManager:
 
     def _process(self, message):
         try:
-            logging.debug("Processing user message: %s", message)
+            logging.info("Processing user message: %s", message)
             processor = MessageProcessor(flows=FLOWS, message=message, chat_manager=self)
             processor.process()
         except Exception as e:
@@ -86,7 +86,8 @@ class ChatManager:
             #from botshot.core.logging import logging_service
             #logging_service.log_error(session=session, exception=e, state=dialog.current_state_name)
 
-        message.user.conversation.save()
+        print('SAVING', message.user.conversation.context_dict['counter'])
+        print(message.user.conversation.save())
         message.user.save()
         if self.save_messages:
             message.save()
@@ -101,7 +102,7 @@ class ChatManager:
         return {entity: value for entity, value in entities.items() if value is not None and value != []}
 
     def send(self, user: ChatUser, responses):
-        logging.debug("Sending bot responses: %s", responses)
+        logging.info("Sending bot responses: %s", responses)
 
         user.conversation.interface.send_responses(user, responses)
 

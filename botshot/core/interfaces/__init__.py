@@ -51,7 +51,7 @@ class BasicAsyncInterface(BotshotInterface):
                     logging.warning("Delay {} seconds too big, ignoring message!".format(diff_seconds))
                     continue
                 self.on_message_received(raw_message)
-                logging.debug("Received raw message: %s", raw_message)
+                logging.info("Received raw message: %s", raw_message)
                 run_async(manager.accept, raw_message=raw_message)
             return HttpResponse()
 

@@ -200,7 +200,7 @@ class FacebookInterface(BasicAsyncInterface):
     #     if isinstance(response, ThreadSetting):
     #         request_mode = "thread_settings"
     #         response_dict = FacebookInterface.to_setting(response)
-    #         logging.debug('Sending FB setting: {}'.format(response_dict))
+    #         logging.info('Sending FB setting: {}'.format(response_dict))
     #         FacebookInterface._do_post(request_mode, response_dict, page_id)
     #     else:
     #         raise ValueError('Error: Invalid message type: {}: {}'.format(type(response), response))

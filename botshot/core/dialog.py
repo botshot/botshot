@@ -24,7 +24,7 @@ class Dialog:
         if not at and not seconds:
             raise ValueError('Specify either "at" or "seconds" parameter')
         time_formatted = "at {}".format(at) if at else "in {} seconds".format(seconds)
-        logging.debug('Scheduling callback %s with payload "%s"', time_formatted, payload)
+        logging.info('Scheduling callback %s with payload "%s"', time_formatted, payload)
         return run_async(
             self.chat_manager.accept_delayed,
             at=at,

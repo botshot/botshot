@@ -23,6 +23,10 @@ class MessageProcessor:
         self.dialog = Dialog(message=self.message, context=self.context, chat_manager=self.chat_manager)
 
     def process(self):
+        self._process_base()
+        self._save()
+
+    def _process_base(self):
         accepted_state = self.current_state_name
 
         # TODO don't increment when @ requires -> input and it's valid
@@ -32,9 +36,7 @@ class MessageProcessor:
         self.context.add_entities(self.message.entities)
         self.context.debug()
 
-        logging.debug('>>> Processing message')
-
-        #logging_service.log_user_message.delay(session=self.session, message=message, entities=self.message.entities,
+        # logging_service.log_user_message.delay(session=self.session, message=message, entities=self.message.entities,
         #                                       state=accepted_state)
 
         if self._special_message(self.message.text):
@@ -48,7 +50,7 @@ class MessageProcessor:
 
         entity_values = self._get_entity_value_tuples(self.message.entities)
         if self.get_state().is_supported(entity_values):
-            logging.debug("Entity supported, no entity transition")
+            logging.info("Entity supported, no entity transition")
             self._run_accept()
             return
 
@@ -62,6 +64,7 @@ class MessageProcessor:
         else:
             self._move_to("default.root:")
 
+    def _save(self):
         self.message.user.conversation.state = self.current_state_name
         self.message.user.conversation.context_dict = self.context.to_dict()
 
@@ -112,7 +115,7 @@ class MessageProcessor:
 
         entity_values = self._get_entity_value_tuples(entities, include=("intent", "_message_text"))
         if self.get_state().is_supported(entity_values):
-            logging.debug("Intent or text supported, no intent transition")
+            logging.info("Intent or text supported, no intent transition")
             return False
 
         # move to the flow whose 'intent' field matches intent
@@ -142,7 +145,7 @@ class MessageProcessor:
         # first check if supported, if yes, abort
         entity_values = self._get_entity_value_tuples(entities)
         if self.get_state().is_supported(entity_values):
-            logging.debug("Entity supported, no entity transition")
+            logging.info("Entity supported, no entity transition")
             return False
 
         # TODO check states of current flow for 'accepted' first
@@ -175,7 +178,7 @@ class MessageProcessor:
 
     def _move_to(self, new_state_name, initializing=False, save_identical=False):
         """Moves to a state by its full name."""
-        logging.debug("Trying to move to {}".format(new_state_name))
+        logging.info("Trying to move to {}".format(new_state_name))
 
         # if flow prefix is not present, add the current one
         if isinstance(new_state_name, int):
@@ -269,7 +272,7 @@ class MessageProcessor:
                         entity_set.add((name, value['value']))
             except Exception:
                 # someone set this entity to something special
-                logging.debug("Skipping entity {} in supported message check".format(name))
+                logging.info("Skipping entity {} in supported message check".format(name))
 
         return entity_set
 

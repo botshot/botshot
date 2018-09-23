@@ -31,7 +31,7 @@ class DucklingExtractor(EntityExtractor):
             resp = requests.post(self.duckling_url + "/parse", data=payload)
             if resp.status_code == 200:
                 jsn = resp.json()
-                logging.debug('Duckling:', jsn)
+                logging.info('Duckling:', jsn)
                 if jsn is not None:
                     return self.to_entities(jsn)
             else:

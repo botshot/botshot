@@ -7,7 +7,7 @@ import traceback
 
 from django.conf import settings
 from django.utils.module_loading import import_string
-
+from django.utils.crypto import get_random_string
 from botshot.core.parsing.message_parser import parse_text_entities
 from botshot.core.persistence import get_redis
 from botshot.core.responses import CarouselTemplate
@@ -121,7 +121,7 @@ class StateChange():
 class ConversationTest:
     def __init__(self, name, actions, benchmark=False):
         self.benchmark = benchmark
-        self.chat_id = 'benchmark_'+str(random.randint(1, 10000000)) if benchmark else 'test'
+        self.chat_id = 'benchmark_'+get_random_string(length=12) if benchmark else 'test'
         self.name = name
         self.actions = actions
         self.session = ChatSession(unique_id=self.chat_id, interface=TestInterface, is_logged=not self.benchmark, is_test=True)

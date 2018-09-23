@@ -5,9 +5,10 @@ import subprocess
 import sys
 import os
 from django.core.management import execute_from_command_line
-from shutil import copyfile
+from shutil import copyfile, rmtree
 import time
 import atexit
+import tempfile
 
 APPS_STR = """
     'botshot.apps.BotshotConfig',
@@ -17,7 +18,7 @@ APPS_STR = """
 
 PYTHON_BINARY_PATH = sys.executable
 
-BOT_APP_NAME = 'bot'
+DEFAULT_BOT_APP_NAME = 'bot'
 
 def install_skeleton(project_app_dir):
     if not os.path.isdir(project_app_dir):
@@ -28,13 +29,10 @@ def install_skeleton(project_app_dir):
     print('Installing botshot files from {}'.format(src_dir))
 
     for root, dirs, files in os.walk(src_dir):
-
-        print('Copying directory {}'.format(root))
         rel_dir = os.path.relpath(root, src_dir)
 
         for name in dirs:
             dest = os.path.join(project_app_dir, rel_dir, name)
-            print("Create", dest)
             os.mkdir(dest, 0o755)
 
         for name in files:
@@ -44,10 +42,7 @@ def install_skeleton(project_app_dir):
 
             src = os.path.join(root, name)
             dest = os.path.join(project_app_dir, rel_dir, new_name)
-            print("Copy", src, dest)
             copyfile(src, dest)
-
-    print("Adding settings.py imports ...")
 
     with open(os.path.join(project_app_dir, "settings.py"), "r") as f:
         settings_content = f.read()
@@ -64,39 +59,54 @@ def install_skeleton(project_app_dir):
     with open(os.path.join(project_app_dir, "settings.py"), "w") as f:
         f.write(settings_content)
 
+def fail(message):
+    eprint(message)
+    exit(1)
 
-def init_project(project_path):
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+def init_project(args):
+    project_path = args.name
+
     if not project_path:
-        # TODO: Should be handled in the future by required argparse attribute
         raise AttributeError('Project path cannot be null.')
 
     print("Creating Botshot project in {} ...".format(project_path))
 
+    if os.path.exists(project_path):
+        fail("Error: Project directory already exists: {}".format(project_path))
+
+    # Create project in temporary directory to avoid problems with half-initialized projects
+    tmp_path = tempfile.mkdtemp()
     try:
-        os.makedirs(project_path, exist_ok=False)
-    except FileExistsError:
-        print("Error: Project directory already exists: {}".format(project_path))
+        retval = subprocess.call(['django-admin', 'startproject', DEFAULT_BOT_APP_NAME, tmp_path])
 
-    retval = subprocess.call(['django-admin', 'startproject', BOT_APP_NAME, project_path])
-    # TOOD print output to stdout+stderr
+        if retval != 0:
+            fail("Error: Can't create django project!")
 
-    if retval != 0:
-        print("Error: Can't create django project!")
-        exit(1)
+        print("Copying project files...")
+        # install skeleton to django project module
+        project_app_path = os.path.abspath(os.path.join(tmp_path, DEFAULT_BOT_APP_NAME))
+        install_skeleton(project_app_path)
 
-    print("Copying project files...")
-    # install skeleton to django project module
-    project_app_path = os.path.abspath(os.path.join(project_path, BOT_APP_NAME))
-    install_skeleton(project_app_path)
 
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", BOT_APP_NAME + ".settings")
+        print("Initializing database ...")
+        os.environ.setdefault("DJANGO_SETTINGS_MODULE", DEFAULT_BOT_APP_NAME + ".settings")
+        sys.path.append(tmp_path)
+        execute_from_command_line(['_', 'migrate'])
 
-    print("Initializing database ...")
-    sys.path.append(project_path)
-    execute_from_command_line(['_', 'migrate'])
+    except Exception as e:
+        # Remove temp directory if initialization fails
+        rmtree(tmp_path)
+        raise e
 
-    print("Everything looks OK!")
+    # Move final directory to target path
+    os.rename(tmp_path, project_path)
+
+    print("New project initialized in: {}".format(project_path))
     print("You can start the server inside the directory with: botshot start")
+
 
 PROCESSES = {}
 
@@ -105,11 +115,16 @@ def start_subprocess(name, args):
         raise AttributeError('Name {} already found in PROCESSES.'.format(name))
     PROCESSES[name] = subprocess.Popen(args)
 
-def start():
+def start(args):
+    app_name = args.app or DEFAULT_BOT_APP_NAME
+
+    if not os.path.exists("./manage.py"):
+        fail("Not a Botshot project. Run from a project's root folder.")
+
     atexit.register(exit_and_close)
 
     start_subprocess('Redis Database', ["redis-server", "--loglevel", "warning"])
-    start_subprocess('Celery Worker', ["celery", "-A", BOT_APP_NAME, "worker", "-l", "info"])
+    start_subprocess('Celery Worker', ["celery", "-A", app_name, "worker", "-l", "info"])
     # Give some time to Redis and Celery to start
     time.sleep(0.5)
     # Run django development server. Don't reload on file changes until celery worker reload is implemented.
@@ -163,24 +178,24 @@ def main():
         print("Your Python version is not supported. Please update to Python 3.5 or 3.6.")
         exit(1)
 
-    argp = argparse.ArgumentParser(description="Botshot framework configuration utility")
-    argp.add_argument('command', nargs=1, type=str, help="One of: init, start, help")
-    argp.add_argument('djangoapp', nargs='?', help="Name of your django app.")
+    parser = argparse.ArgumentParser(description="Botshot framework configuration utility")
+    subparsers = parser.add_subparsers(help='Choose one of given commands')
 
-    args = argp.parse_args()
-    command = args.command[0]
+    parser_init = subparsers.add_parser('init', help='Create new Botshot project')
+    parser_init.add_argument('name', type=str, help='Project name or path')
+    parser_init.set_defaults(func=init_project)
 
-    if command == 'init':
-        init_project(args.djangoapp)
-    elif command == 'start':
-        start()
-    elif command == 'help':
-        argp.print_help()
+    parser_start = subparsers.add_parser('start', help='Run Botshot server in development mode')
+    parser_start.add_argument('app', default=DEFAULT_BOT_APP_NAME, nargs='?', help='Name of botshot app')
+    parser_start.set_defaults(func=start)
+
+    args = parser.parse_args()
+
+    if not hasattr(args, 'func'):
+        parser.print_usage()
         exit(0)
-    else:
-        print("Unknown command {}".format(command))
-        argp.print_usage()
-        exit(1)
+
+    args.func(args)
 
 
 if __name__ == "__main__":

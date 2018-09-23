@@ -5,7 +5,7 @@ MEDIA_ROOT = os.path.join(STATIC_ROOT, 'media')
 
 BOT_CONFIG = {
     "BOTS": {
-        "{APP_NAME}/bots/default.yaml"
+        "bot/bots/default.yaml"
     },
     "INTERFACES": [
         'botshot.webchat.interface.WebchatInterface',

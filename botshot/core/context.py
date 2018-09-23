@@ -127,7 +127,7 @@ class Context(object):
                 break
         return values
     
-    def debug(self, max_age=5, level=logging.DEBUG):
+    def debug(self, max_age=5, level=logging.INFO):
         logging.log(level, '-- HEAD of Context (max age {}): --'.format(max_age))
         for entity in self.entities:
             entities = self.get_all_first(entity, max_age=max_age)

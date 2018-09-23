@@ -39,7 +39,7 @@ class TelegramInterface:
             return
         url = base_url + 'setWebhook'
 
-        logging.debug('Reverse telegram is: {}'.format(reverse('telegram')))
+        logging.info('Reverse telegram is: {}'.format(reverse('telegram')))
         callback_url = settings.BOT_CONFIG.get('DEPLOY_URL') + reverse('telegram')
 
         payload = {'url': callback_url}
@@ -148,7 +148,7 @@ class TelegramInterface:
             chat_id = message['chat']['id']
             uid = message['from']['id'] if 'from' in message else None  # null for group chats
             if uid and not TelegramInterface.has_message_expired(message):
-                logging.debug('Adding message to queue')
+                logging.info('Adding message to queue')
                 meta = {"chat_id": chat_id, "uid": uid}
                 session = ChatSession(TelegramInterface, str(chat_id), meta=meta)
                 TelegramInterface.fill_session_profile(session)
