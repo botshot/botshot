@@ -72,7 +72,7 @@ class FacebookInterface(BasicAsyncInterface):
             type = MessageType.BUTTON
         elif 'message' in event:
             message = event['message']
-            type = MessageType.TEXT
+            type = MessageType.MESSAGE
             payload = None
             if 'text' in message:
                 text = message['text']

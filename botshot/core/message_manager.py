@@ -47,6 +47,11 @@ class MessageManager:
             message.user = user
             message.type = raw_message.type
             message.text = raw_message.text
+            # FIXME !!!!!!!!!!!!!!!!!!
+            # FIXME !!!!!!!!!!!!!!!!!!
+            # FIXME !!!!!!!!!!!!!!!!!!
+            # FIXME use raw_message.timestamp
+            message.time = timezone.now()
             message.is_user = True
             message.entities = entities
 
@@ -59,6 +64,7 @@ class MessageManager:
             message.user = user
             message.type = MessageType.SCHEDULE
             message.is_user = True
+            message.time = timezone.now()
             message.entities = {
                 '_state': callback_state
             }
@@ -70,7 +76,7 @@ class MessageManager:
             dialog = DialogManager(flows=FLOWS, message=message, message_manager=self)
             dialog.run()
         except Exception as e:
-            logging.error("ERROR: Error encountered while running message actions")
+            logging.exception("ERROR: Error encountered while running message actions")
             # TODO log error using log service
             #from botshot.core.logging import logging_service
             #logging_service.log_error(session=session, exception=e, state=dialog.current_state_name)

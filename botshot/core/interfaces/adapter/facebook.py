@@ -14,13 +14,13 @@ class FacebookAdapter(MessageAdapter):
             LinkButton: self._link_button,
             PayloadButton: self._payload_button,
             PhoneButton: self._phone_button,
-            ShareButton: lambda button: {'type': 'element_share'},
+            ShareButton: self._share_button,
             AccountLinkButton: self._account_link_button,
-            AccountUnlinkButton: lambda button: {'type': 'account_unlink'},
+            AccountUnlinkButton: self._account_unlink_button,
 
             # Quick replies
             QuickReply: self._quick_reply,
-            LocationQuickReply: lambda reply: {'content_type': 'location'},
+            LocationQuickReply: self._location_quick_reply,
 
             # Templates
             CardTemplate: self._card_template,
@@ -31,6 +31,15 @@ class FacebookAdapter(MessageAdapter):
             AttachmentMessage: self._attachment_message,
             MediaMessage: self._media_message,
         }
+
+    def _share_button(self, button):
+        return {'type': 'element_share'}
+
+    def _account_unlink_button(self, button):
+        return {'type': 'account_unlink'}
+
+    def _location_quick_reply(self, button):
+        return {'content_type': 'location'}
 
     def transform_message(self, message: MessageElement, conversation_meta=None):
         if isinstance(message, MediaMessage):

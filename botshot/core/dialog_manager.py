@@ -21,7 +21,7 @@ class DialogManager:
             raise ValueError("Flows have not been initialized.")
         self.flows = flows
         self.current_state_name = self.message.user.conversation.state or 'default.root'
-        self.context = Context.from_dict(dialog=self, data=message.user.conversation.context_dict)
+        self.context = Context.from_dict(dialog=self, data=message.user.conversation.context_dict or {})
 
     def schedule(self, callback_state, at=None, seconds=None):
         """

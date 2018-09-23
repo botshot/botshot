@@ -33,7 +33,7 @@ class ChatConversation(models.Model):
     interface_name = models.CharField(max_length=64, null=False)
     last_message_time = models.DateTimeField(blank=True, null=True)
     state = models.CharField(max_length=128, blank=True, null=True)
-    is_test = models.BooleanField()
+    is_test = models.BooleanField(default=False)
     meta = JSONField(null=True)
     context_dict = JSONField(null=True)
 
@@ -43,6 +43,10 @@ class ChatConversation(models.Model):
         if not self._interface or self._interface.name != self.interface_name:
             self._interface = InterfaceFactory.from_name(self.interface_name)
         return self._interface
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._interface = None
 
 
 class ChatUser(models.Model):
@@ -78,7 +82,7 @@ class ChatMessage(models.Model):
     user: ChatUser = models.ForeignKey(ChatUser, on_delete=models.CASCADE, related_name='messages')
     type = models.TextField(max_length=16, choices=[(key, key.value) for key in MessageType], null=False)
     text = models.TextField(blank=True, null=True)
-    is_from_user = models.BooleanField()
+    is_user = models.BooleanField()
     time = models.DateTimeField(db_index=True, null=False)
     intent = models.TextField(max_length=64, blank=True, null=True, db_index=True)
     state = models.TextField(max_length=128, blank=True, null=True, db_index=True)
