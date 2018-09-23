@@ -1,9 +1,8 @@
-from django.db import models
+import os
+import tempfile
 
 import requests
-import tempfile
-import os
-from enum import Enum
+from django.db import models
 from jsonfield import JSONField
 
 from botshot.core.persistence import json_serialize, json_deserialize
@@ -54,7 +53,7 @@ class ChatConversation(models.Model):
 class ChatUser(models.Model):
     user_id = models.BigAutoField(primary_key=True)
     raw_user_id = models.CharField(max_length=256)
-    conversation: ChatConversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='users')
+    conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='users')
     first_name = models.CharField(max_length=64, blank=True, null=True)
     last_name = models.CharField(max_length=64, blank=True, null=True)
     image = models.ImageField(upload_to='profile_pic', default='images/icon_user.png')
@@ -79,7 +78,7 @@ class ChatMessage(models.Model):
     EVENT = 'event'
 
     message_id = models.BigAutoField(primary_key=True)
-    user: ChatUser = models.ForeignKey(ChatUser, on_delete=models.CASCADE, related_name='messages')
+    user = models.ForeignKey(ChatUser, on_delete=models.CASCADE, related_name='messages')
     type = models.TextField(max_length=16, choices=[(v, v) for v in [MESSAGE, BUTTON, SCHEDULE, EVENT]], null=False)
     text = models.TextField(blank=True, null=True)
     is_user = models.BooleanField()

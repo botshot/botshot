@@ -3,11 +3,11 @@ from typing import List
 
 from celery import shared_task
 from django.conf import settings
-
-from botshot.core.logging.abs_logger import MessageLogger
 from django.utils.module_loading import import_string
 
-MESSAGE_LOGGERS: List[MessageLogger] = []
+from botshot.core.logging.abs_logger import MessageLogger
+
+MESSAGE_LOGGERS = []  # type: List[MessageLogger]
 
 
 def init():
@@ -19,7 +19,7 @@ def init():
 
     for module_class_path in settings.BOT_CONFIG['MESSAGE_LOGGERS']:
         logger_class = import_string(module_class_path)
-        logger: MessageLogger = logger_class()
+        logger = logger_class()  # type: MessageLogger
         MESSAGE_LOGGERS.append(logger)
 
 
