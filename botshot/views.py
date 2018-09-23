@@ -14,8 +14,8 @@ from rest_framework import viewsets, renderers, generics, pagination
 from botshot.core.interface_factory import InterfaceFactory
 from botshot.core.persistence import get_redis
 from botshot.core.tests import _run_test_module
-from botshot.models import ChatMessage, ChatConversation
-from botshot.serializers import ChatConversationSerializer, ChatUserSerializer, ChatMessageSerializer
+from botshot.models import ChatMessage, ChatConversation, ChatUser
+from botshot.serializers import ChatConversationSerializer, ChatMessageSerializer, ChatUserSerializer
 
 @csrf_exempt
 def interface_webhook(request, interface_name):
@@ -152,6 +152,11 @@ class ChatConversationViewSet(viewsets.ModelViewSet):
     renderer_classes = [renderers.JSONRenderer]
     pagination_class = StandardResultsSetPagination
 
+class ChatUserViewSet(viewsets.ModelViewSet):
+    queryset = ChatUser.objects.all()
+    serializer_class = ChatUserSerializer
+    renderer_classes = [renderers.JSONRenderer]
+    pagination_class = StandardResultsSetPagination
 
 class ChatMessageList(generics.ListAPIView):
     serializer_class = ChatMessageSerializer

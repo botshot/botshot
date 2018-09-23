@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from botshot.core.chat_session import ChatSession
 from botshot.core.context import Context
-from botshot.core.dialog_manager import DialogManager
+from botshot.core.message_processor import MessageProcessor
 from botshot.core.entity_value import EntityValue
 from botshot.core.interfaces.test import TestInterface
 
@@ -20,7 +20,7 @@ class TestContext(TestCase):
     #@patch('redis.StrictRedis', mockredis.mock_strict_redis_client)
     def setUp(self):
         self.session = ChatSession(TestInterface, 'test_id')
-        self.dialog = DialogManager(self.session)
+        self.dialog = MessageProcessor(self.session)
 
     def test_context_get_set(self):
         context = Context(dialog=self.dialog, entities={}, history=[], counter=0)

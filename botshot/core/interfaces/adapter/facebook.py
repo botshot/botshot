@@ -78,8 +78,6 @@ class FacebookAdapter(MessageAdapter):
         return att_id.decode("utf8") if att_id else None
 
     def _text_message(self, message: TextMessage):
-        print("TRANSFORMING TEXT MESSAGE!")
-
         if len(message.buttons) and message.quick_replies:
             raise Exception("A message can only have one of: quick replies, buttons")
         elif len(message.buttons):

@@ -8,7 +8,7 @@ from botshot.core.responses.settings import ThreadSetting, GreetingSetting, GetS
 from django.http.response import HttpResponse
 from botshot.core.interfaces import BasicAsyncInterface
 from botshot.core import config
-from botshot.models import MessageType, ChatMessage, ChatUser
+from botshot.models import ChatMessage, ChatUser
 
 
 class FacebookInterface(BasicAsyncInterface):
@@ -60,7 +60,7 @@ class FacebookInterface(BasicAsyncInterface):
                 yield raw_message
 
     def _parse_raw_message(self, event):
-        timestamp = event['timestamp']
+        timestamp = event['timestamp'] / 1000
         user_id = event['sender']['id']
         page_id = event['recipient']['id']
         raw_conversation_id = "{}_{}".format(page_id, user_id)
@@ -69,10 +69,10 @@ class FacebookInterface(BasicAsyncInterface):
 
         if 'postback' in event:
             payload = json.loads(event['postback']['payload'])
-            type = MessageType.BUTTON
+            type = ChatMessage.BUTTON
         elif 'message' in event:
             message = event['message']
-            type = MessageType.MESSAGE
+            type = ChatMessage.MESSAGE
             payload = None
             if 'text' in message:
                 text = message['text']
@@ -146,11 +146,12 @@ class FacebookInterface(BasicAsyncInterface):
             user.first_name = response.get("first_name")
             user.last_name = response.get("last_name")
             user.locale = response.get("locale")
+            user.conversation.name = '{} {}'.format(user.first_name, user.last_name)
         except:
             logging.error('Unexpected error loading FB user profile')
 
     def send_responses(self, user: ChatUser, responses):
-        self._send_responses(fbid=user.raw_user_id, conversation_meta=user.conversation.meta, responses=responses)
+        return self._send_responses(fbid=user.raw_user_id, conversation_meta=user.conversation.meta, responses=responses)
 
     def _send_responses(self, fbid, conversation_meta, responses):
         page_id = conversation_meta.get('page_id')
@@ -178,6 +179,7 @@ class FacebookInterface(BasicAsyncInterface):
                 }
                 request_mode = "messages"
             else:
+                # TODO: Check what happens when this error is thrown
                 raise ValueError('Error: Invalid message type: {}: {}'.format(type(response), response))
 
             prefix_post_message_url = 'https://graph.facebook.com/v2.6/me/'

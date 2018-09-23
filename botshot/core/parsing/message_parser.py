@@ -62,8 +62,6 @@ def parse_text_entities(text, num_tries=1):
             entities[entity] = []
         entities[entity] += values
 
-    logging.debug("Parsed entities:", entities)
-
     return entities
 
 

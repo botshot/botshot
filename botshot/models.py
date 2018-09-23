@@ -6,6 +6,8 @@ import os
 from enum import Enum
 from jsonfield import JSONField
 
+from botshot.core.persistence import json_serialize, json_deserialize
+
 
 def save_temporary_image(image_url):
     request = requests.get(image_url, stream=True)
@@ -34,8 +36,8 @@ class ChatConversation(models.Model):
     last_message_time = models.DateTimeField(blank=True, null=True)
     state = models.CharField(max_length=128, blank=True, null=True)
     is_test = models.BooleanField(default=False)
-    meta = JSONField(null=True)
-    context_dict = JSONField(null=True)
+    meta = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
+    context_dict = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
 
     @property
     def interface(self):
@@ -70,21 +72,19 @@ class ChatUser(models.Model):
         self.image.save('{}{}'.format(self.user_id, extension), tmpfile)
 
 
-class MessageType(Enum):
+class ChatMessage(models.Model):
     MESSAGE = 'message'
     BUTTON = 'button'
     SCHEDULE = 'schedule'
     EVENT = 'event'
 
-
-class ChatMessage(models.Model):
     message_id = models.BigAutoField(primary_key=True)
     user: ChatUser = models.ForeignKey(ChatUser, on_delete=models.CASCADE, related_name='messages')
-    type = models.TextField(max_length=16, choices=[(key, key.value) for key in MessageType], null=False)
+    type = models.TextField(max_length=16, choices=[(v, v) for v in [MESSAGE, BUTTON, SCHEDULE, EVENT]], null=False)
     text = models.TextField(blank=True, null=True)
     is_user = models.BooleanField()
     time = models.DateTimeField(db_index=True, null=False)
     intent = models.TextField(max_length=64, blank=True, null=True, db_index=True)
     state = models.TextField(max_length=128, blank=True, null=True, db_index=True)
-    entities = JSONField()
-    response_dict = JSONField()
+    entities = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
+    response_dict = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))

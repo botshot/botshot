@@ -1,17 +1,29 @@
 from botshot.models import ChatConversation, ChatUser, ChatMessage
 from rest_framework import serializers
 
-class ChatConversationSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = ChatConversation
-        fields = ()#('chat_id', 'first_name', 'last_name', 'image', 'locale', 'last_message_time')
+class JSONSerializerField(serializers.Field):
+    def to_internal_value(self, data):
+        return data
+    def to_representation(self, value):
+        return value
 
-class ChatUserSerializer(serializers.HyperlinkedModelSerializer):
+
+class ChatUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatUser
-        fields = ()#('message_id', 'message_type', 'text', 'is_from_user', 'time', 'intent', 'state', 'entities', 'response_dict')
+        fields = ('user_id', 'first_name', 'last_name', 'locale', 'image')
 
-class ChatMessageSerializer(serializers.HyperlinkedModelSerializer):
+
+class ChatConversationSerializer(serializers.ModelSerializer):
+    users = ChatUserSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ChatConversation
+        fields = ('conversation_id', 'name', 'interface_name', 'last_message_time', 'users')
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = ChatMessage
-        fields = ()#('message_id', 'message_type', 'text', 'is_from_user', 'time', 'intent', 'state', 'entities', 'response_dict')
+        fields = ('message_id', 'text', 'type', 'is_user', 'time', 'entities', 'response_dict')

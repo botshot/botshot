@@ -4,7 +4,7 @@
 {% block content %}
   <div class="row">
     <div class="col-xs-6 col-sm-3">
-      <div id="log-chats">
+      <div id="log-conversations">
       </div>
     </div>
     <div class="col-xs-6 col-sm-9" id="content">
@@ -17,51 +17,48 @@
 var page = 1;
 $(function(){
 
-  var $chats = $('#log-chats')
+  var $conversations = $('#log-conversations')
   var $content = $('#content')
 
- $.get(url='{% url 'log/chats' %}?page='+page, {}, function(data){
-    console.log(data)
-
+ $.get(url='{% url 'log/conversations' %}?page='+page, {}, function(data){
+    console.log('Conversations', data)
     var hash_id = window.location.hash ? window.location.hash.replace('#','') : null
-    var chat_id = null
+    var conversation_id = null
     if(data.results === undefined || data.results.length == 0){
-      console.log('No chats:', data)
+      console.log('No conversations', data)
       return;
     }
     for(var i in data.results){
-      console.log(i)
       var result = data.results[i]
-      // Accept hash ID if it exists in list
-      if(result.chat_id == hash_id){
-        chat_id = hash_id
+      console.log(result)
+      // Accept hash ID if the conversation is present in current list
+      if(result.conversation_id == hash_id){
+        conversation_id = hash_id
       }
 
-      if (result.first_name === null && result.last_name === null) {
-          var name = "Anonymous user"
-      } else {
-          var name = result.first_name + ' ' + result.last_name
-      }
-      var $chat = $('<a />').attr({'class':'log-chat clearfix','href':'#'+result.chat_id})
+      var name = result.name || "Anonymous user"
+      var $conversation = $('<a />').attr({'class':'log-conversation clearfix','href':'#'+result.conversation_id})
+      var image_url = result.users ? result.users[0].image : null
       console.log(result.image)
-      var $chatImage = $('<span />').attr({'class': 'log-chat-image'}).css({'background-image': 'url('+result.image+')'})
-      var $chatText = $('<span />').addClass('log-chat-text').text(name)
-      $chat.append($chatImage).append($chatText)
-      $chats.append($chat)
+      var $conversationImage = $('<span />').attr({'class': 'log-conversation-image'}).css({'background-image': 'url('+image_url+')'})
+      var $conversationName = $('<span />').addClass('log-conversation-name').text(name)
+      $conversation.append($conversationImage).append($conversationName)
+      $conversations.append($conversation)
     }
-    if(!chat_id){
-      chat_id = data.results[0].chat_id
+    if(!conversation_id){
+      conversation_id = data.results[0].conversation_id
     }
-    load_chat(chat_id, page);
+    load_conversation(conversation_id, page);
 
   });
+
   $(window).bind('hashchange', function(){
     page = 1;
-    load_chat(window.location.hash.replace('#',''), page)
+    load_conversation(window.location.hash.replace('#',''), page)
   })
+
   $(document).on('click', '.message', function(){
-      meta = $(this).data('meta')
-      //console.log('-- '+ $(this).find('.message-bubble').text()+' -------------')
+      var meta = $(this).data('meta')
       console.log(meta)
       var $debug = $(this).find('.debug');
       $debug.html('')
@@ -78,7 +75,7 @@ $(function(){
 
     function format_message(message){
       var $message = $('<div />')
-      if(message.is_from_user){
+      if(message.is_user){
         $message.addClass('message-user float-right')
       } else {
         $message.addClass('message-bot float-left')
@@ -88,10 +85,10 @@ $(function(){
       return $message
     }
 
-    function load_chat(id, page){
+    function load_conversation(id, page){
       if(!id) return;
-      $('.log-chat').removeClass('active');
-      $('a.log-chat[href="#'+id+'"]').addClass('active');
+      $('.log-conversation').removeClass('active');
+      $('a.log-conversation[href="#'+id+'"]').addClass('active');
 
       if(page == 1){
         $content.html('')
@@ -108,7 +105,7 @@ $(function(){
         $older.click(function(){
           $(this).hide()
           page += 1
-          load_chat(id, page)
+          load_conversation(id, page)
         })
 
         for(var i in data.results){
@@ -242,14 +239,14 @@ body{
   box-shadow: inset 2px 2px 6px 0px rgba(5,28,69,0.7);
 
 }
-.log-chat {
+.log-conversation {
   display: block;
   border-bottom: 1px solid #bbb;
   background: #eee;
   text-decoration: none;
   color: black;
 }
-.log-chat .log-chat-image {
+.log-conversation .log-conversation-image {
     display: inline-block;
     width: 40px;
     height: 40px;
@@ -257,17 +254,17 @@ body{
     background: no-repeat white top left;
     background-size: cover;
 }
-.log-chat .log-chat-text {
+.log-conversation .log-conversation-name {
     padding: 10px 10px;
     display: inline-block;
     float: left;
 }
-.log-chat:hover {
+.log-conversation:hover {
   background: #f8f8f8;
   text-decoration: none;
   color: #222;
 }
-.log-chat.active {
+.log-conversation.active {
   background: white;
   text-decoration: none;
   color: black;
@@ -282,7 +279,7 @@ body{
   overflow: auto;
   overflow-x: hidden;
 }
-#log-chats {
+#log-conversations {
   border: 1px solid #bbb;
   height: 85vh;
   overflow-y: auto;

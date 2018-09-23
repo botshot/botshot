@@ -146,8 +146,8 @@ class ConversationTest:
 
     def init(self):
         self.buttons = {}
-        from .dialog_manager import DialogManager
-        DialogManager.clear_chat(self.session.chat_id)
+        from .message_processor import MessageProcessor
+        MessageProcessor.clear_chat(self.session.chat_id)
         TestLog.clear()
         TestInterface.clear()
         
@@ -161,9 +161,9 @@ class ConversationTest:
             action = UserPostbackMessage(payload)
 
         if isinstance(action, UserMessage):
-            from .dialog_manager import DialogManager
+            from .message_processor import MessageProcessor
             start_time = time.time() # test_id=self.name, use_logging=not self.benchmark
-            dialog = DialogManager(session=self.session)
+            dialog = MessageProcessor(session=self.session)
             time_init = time.time() - start_time
             start_time = time.time()
             entities = action.get_parsed()

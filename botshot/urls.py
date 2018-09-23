@@ -18,6 +18,7 @@ urlpatterns = [
 
     url(r'^log/?$', views.log, name='log'),
     url(r'^log/conversations/?$', views.ChatConversationViewSet.as_view({'get': 'list'}), name="log/conversations"),
+    url(r'^log/users/?$', views.ChatUserViewSet.as_view({'get': 'list'}), name="log/users"),
     url(r'^log/messages/(?P<chat_id>[a-zA-Z_0-9]*)/?$', views.ChatMessageList.as_view(), name="log/messages"),
     # url(r'^log/tests/?$', views.log_tests), TODO log tests and users
     # url(r'^log/users/?$', views.log_users),

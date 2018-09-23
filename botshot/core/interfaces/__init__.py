@@ -3,6 +3,7 @@ from botshot.models import ChatConversation, ChatUser, ChatMessage
 from botshot.core.parsing.raw_message import RawMessage
 from botshot.core import config
 from django.http.response import HttpResponse, HttpResponseBadRequest
+from typing import Generator
 import json
 import logging
 import time
@@ -39,20 +40,19 @@ class BasicAsyncInterface(BotshotInterface):
         self.msg_limit_seconds = config.get('MSG_LIMIT_SECONDS', 15)
 
     def webhook(self, request):
-        from botshot.core.message_manager import MessageManager
+        from botshot.core.chat_manager import ChatManager
         if request.method == "POST":
-            manager = MessageManager()
+            manager = ChatManager()
             request_body = json.loads(request.body.decode('utf-8'))
             raw_messages = self.parse_raw_messages(request_body)
-            print(raw_messages)
             for raw_message in raw_messages:
-                print(raw_message)
-                diff_seconds = time.time() - raw_message.timestamp / 1000
+                diff_seconds = time.time() - raw_message.timestamp
                 if diff_seconds > self.msg_limit_seconds:
                     logging.warning("Delay {} seconds too big, ignoring message!".format(diff_seconds))
                     continue
                 self.on_message_received(raw_message)
-                run_async(manager.process, raw_message=raw_message)
+                logging.debug("Received raw message: %s", raw_message)
+                run_async(manager.accept, raw_message=raw_message)
             return HttpResponse()
 
         elif request.method == "GET":
@@ -66,7 +66,7 @@ class BasicAsyncInterface(BotshotInterface):
     def webhook_get(self, request):
         pass
 
-    def parse_raw_messages(self, request):
+    def parse_raw_messages(self, request) -> Generator[RawMessage, None, None]:
         raise NotImplementedError()
 
     def on_server_startup(self):

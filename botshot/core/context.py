@@ -127,14 +127,14 @@ class Context(object):
                 break
         return values
     
-    def debug(self, max_age=5):
-        logging.info('-- HEAD of Context (max age {}): --'.format(max_age))
+    def debug(self, max_age=5, level=logging.DEBUG):
+        logging.log(level, '-- HEAD of Context (max age {}): --'.format(max_age))
         for entity in self.entities:
             entities = self.get_all_first(entity, max_age=max_age)
             if entities:
                 vs = [entity.value for entity in entities]
-                logging.info('{} (age {}): {}'.format(entity, self.counter - entities[0].counter, vs if len(vs) > 1 else vs[0]))
-        logging.info('----------------------------------')
+                logging.log(level, '{} (age {}): {}'.format(entity, self.counter - entities[0].counter, vs if len(vs) > 1 else vs[0]))
+        logging.log(level, '----------------------------------')
 
     def get(self, entity, max_age=None, ignored_values=None) -> EntityValue or None:
         values = self.get_all(entity, max_age=max_age, limit=1, ignored_values=ignored_values)

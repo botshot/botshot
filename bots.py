@@ -110,6 +110,8 @@ def start():
 
     start_subprocess('Redis Database', ["redis-server", "--loglevel", "warning"])
     start_subprocess('Celery Worker', ["celery", "-A", BOT_APP_NAME, "worker", "-l", "info"])
+    # Give some time to Redis and Celery to start
+    time.sleep(0.5)
     # Run django development server. Don't reload on file changes until celery worker reload is implemented.
     start_subprocess('Django Webserver', [PYTHON_BINARY_PATH, "./manage.py", "runserver", "-v", "0", "--noreload"])
 

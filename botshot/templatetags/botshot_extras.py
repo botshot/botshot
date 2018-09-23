@@ -25,9 +25,12 @@ def json_dumps(data):
     return json.dumps(data)
 
 
-@register.inclusion_tag('botshot/nav.html')
-def show_menu_items():
-    return {"items": ADMIN_VIEWS + settings.BOT_CONFIG.get("ADMIN_VIEWS", [])}
+@register.inclusion_tag('botshot/nav.html', takes_context=True)
+def show_menu_items(context):
+    return {
+        "items": ADMIN_VIEWS + settings.BOT_CONFIG.get("ADMIN_VIEWS", []),
+        "current_view": context['request'].resolver_match.view_name
+    }
 
 
 ADMIN_VIEWS = [

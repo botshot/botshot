@@ -9,6 +9,9 @@ class RawMessage:
         self.type = type
         self.text = text
         self.payload = payload
-        if timestamp < 1e10:
-            raise ValueError("Timestamp value should be in milliseconds, got: {}.".format(timestamp))
+        if timestamp > 1e10:
+            raise ValueError("Timestamp value should be in seconds, got: {}.".format(timestamp))
         self.timestamp = timestamp
+
+    def __repr__(self):
+        return 'RawMessage({})'.format(self.__dict__)

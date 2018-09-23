@@ -1,17 +1,25 @@
-from botshot.core.dialog_manager import DialogManager
-from botshot.core.parsing.raw_message import RawMessage
-from botshot.models import ChatConversation, ChatUser, ChatMessage, MessageType
-from botshot.core.flow import FLOWS
+import logging
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.utils import timezone
-from django.core.exceptions import ObjectDoesNotExist
+from django.utils.timezone import make_aware
+from datetime import datetime
+from botshot.core import config
+from botshot.core.flow import FLOWS
+from botshot.core.message_processor import MessageProcessor
 from botshot.core.parsing.message_parser import parse_text_entities
-import logging
+from botshot.core.parsing.raw_message import RawMessage
+from botshot.core.persistence import todict
+from botshot.models import ChatConversation, ChatUser, ChatMessage
 
-class MessageManager:
 
-    def process(self, raw_message: RawMessage):
+class ChatManager:
+    def __init__(self):
+        self.save_messages = config.get("SAVE_MESSAGES", True)
+
+    def accept(self, raw_message: RawMessage):
         entities = self.parse_raw_message_entities(raw_message)
+        logging.debug("Parsed entities from message %s: %s", raw_message, entities)
 
         with transaction.atomic():
             try:
@@ -27,6 +35,7 @@ class MessageManager:
                 raw_message.interface.fill_conversation_details(conversation)
                 # Save and read instance from database to acquire lock
                 conversation.save()
+                logging.info("Created new conversation: %s", conversation.__dict__)
                 conversation = ChatConversation.objects.select_for_update().get(pk=conversation.conversation_id)
 
             conversation.last_message_time = timezone.now()
@@ -41,50 +50,46 @@ class MessageManager:
                 user.save()
                 # TODO: also update details of existing users every once in a while
                 raw_message.interface.fill_user_details(user)
+                logging.info("Created new user: %s", user.__dict__)
                 user.save()
+                conversation.save()
 
             message = ChatMessage()
             message.user = user
             message.type = raw_message.type
             message.text = raw_message.text
-            # FIXME !!!!!!!!!!!!!!!!!!
-            # FIXME !!!!!!!!!!!!!!!!!!
-            # FIXME !!!!!!!!!!!!!!!!!!
-            # FIXME use raw_message.timestamp
-            message.time = timezone.now()
+            message.time = make_aware(datetime.fromtimestamp(raw_message.timestamp))
             message.is_user = True
             message.entities = entities
 
-            self.run_dialog(message)
+            self._process(message)
 
-    def process_delayed(self, user_id, callback_state):
+    def accept_delayed(self, user_id, payload):
         with transaction.atomic():
             user: ChatUser = ChatUser.objects.select_for_update().select_related('conversation').get(pk=user_id)
             message = ChatMessage()
             message.user = user
-            message.type = MessageType.SCHEDULE
+            message.type = ChatMessage.SCHEDULE
             message.is_user = True
             message.time = timezone.now()
-            message.entities = {
-                '_state': callback_state
-            }
+            message.entities = payload
+            self._process(message)
 
-            self.run_dialog(message)
-
-    def run_dialog(self, message):
+    def _process(self, message):
         try:
-            dialog = DialogManager(flows=FLOWS, message=message, message_manager=self)
-            dialog.run()
+            logging.debug("Processing user message: %s", message)
+            processor = MessageProcessor(flows=FLOWS, message=message, chat_manager=self)
+            processor.process()
         except Exception as e:
-            logging.exception("ERROR: Error encountered while running message actions")
+            logging.exception("ERROR: Unexpected error while processing message")
             # TODO log error using log service
             #from botshot.core.logging import logging_service
             #logging_service.log_error(session=session, exception=e, state=dialog.current_state_name)
 
-        # Should propagate to save sender, conversation and context
-        # messages will be saved at all times and possibly erased after a time period or using max total messages limit
-        # TODO: Create configuration option to save user only
-        message.save()
+        message.user.conversation.save()
+        message.user.save()
+        if self.save_messages:
+            message.save()
 
     def parse_raw_message_entities(self, raw_message):
         entities = raw_message.payload
@@ -95,43 +100,26 @@ class MessageManager:
         # Remove empty lists
         return {entity: value for entity, value in entities.items() if value is not None and value != []}
 
+    def send(self, user: ChatUser, responses):
+        logging.debug("Sending bot responses: %s", responses)
 
-# @shared_task
-# def accept_inactivity_callback(session, context_counter, callback_state, inactive_seconds):
-#     from botshot.core.dialog_manager import DialogManager
-#     dialog = DialogManager(session)
-#
-#     # User has sent a message, cancel inactivity callback
-#     if dialog.context.counter != context_counter:
-#         print('Canceling inactivity callback after user message.')
-#         return
-#
-#     message = UserMessage('schedule', payload={
-#         '_inactive_seconds': inactive_seconds,
-#         '_state': callback_state
-#     })
-#
-#     _process_message(dialog, session, message)
+        user.conversation.interface.send_responses(user, responses)
 
+        for response in responses:
+            message = ChatMessage()
+            message.user = user
+            message.type = ChatMessage.MESSAGE
+            message.text = response.get_text()
+            message.time = timezone.now()
+            message.is_user = False
+            message.response_dict = todict(response)
+            message.save()
 
-# TODO: Make scheduled callbacks work again
-# def setup_schedule_callbacks(sender, callback):
-#     callbacks = settings.BOT_CONFIG.get('SCHEDULE_CALLBACKS')
-#     if not callbacks:
-#         return
-#
-#     for name in callbacks:
-#         params = callbacks[name]
-#         print('Scheduling task {}: {}'.format(name, params))
-#         if isinstance(params, dict):
-#             cron = crontab(**params)
-#         elif isinstance(params, int):
-#             cron = params
-#         else:
-#             raise Exception(
-#                 'Specify either number of seconds or dict of celery crontab params (hour, minute): {}'.format(params))
-#         sender.add_periodic_task(
-#             cron,
-#             callback.s(name),
-#         )
-#         print(' Scheduled for {}'.format(cron))
+        # Schedule logging messages
+        # try:
+        #     #sent_time = time.time()
+        #     # TODO log bot message
+        #     #logging_service.log_bot_message.delay(session=self.session, sent_time=sent_time,
+        #     #                                      state=self.current_state_name, response=response)
+        # except Exception as e:
+        #     print('Error scheduling message log', e)

@@ -1,78 +1,28 @@
-import json
 import logging
-import time
 from typing import Optional
+from django.conf import settings
 from botshot.core.context import Context
+from botshot.core.dialog import Dialog
 from botshot.core.flow import Flow, State
-from botshot.core import config
-from botshot.core.logging import logging_service
+from botshot.core.responses import TextMessage
 from botshot.models import ChatMessage
-from botshot.core.responses.responses import TextMessage
-from botshot.tasks import run_async
+from botshot.core import config
 
-class DialogManager:
+class MessageProcessor:
 
-    def __init__(self, flows, message, message_manager):
-        from botshot.core.message_manager import MessageManager
+    def __init__(self, flows, message, chat_manager):
+        from botshot.core.chat_manager import ChatManager
         self.message: ChatMessage = message
-        self.message_manager: MessageManager = message_manager
-        self.error_message_text = config.get('ERROR_MESSAGE_TEXT')
+        self.chat_manager: ChatManager = chat_manager
+        self.send_exceptions = config.get("SEND_EXCEPTIONS", default=settings.DEBUG)
         if flows is None:
             raise ValueError("Flows have not been initialized.")
         self.flows = flows
         self.current_state_name = self.message.user.conversation.state or 'default.root'
         self.context = Context.from_dict(dialog=self, data=message.user.conversation.context_dict or {})
+        self.dialog = Dialog(message=self.message, context=self.context, chat_manager=self.chat_manager)
 
-    def schedule(self, callback_state, at=None, seconds=None):
-        """
-        Schedules a state transition in the future.
-        :param callback_state:  The state to move to.
-        :param at:              A datetime with timezone
-        :param seconds:         An integer, seconds from now
-        """
-        logging.info('Scheduling callback "{}": at {} / seconds: {}'.format(callback_state, at, seconds))
-        if not at and not seconds:
-            raise Exception('Specify either "at" or "seconds" parameter')
-        return run_async(
-            self.message_manager.process_delayed,
-            at=at,
-            seconds=seconds,
-            user_id=self.message.user.user_id,
-            callback_state=callback_state
-        )
-
-    def send(self, responses):
-        """
-        Send one or more messages to the user.
-        Shortcut for send_response().
-        :param responses:       Instance of MessageElement, str or Iterable.
-        """
-
-        if responses is None:
-            return
-
-        logging.info('>>> Sending chatbot message')
-
-        if not (isinstance(responses, list) or isinstance(responses, tuple)):
-            responses = [responses]
-
-        for response in responses:
-            if isinstance(response, str):
-                response = TextMessage(text=response)
-
-            # Schedule logging message
-            try:
-                sent_time = time.time()
-                # TODO log bot message
-                #logging_service.log_bot_message.delay(session=self.session, sent_time=sent_time,
-                #                                      state=self.current_state_name, response=response)
-            except Exception as e:
-                print('Error scheduling message log', e)
-
-            # Send the response
-            self.message.user.conversation.interface.send_responses(self.message.user, response)
-
-    def run(self):
+    def process(self):
         accepted_state = self.current_state_name
 
         # TODO don't increment when @ requires -> input and it's valid
@@ -110,11 +60,7 @@ class DialogManager:
             self._run_action(self.get_flow().unsupported)
         # if not provided, give up and go to default.root
         else:
-            # raise Exception("Missing required 'unsupported' action field in flow {}.".format(
-            #     self.get_flow().name)
-            # )
             self._move_to("default.root:")
-
 
         self.message.user.conversation.state = self.current_state_name
         self.message.user.conversation.context_dict = self.context.to_dict()
@@ -123,8 +69,8 @@ class DialogManager:
         if not text:
             return False
         if text == '/areyoubotshot':
-            # FIXME add Botshot version
-            self.send("Botshot Framework")
+            from botshot import __version__
+            self.dialog.send("Botshot Framework version {}".format(__version__))
             return True
         return False
 
@@ -145,7 +91,7 @@ class DialogManager:
             logging.error("Error: Trying to run a function of type {}".format(type(fn)))
             return
         # run the action
-        retval = fn(dialog=self)
+        retval = fn(dialog=self.dialog)
         # send a response if given in return value
         if retval and not isinstance(retval, str):
             raise ValueError("Error: Action must return either None or a state name.")
@@ -273,36 +219,33 @@ class DialogManager:
                     logging.info("Staying in state {} and doing nothing".format(previous_state))
 
             except Exception as e:
-
-                context_debug = "(can't load context)"
-                try:
-                    context_debug = self.context.debug()
-                except:
-                    pass
-
+                import traceback
+                self.context.debug(level=logging.INFO)
                 logging.exception(
                               '*****************************************************\n'
-                              'Exception occurred while running action {} of state {}\n'
+                              'Exception occurred in state {}\n'
                               'Message: {}\n'
                               'User: {}\n'
                               'Conversation: {}\n'
-                              'Context: {}\n'
                               '*****************************************************'
                               .format(
-                                  action, new_state_name,
+                                  new_state_name,
                                   self.message.__dict__,
                                   self.message.user.__dict__,
-                                  self.message.user.conversation.__dict__,
-                                  context_debug
+                                  self.message.user.conversation.__dict__
                               )
                 )
-
-                if self.error_message_text:
-                    self.send([self.error_message_text])
 
                 # Raise the error if we are in a test
                 if self.message.user.conversation.is_test:
                     raise e
+
+                traceback_str = traceback.format_exc()
+                if self.send_exceptions:
+                    self.dialog.send([
+                        TextMessage('Debug: '+str(e)),
+                        TextMessage('Debug: '+traceback_str)
+                    ])
 
         return True
 
@@ -329,4 +272,5 @@ class DialogManager:
                 logging.debug("Skipping entity {} in supported message check".format(name))
 
         return entity_set
+
 

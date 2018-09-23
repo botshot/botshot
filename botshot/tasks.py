@@ -3,11 +3,12 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 # Load logging service to be registered by celery
 from botshot.core.logging import logging_service
+from django.utils.timezone import is_naive
 
 logger = get_task_logger(__name__)
 
 
-def run_async(method, at=None, seconds=None, *args, **kwargs):
+def run_async(method, at=None, seconds=None, **kwargs):
     """
     Run function or method asynchronously using Celery. Function (or method and its class) needs to be serializable.
     :param method: Top-level function or class instance method. Needs to be serializable.
@@ -18,15 +19,15 @@ def run_async(method, at=None, seconds=None, *args, **kwargs):
     :return:
     """
     if at is not None:
-        if at.tzinfo is None or at.tzinfo.utcoffset(at) is None:
-            raise Exception('Use datetime with timezone, e.g. "from django.utils import timezone"')
-        celery_method_call_wrapper.apply_async(method, eta=at, *args, **kwargs)
+        if is_naive(at):
+            raise ValueError('Use datetime with timezone, e.g. "from django.utils import timezone"')
+        celery_method_call_wrapper.apply_async(args=(method, ), eta=at, kwargs=kwargs)
     elif seconds is not None:
-        celery_method_call_wrapper.apply_async(method, countdown=seconds, *args, **kwargs)
+        celery_method_call_wrapper.apply_async(args=(method, ), countdown=seconds, kwargs=kwargs)
     else:
-        celery_method_call_wrapper.delay(method, *args, **kwargs)
+        celery_method_call_wrapper.delay(method, **kwargs)
 
 @shared_task
-def celery_method_call_wrapper(method, *args, **kwargs):
-    return method(*args, **kwargs)
+def celery_method_call_wrapper(method, **kwargs):
+    return method(**kwargs)
 
