@@ -88,8 +88,7 @@ class ChatManager:
             #from botshot.core.logging import logging_service
             #logging_service.log_error(session=session, exception=e, state=dialog.current_state_name)
 
-        print('SAVING', message.user.conversation.context_dict['counter'])
-        print(message.user.conversation.save())
+        message.user.conversation.save()
         message.user.save()
         if self.save_messages:
             message.save()

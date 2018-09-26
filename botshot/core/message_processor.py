@@ -22,7 +22,6 @@ class MessageProcessor:
         self.flows = flows
         self.current_state_name = self.message.user.conversation.state or 'default.root'
         self.context = Context.from_dict(dialog=self, data=message.user.conversation.context_dict or {})
-        self.context.add_message_entities(entities=self.message.entities)
         self.logging_service = AsyncLoggingService(self._create_loggers())
         self.dialog = Dialog(message=self.message, context=self.context, chat_manager=self.chat_manager, logging_service=self.logging_service)
 
@@ -33,18 +32,17 @@ class MessageProcessor:
         return loggers
 
     def process(self):
-        self._process_base()
-        self._save()
-
-    def _process_base(self):
+        self.context.add_message_entities(entities=self.message.entities)
         self.context.debug()
-
-        self.logging_service.log_user_message_start(self.message, self.current_state_name)
 
         if self._special_message(self.message.text):
             return
+
+        self.logging_service.log_user_message_start(self.message, self.current_state_name)
+
         if self._check_state_transition():
             return
+        # FIXME: change to: "next_state" = get_intent_state() or get_supported_state() or get_unsupported_state()
         if self._check_intent_transition(self.message.entities):
             return
         if self._check_entity_transition(self.message.entities):
@@ -181,7 +179,7 @@ class MessageProcessor:
         flow = self.get_flow(flow_name)
         return flow.get_state(state_name) if flow else None
 
-    def _move_to(self, new_state_name, initializing=False, save_identical=False):
+    def _move_to(self, new_state_name, save_identical=False):
         """Moves to a state by its full name."""
         logging.info("Trying to move to {}".format(new_state_name))
 
@@ -204,59 +202,60 @@ class MessageProcessor:
             logging.warning('Error: State %s does not exist! Staying at %s.' % (new_state_name, self.current_state_name))
             return False
         identical = new_state_name == self.current_state_name
-        if not initializing and (not identical or save_identical):
+        if not identical or save_identical:
             self.context.add_state(new_state_name)
         if not new_state_name:
             return False
         previous_state = self.current_state_name
         self.current_state_name = new_state_name
         self.logging_service.log_state_change(self.message, state=self.current_state_name)
-        if not initializing:
-            try:
-                if previous_state != new_state_name and action:
-                    logging.info("Moving from {} to {} and executing action".format(
-                        previous_state, new_state_name
-                    ))
-                    self._run_accept()
-                elif action:
-                    logging.info("Staying in state {} and executing action".format(previous_state))
-                    self._run_accept()
-                elif previous_state != new_state_name:
-                    logging.info("Moving from {} to {} and doing nothing".format(previous_state, new_state_name))
-                else:
-                    logging.info("Staying in state {} and doing nothing".format(previous_state))
 
-            except Exception as e:
-                import traceback
-                self.context.debug(level=logging.INFO)
-                logging.exception(
-                              '*****************************************************\n'
-                              'Exception occurred in state {}\n'
-                              'Message: {}\n'
-                              'User: {}\n'
-                              'Conversation: {}\n'
-                              '*****************************************************'
-                              .format(
-                                  new_state_name,
-                                  self.message.__dict__,
-                                  self.message.user.__dict__,
-                                  self.message.user.conversation.__dict__
-                              )
-                )
+        try:
+            if previous_state != new_state_name and action:
+                logging.info("Moving from {} to {} and executing action".format(
+                    previous_state, new_state_name
+                ))
+                self._run_accept()
+            elif action:
+                logging.info("Staying in state {} and executing action".format(previous_state))
+                self._run_accept()
+            elif previous_state != new_state_name:
+                logging.info("Moving from {} to {} and doing nothing".format(previous_state, new_state_name))
+            else:
+                logging.info("Staying in state {} and doing nothing".format(previous_state))
 
-                # Raise the error if we are in a test
-                if self.message.user.conversation.is_test:
-                    raise e
+            self._save()
+        except Exception as e:
+            import traceback
+            self.context.debug(level=logging.INFO)
+            logging.exception(
+                          '*****************************************************\n'
+                          'Exception occurred in state {}\n'
+                          'Message: {}\n'
+                          'User: {}\n'
+                          'Conversation: {}\n'
+                          '*****************************************************'
+                          .format(
+                              new_state_name,
+                              self.message.__dict__,
+                              self.message.user.__dict__,
+                              self.message.user.conversation.__dict__
+                          )
+            )
 
-                self.logging_service.log_error(self.message, self.current_state_name, e)
+            # Raise the error if we are in a test
+            if self.message.user.conversation.is_test:
+                raise e
 
-                traceback_str = traceback.format_exc()
+            self.logging_service.log_error(self.message, self.current_state_name, e)
 
-                if self.send_exceptions:
-                    self.dialog.send([
-                        TextMessage('Debug: '+str(e)),
-                        TextMessage('Debug: '+traceback_str)
-                    ])
+            traceback_str = traceback.format_exc()
+
+            if self.send_exceptions:
+                self.dialog.send([
+                    TextMessage('Debug: '+str(e)),
+                    TextMessage('Debug: '+traceback_str)
+                ])
 
         return True
 
