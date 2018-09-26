@@ -1,55 +1,35 @@
 import logging
 from typing import List
-
-from celery import shared_task
-from django.conf import settings
-from django.utils.module_loading import import_string
-
 from botshot.core.logging.abs_logger import MessageLogger
-
-MESSAGE_LOGGERS = []  # type: List[MessageLogger]
-
-
-def init():
-    global MESSAGE_LOGGERS
-    MESSAGE_LOGGERS = []
-
-    if 'MESSAGE_LOGGERS' not in settings.BOT_CONFIG:
-        raise ValueError("Missing required field 'MESSAGE_LOGGERS' in BOT_CONFIG.")
-
-    for module_class_path in settings.BOT_CONFIG['MESSAGE_LOGGERS']:
-        logger_class = import_string(module_class_path)
-        logger = logger_class()  # type: MessageLogger
-        MESSAGE_LOGGERS.append(logger)
+from botshot.core.responses import MessageElement
+from botshot.models import ChatMessage
+from botshot.tasks import run_async
 
 
-@shared_task
-def log_user_message(session, state, message, entities):
-    """
-    Log user message to all registered loggers.
-    :param session:         Current ChatSession
-    :param state:           Conversation state after processing the message
-    :param message:         Given UserMessage
-    :param entities:        A dict containing all the message entities
-    :return:
-    """
+class AsyncLoggingService(MessageLogger):
 
-    log_all_safe(lambda logger: logger.log_user_message(session, state, message, entities))
+    def __init__(self, loggers: List[MessageLogger]):
+        self.loggers = loggers
 
+    def log_user_message_start(self, message: ChatMessage, accepted_state):
+        self._log_all('log_user_message_start', message=message, accepted_state=accepted_state)
 
-@shared_task
-def log_bot_message(session, sent_time, state, response):
-    log_all_safe(lambda logger: logger.log_bot_message(session, sent_time, state, response))
+    def log_user_message_end(self, message: ChatMessage, final_state):
+        self._log_all('log_user_message_start', message=message, final_state=final_state)
 
+    def log_state_change(self, message: ChatMessage, state):
+        self._log_all('log_state_change', message=message, state=state)
 
-@shared_task
-def log_error(session, state, exception):
-    log_all_safe(lambda logger: logger.log_error(session, state, exception))
+    def log_bot_response(self, message: ChatMessage, response: MessageElement, timestamp):
+        self._log_all('log_bot_response', message=message, response=response, timestamp=timestamp)
 
+    def log_error(self, message: ChatMessage, state, exception):
+        self._log_all('log_error', message=message, state=state, exception=exception)
 
-def log_all_safe(func):
-    for logger in MESSAGE_LOGGERS:
-        try:
-            func(logger)
-        except Exception as e:
-            logging.exception('Error logging to "{}"'.format(logger))
+    def _log_all(self, method_name, **kwargs):
+        for logger in self.loggers:
+            try:
+                run_async(getattr(logger, method_name), **kwargs)
+            except:
+                logging.error("Logger: {}, Args: {}".format(logger, kwargs))
+                logging.exception('Error serializing logging task "{}" for logger "{}"'.format(method_name, logger))

@@ -50,7 +50,10 @@ class Context(object):
         entities = data.get("entities", {})
         return Context(dialog=dialog, entities=entities, history=history, counter=counter)
 
-    def add_entities(self, entities):
+    def add_message_entities(self, entities):
+        # TODO don't increment when @ requires -> input and it's valid
+        # TODO what to say and do on invalid requires -> input?
+        self.counter += 1
         for entity_name, entity_values in entities.items():
             # allow also direct passing of {'entity' : 'value'}
 

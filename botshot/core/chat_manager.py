@@ -20,7 +20,9 @@ class ChatManager:
     def accept(self, raw_message: RawMessage):
         entities = self.parse_raw_message_entities(raw_message)
         logging.info("Parsed entities from message %s: %s", raw_message, entities)
+        return self.accept_with_entities(raw_message, entities)
 
+    def accept_with_entities(self, raw_message, entities):
         with transaction.atomic():
             try:
                 conversation = ChatConversation.objects.select_for_update().get(
@@ -64,7 +66,7 @@ class ChatManager:
 
             self._process(message)
 
-    def accept_delayed(self, user_id, payload):
+    def accept_scheduled(self, user_id, payload):
         with transaction.atomic():
             user = ChatUser.objects.select_for_update().select_related('conversation').get(pk=user_id)
             message = ChatMessage()

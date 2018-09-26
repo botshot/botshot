@@ -1,18 +1,28 @@
 from abc import ABC, abstractmethod
+
 from botshot.core.responses import MessageElement
+from botshot.models import ChatMessage
+
 
 class MessageLogger(ABC):
-    def __init__(self):
+
+    @abstractmethod
+    def log_user_message_start(self, message: ChatMessage, accepted_state):
         pass
 
     @abstractmethod
-    def log_user_message(self, session, state, message, entities):
+    def log_user_message_end(self, message: ChatMessage, final_state):
         pass
 
     @abstractmethod
-    def log_bot_message(self, session, sent_time: float, state, response):
+    def log_state_change(self, message: ChatMessage, state):
         pass
 
-    def log_error(self, session, state, exception):
+    @abstractmethod
+    def log_bot_response(self, message: ChatMessage, response: MessageElement, timestamp):
+        pass
+
+    @abstractmethod
+    def log_error(self, message: ChatMessage, state, exception):
         pass
 

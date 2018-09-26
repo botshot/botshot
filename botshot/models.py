@@ -29,7 +29,7 @@ def save_temporary_image(image_url):
 
 class ChatConversation(models.Model):
     conversation_id = models.BigAutoField(primary_key=True)
-    raw_conversation_id = models.CharField(max_length=256)
+    raw_conversation_id = models.CharField(max_length=256, db_index=True)
     name = models.CharField(max_length=64, blank=True, null=True)
     interface_name = models.CharField(max_length=64, null=False)
     last_message_time = models.DateTimeField(blank=True, null=True)
@@ -52,7 +52,7 @@ class ChatConversation(models.Model):
 
 class ChatUser(models.Model):
     user_id = models.BigAutoField(primary_key=True)
-    raw_user_id = models.CharField(max_length=256)
+    raw_user_id = models.CharField(max_length=256, db_index=True)
     conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='users')
     first_name = models.CharField(max_length=64, blank=True, null=True)
     last_name = models.CharField(max_length=64, blank=True, null=True)
@@ -83,7 +83,7 @@ class ChatMessage(models.Model):
     text = models.TextField(blank=True, null=True)
     is_user = models.BooleanField()
     time = models.DateTimeField(db_index=True, null=False)
-    intent = models.TextField(max_length=64, blank=True, null=True, db_index=True)
-    state = models.TextField(max_length=128, blank=True, null=True, db_index=True)
+    state = models.TextField(max_length=128, blank=True, null=True)
     entities = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     response_dict = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
+    supported = models.BooleanField(default=True)

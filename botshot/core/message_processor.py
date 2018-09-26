@@ -4,40 +4,42 @@ from django.conf import settings
 from botshot.core.context import Context
 from botshot.core.dialog import Dialog
 from botshot.core.flow import Flow, State
+from botshot.core.logging.test_recorder import ConversationTestRecorder
 from botshot.core.responses import TextMessage
-from botshot.models import ChatMessage
 from botshot.core import config
+from django.utils.module_loading import import_string
+
 
 class MessageProcessor:
 
     def __init__(self, flows, message, chat_manager):
-        from botshot.core.chat_manager import ChatManager
-        self.message = message  # type: ChatMessage
-        self.chat_manager = chat_manager  # type: ChatManager
-        self.send_exceptions = config.get("SEND_EXCEPTIONS", default=settings.DEBUG)
+        from botshot.core.logging.logging_service import AsyncLoggingService
         if flows is None:
             raise ValueError("Flows have not been initialized.")
+        self.message = message
+        self.chat_manager = chat_manager
+        self.send_exceptions = config.get("SEND_EXCEPTIONS", default=settings.DEBUG)
         self.flows = flows
         self.current_state_name = self.message.user.conversation.state or 'default.root'
         self.context = Context.from_dict(dialog=self, data=message.user.conversation.context_dict or {})
-        self.dialog = Dialog(message=self.message, context=self.context, chat_manager=self.chat_manager)
+        self.context.add_message_entities(entities=self.message.entities)
+        self.logging_service = AsyncLoggingService(self._create_loggers())
+        self.dialog = Dialog(message=self.message, context=self.context, chat_manager=self.chat_manager, logging_service=self.logging_service)
+
+    def _create_loggers(self):
+        loggers = [import_string(path)() for path in config.get('MESSAGE_LOGGERS', default=[])]
+        if self.context.get('_admin_test_record'):
+            loggers.append(ConversationTestRecorder())
+        return loggers
 
     def process(self):
         self._process_base()
         self._save()
 
     def _process_base(self):
-        accepted_state = self.current_state_name
-
-        # TODO don't increment when @ requires -> input and it's valid
-        # TODO what to say and do on invalid requires -> input?
-        self.context.counter += 1
-
-        self.context.add_entities(self.message.entities)
         self.context.debug()
 
-        # logging_service.log_user_message.delay(session=self.session, message=message, entities=self.message.entities,
-        #                                       state=accepted_state)
+        self.logging_service.log_user_message_start(self.message, self.current_state_name)
 
         if self._special_message(self.message.text):
             return
@@ -54,6 +56,8 @@ class MessageProcessor:
             self._run_accept()
             return
 
+        # mark that the message was not supported
+        self.message.supported = False
         # run 'unsupported' action of the state
         if self.get_state().unsupported:
             self._run_action(self.get_state().unsupported)
@@ -63,6 +67,8 @@ class MessageProcessor:
         # if not provided, give up and go to default.root
         else:
             self._move_to("default.root:")
+
+        self.logging_service.log_user_message_end(self.message, self.current_state_name)
 
     def _save(self):
         self.message.user.conversation.state = self.current_state_name
@@ -140,7 +146,6 @@ class MessageProcessor:
 
     def _check_entity_transition(self, entities: dict):
         """ Checks if entity was parsed from current message (and moves if associated state exists)"""
-        # FIXME somehow it also uses older entities
 
         # first check if supported, if yes, abort
         entity_values = self._get_entity_value_tuples(entities)
@@ -205,8 +210,8 @@ class MessageProcessor:
             return False
         previous_state = self.current_state_name
         self.current_state_name = new_state_name
+        self.logging_service.log_state_change(self.message, state=self.current_state_name)
         if not initializing:
-
             try:
                 if previous_state != new_state_name and action:
                     logging.info("Moving from {} to {} and executing action".format(
@@ -243,7 +248,10 @@ class MessageProcessor:
                 if self.message.user.conversation.is_test:
                     raise e
 
+                self.logging_service.log_error(self.message, self.current_state_name, e)
+
                 traceback_str = traceback.format_exc()
+
                 if self.send_exceptions:
                     self.dialog.send([
                         TextMessage('Debug: '+str(e)),
@@ -275,5 +283,4 @@ class MessageProcessor:
                 logging.info("Skipping entity {} in supported message check".format(name))
 
         return entity_set
-
 

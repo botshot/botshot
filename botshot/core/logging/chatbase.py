@@ -5,9 +5,13 @@ import requests
 from django.conf import settings
 
 from botshot.core.logging.abs_logger import MessageLogger
-
+from botshot.core.responses import MessageElement
+from botshot.models import ChatMessage
+import calendar
+from botshot import __version__ as BOTSHOT_VERSION
 
 class ChatbaseLogger(MessageLogger):
+
     def __init__(self):
         super().__init__()
         self.base_url = 'https://chatbase.com/api'
@@ -20,46 +24,42 @@ class ChatbaseLogger(MessageLogger):
             return None
         return interface  # TODO
 
-    def log_user_message(self, session, state, message, entities):
-        unsupported = False
-        if '_unsupported' in entities and entities['_unsupported']:
-            unsupported = entities["_unsupported"][0].get('value', False)
+    def log_user_message_end(self, message: ChatMessage, final_state):
 
         intent = False
-        if 'intent' in entities and entities['intent']:
-            unsupported = entities["intent"][0].get('intent', False)
+        if message.entities.get('intent'):
+            intent_entity = message.entities["intent"]
+            if isinstance(intent_entity, list):
+                intent_entity = intent_entity[0]
+            intent = intent_entity.get('value') if isinstance(intent_entity, dict) else str(intent_entity)
 
-        from django.conf import settings
         payload = {
             "api_key": self.api_key,
             "type": "user",
-            "user_id": session.chat_id,
-            "time_stamp": int(time.time() * 1000),
-            "platform": self._interface_to_platform(session.interface.name),
+            "user_id": message.user.conversation.conversation_id,
+            "time_stamp": int(calendar.timegm(message.time.utctimetuple()) * 1000),
+            "platform": self._interface_to_platform(message.user.conversation.interface_name),
             "message": message,
             "intent": intent,
-            "chat_id": state,
-            "not_handled": unsupported,
-            "version": settings.BOT_CONFIG.get("VERSION", "1.0")
+            "not_handled": not message.supported,
+            "version": BOTSHOT_VERSION
         }
         response = requests.post(self.base_url + "/message", params=payload)
         if not response.ok:
             logging.error("Chatbase request with code %d, reason: %s", response.status_code, response.reason)
         return response.ok
 
-    def log_bot_message(self, session, sent_time: float, state, response):
-        from django.conf import settings
+    def log_bot_response(self, message, response: MessageElement, timestamp):
         payload = {
             "api_key": self.api_key,
             "type": "agent",
-            "user_id": session.chat_id,
-            "time_stamp": int(sent_time * 1000),
-            "platform": self._interface_to_platform(session.interface.name),
-            "message": str(response),
+            "user_id": message.user.conversation.conversation_id,
+            "time_stamp": int(timestamp * 1000),
+            "platform": self._interface_to_platform(message.user.conversation.interface_name),
+            "message": response.get_text() or str(message),
             "intent": None,
-            "chat_id": state,
             "not_handled": False,  # only for user messages
-            "version": settings.BOT_CONFIG.get("VERSION", "1.0")
+            "version": BOTSHOT_VERSION
         }
         response = requests.post(self.base_url + "/message", params=payload)
         if not response.ok:
