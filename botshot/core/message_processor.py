@@ -32,6 +32,12 @@ class MessageProcessor:
         return loggers
 
     def process(self):
+        self._process_base()
+        # Set conversation state if the message was processed successfully
+        self.message.user.conversation.state = self.current_state_name
+        self.message.user.conversation.context_dict = self.context.to_dict()
+
+    def _process_base(self):
         self.context.add_message_entities(entities=self.message.entities)
         self.context.debug()
 
@@ -67,10 +73,6 @@ class MessageProcessor:
             self._move_to("default.root:")
 
         self.logging_service.log_user_message_end(self.message, self.current_state_name)
-
-    def _save(self):
-        self.message.user.conversation.state = self.current_state_name
-        self.message.user.conversation.context_dict = self.context.to_dict()
 
     def _special_message(self, text):
         if not text:
@@ -224,11 +226,10 @@ class MessageProcessor:
             else:
                 logging.info("Staying in state {} and doing nothing".format(previous_state))
 
-            self._save()
         except Exception as e:
             import traceback
             self.context.debug(level=logging.INFO)
-            logging.exception(
+            logging.error(
                           '*****************************************************\n'
                           'Exception occurred in state {}\n'
                           'Message: {}\n'
@@ -243,10 +244,6 @@ class MessageProcessor:
                           )
             )
 
-            # Raise the error if we are in a test
-            if self.message.user.conversation.is_test:
-                raise e
-
             self.logging_service.log_error(self.message, self.current_state_name, e)
 
             traceback_str = traceback.format_exc()
@@ -256,6 +253,9 @@ class MessageProcessor:
                     TextMessage('Debug: '+str(e)),
                     TextMessage('Debug: '+traceback_str)
                 ])
+
+            # Raise the exception again, conversation state won't be saved.
+            raise e
 
         return True
 

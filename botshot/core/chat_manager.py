@@ -83,10 +83,8 @@ class ChatManager:
             processor = MessageProcessor(flows=FLOWS, message=message, chat_manager=self)
             processor.process()
         except Exception as e:
-            logging.exception("ERROR: Unexpected error while processing message")
-            # TODO log error using log service
-            #from botshot.core.logging import logging_service
-            #logging_service.log_error(session=session, exception=e, state=dialog.current_state_name)
+            logging.exception("ERROR: Exception while processing message")
+            # TODO: Save error message (ChatMessage.type = ERROR)
 
         message.user.conversation.save()
         message.user.save()
