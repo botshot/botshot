@@ -42,5 +42,5 @@ setup(
         'Topic :: Communications :: Chat',
     ],
     install_requires=['django>=2.0.0', 'networkx', 'requests', 'six', 'sqlparse', 'wit==4.3.0', 'wheel', 'redis', 'Pillow', 'jsonfield',
-                      'pytz', 'unidecode', 'emoji', 'elasticsearch', 'celery==4.1.1', 'python-dateutil', 'pyyaml', 'djangorestframework'],
+                      'pytz', 'unidecode', 'emoji', 'elasticsearch', 'celery>=4.1.1', 'python-dateutil', 'pyyaml', 'djangorestframework'],
 )
