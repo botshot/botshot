@@ -1,3 +1,0 @@
-from .celery import app as celery_app  # don't remove this
-
-__all__ = ['celery_app']

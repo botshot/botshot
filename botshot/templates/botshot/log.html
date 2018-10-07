@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "botshot/base.html" %}
 
 {% block title %}Messages{% endblock %}
 {% block content %}
@@ -64,7 +64,7 @@ function load_group(id, page){
   if(page == 1){
     $content.html('')
   }
-  $.get(url='/golem/log_conversation/'+id+'/'+page, {}, function(data){
+  $.get(url='{% url 'log_conversation' %}'+id+'/'+page, {}, function(data){
     var $div = $('<div />')
     var $older = $('<a/>')
 

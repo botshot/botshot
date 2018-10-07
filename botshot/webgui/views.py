@@ -21,20 +21,18 @@ def webgui(request):
     if request.method == 'POST':
         # message received via webgui
         if request.POST.get('message'):
-            msg = WebMessageData()
-            msg.uid = uid
             message_text = request.POST.get('message')
-            msg.is_response = False
-            msg.data = json.dumps(TextMessage(message_text).to_response())
+            data = json.dumps(TextMessage(message_text).to_response())
 
-            if message_text:
-                # process message if text != null
-                msg.save()
-                if request.POST.get("postback"):
-                    postback = request.POST.get("postback")
-                    WebGuiInterface.accept_postback(msg, postback)
-                else:
-                    WebGuiInterface.accept_request(msg)
+            msg = WebMessageData.objects.create(uid=uid, is_response=False, data=data)
+
+            # process message if text != null
+            msg.save()
+            if request.POST.get("postback"):
+                postback = request.POST.get("postback")
+                WebGuiInterface.accept_postback(msg, postback)
+            else:
+                WebGuiInterface.accept_request(msg)
         else:
             print("Error, message not set in POST")
             return HttpResponseBadRequest()
@@ -73,5 +71,7 @@ def get_last_change(request):
     if 'uid' in request.session:
         uid = request.session['uid']
         max_timestamp = WebMessageData.objects.filter(uid=uid).aggregate(Max('timestamp'))
-        return JsonResponse(max_timestamp)
+        timestamp = max_timestamp.get('timestamp__max')
+        timestamp = timestamp.timestamp() if timestamp else 0
+        return JsonResponse({'timestamp__max': timestamp})
     return HttpResponseBadRequest()

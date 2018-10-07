@@ -10,7 +10,6 @@ from botshot.core.entity_value import EntityValue
 
 def json_deserialize(obj):
     #print('Deserializing:', obj)
-    from botshot.core.entities import Entity
     if obj.get('__type__') == 'datetime':
         return dateutil.parser.parse(obj.get('value'))
     elif obj.get('__type__') == 'entity':

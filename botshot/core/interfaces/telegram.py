@@ -8,6 +8,8 @@ import random
 import requests
 from django.conf import settings
 
+from botshot.core.chat_session import ChatSession
+from botshot.core.interfaces.adapter.telegram import TelegramAdapter
 from botshot.core.message_parser import parse_text_message
 from botshot.core.persistence import get_redis
 from botshot.tasks import accept_user_message
@@ -18,6 +20,7 @@ from botshot.tasks import accept_user_message
 class TelegramInterface:
     name = 'telegram'
     prefix = 'tg'
+    adapter = TelegramAdapter()
 
     @staticmethod
     def get_base_url() -> Optional[str]:
@@ -54,13 +57,14 @@ class TelegramInterface:
         return {'first_name': 'Tests', 'last_name': ''}
 
     @staticmethod
-    def post_message(uid, chat_id, response):
+    def post_message(session: ChatSession, response):
         from botshot.core.interfaces.adapter.telegram import TelegramAdapter
         base_url = TelegramInterface.get_base_url()
         if not base_url:
             return
-        adapter = TelegramAdapter(chat_id)
-        messages = adapter.to_response(response)
+        adapter = TelegramAdapter()
+        adapter.prepare_message(response, session)
+        messages = adapter.transform_message(response, session)
         for method, payload in messages:
             url = base_url + method
             response = requests.post(url, data=payload)
@@ -98,13 +102,13 @@ class TelegramInterface:
         pass
 
     @staticmethod
-    def processing_start(uid, chat_id):
+    def processing_start(session):
         base_url = TelegramInterface.get_base_url()
         if not base_url:
             return
         url = base_url + 'sendChatAction'
         payload = {
-            'chat_id': chat_id,
+            'chat_id': session.meta['chat_id'],
             'action': 'typing'
         }
         response = requests.post(url, data=payload)
@@ -112,7 +116,7 @@ class TelegramInterface:
             logging.warning(response.json())
 
     @staticmethod
-    def processing_end(uid, chat_id):
+    def processing_end(session):
         pass
 
     @staticmethod
@@ -145,7 +149,10 @@ class TelegramInterface:
             uid = message['from']['id'] if 'from' in message else None  # null for group chats
             if uid and not TelegramInterface.has_message_expired(message):
                 logging.debug('Adding message to queue')
-                accept_user_message.delay(TelegramInterface.name, uid, body, chat_id=chat_id)
+                meta = {"chat_id": chat_id, "uid": uid}
+                session = ChatSession(TelegramInterface, str(chat_id), meta=meta)
+                TelegramInterface.fill_session_profile(session)
+                accept_user_message.delay(session.to_json(), body)
                 return True
             else:
                 logging.warning('No sender specified, ignoring message')
@@ -205,3 +212,7 @@ class TelegramInterface:
         if redis.exists(key):
             return redis.get(key)
         return None
+
+    @staticmethod
+    def fill_session_profile(session):
+        pass

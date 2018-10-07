@@ -22,7 +22,7 @@ setup(
     author_email='david.prihoda@gmail.com, zilinec.m@gmail.com',
     entry_points={
           'console_scripts': [
-              'bots = botshot.management.bots:main'
+              'bots = bots:main'
           ]
       },
     classifiers=[
@@ -36,6 +36,7 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        # 'Programming Language :: Python :: 3.7',  Not compatible yet, waiting for Celery 4.3 !
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
         'Topic :: Communications :: Chat',

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Botshot{% endblock %} - Administration console</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style type="text/css">
+  body{
+   font-family: sans-serif;
+  }
+  #toolbar {
+    padding: 20px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #aaaaaa;
+  }
+  </style>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<script   src="https://code.jquery.com/jquery-3.1.1.min.js"  crossorigin="anonymous"></script> 
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+  {% block headers %}{% endblock headers %}
+</head>
+<body>
+<div class="container">
+  <div class="row">
+    <div class="col-xs-12" id="toolbar">
+      <div class="btn-group" role="group">
+{#        <a href="/content/templates/" class="btn btn-default {% if request.path == '/content/templates/' %}btn-info active{% endif %}">Templates</a>#}
+{#        <a href="/content/preview/" class="btn btn-default {% if request.path == '/content/preview/' %}btn-info active{% endif %}">Content</a>#}
+{#        <a href="/content/export/" class="btn btn-default {% if request.path == '/content/export/' %}btn-info active{% endif %}">Export</a>#}
+{#        <a href="/content/stats/" class="btn btn-default {% if request.path == '/content/stats/' %}btn-info active{% endif %}">Stats</a>#}
+        <a href="{% url 'log' '' %}" class="btn btn-default {% if request.resolver_match.url_name == 'log' %}btn-info active{% endif %}">Messages</a>
+        <a href="{% url 'log_tests' %}" class="btn btn-default {% if request.resolver_match.url_name == 'log_tests' %}btn-info active{% endif %}">Examples</a>
+        <a href="{% url 'test' %}" class="btn btn-default {% if request.resolver_match.url_name == 'test' %}btn-info active{% endif %}">Tests</a>
+      </div>
+    </div>
+  </div>
+  {% block content %}{% endblock content %}
+</div>
+</body>
+</html>

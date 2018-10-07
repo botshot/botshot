@@ -3,7 +3,8 @@ from django.test import TestCase
 from botshot.core.interfaces.adapter.telegram import TelegramAdapter
 from botshot.core.responses.buttons import LinkButton, PayloadButton
 from botshot.core.responses.quick_reply import QuickReply
-from botshot.core.responses.responses import TextMessage, GenericTemplateMessage, GenericTemplateElement
+from botshot.core.responses.responses import TextMessage
+from botshot.core.responses import CarouselTemplate, CardTemplate
 from botshot.core.responses.templates import ListTemplate
 
 
@@ -45,10 +46,10 @@ class TelegramAdapterTest(TestCase):
     def test_generic_template_message(self):
         chat_id = '0'
         adapter = TelegramAdapter(chat_id)
-        message = GenericTemplateMessage()
+        message = CarouselTemplate()
         for i in range(3):
             url = 'http://placehold.it/300x200'
-            element = GenericTemplateElement(title='foo', subtitle='lorem ipsum dolor sit amet.', image_url=url)
+            element = CardTemplate(title='foo', subtitle='lorem ipsum dolor sit amet.', image_url=url)
             message.add_element(element)
         response = adapter.to_response(message)
         print(response)
@@ -59,7 +60,7 @@ class TelegramAdapterTest(TestCase):
         message = ListTemplate()
         for i in range(3):
             url = 'http://placehold.it/300x200'
-            element = GenericTemplateElement(title='foo', subtitle='lorem ipsum dolor sit amet.', image_url=url)
+            element = CardTemplate(title='foo', subtitle='lorem ipsum dolor sit amet.', image_url=url)
             message.add_element(element)
         response = adapter.to_response(message)
         print(response)

@@ -1,0 +1,316 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto|Oxygen|Raleway:800|Open+Sans:600');
+
+body {
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    margin: 0;
+}
+
+#header {
+    position: -webkit-sticky;
+    top: 0;
+    background-color: #0d6ceb;
+    box-shadow: 0 4px 12px #aaaaaa;
+    width: 100%;
+    height: auto;
+    z-index: 100;
+    margin-bottom: 8px;
+}
+
+#header > h1 {
+    font-family: "Raleway", sans-serif;
+    text-align: center;
+    font-size: x-large;
+    color: white;
+    padding: 5px 10%;
+    font-weight: 800;
+    z-index: 10;
+    display: inline-block;
+}
+
+#footer {
+    width: 100vw;
+    position: -webkit-sticky;
+    margin-top: auto;
+    bottom: 0;
+    /*background-color: white;*/
+    z-index: 100;
+}
+
+#list_wrap {
+    background-color: white;
+    width: 100vw;
+    height: available;
+    margin: 0 auto;
+    overflow-x: auto;
+    overflow-y: scroll;
+}
+
+#list {
+    width: 80vw;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 1366px;
+}
+
+#button_logout {
+    float: right;
+    background-color: white;
+    text-transform: uppercase;
+    font-weight: 700;
+    font-family: "Roboto", 'sans-serif';
+    color: #222222;
+    border: none;
+    font-size: small;
+    border-radius: 2px;
+    padding: 12px;
+    margin: 10px;
+}
+
+#button_logout:focus, #button_logout:hover {
+    background-color: #eaeaea;
+}
+
+.message-wrap {
+    font-family: 'Oxygen', sans-serif;
+    font-weight: 400;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    display: block;
+    clear: both;
+}
+
+.message-wrap:after {
+    content: "";
+    clear: both;
+}
+
+.bot-message {
+    float: left;
+}
+
+.user-message {
+    float: right;
+}
+
+.time {
+    color: #8c8c8c;
+    font-weight: 400;
+    font-size: small;
+    display: block;
+}
+
+#form_msg {
+    float: right;
+    font-family: Roboto, sans-serif;
+    /*{#margin-right: 10%;#}*/
+    width: 100%;
+}
+
+.circle-image {
+    width: 48px;
+    height: 48px;
+    border-radius: 100%;
+    position: relative;
+    display: inline-block;
+}
+
+.message > .text {
+    background-color: #00d1eb;
+    color: white;
+    padding: 8px;
+    border-radius: 20px;
+    z-index: 0;
+    line-height: 200%;
+}
+
+.bubble {
+    background: rgb(59, 172, 196);
+    background: linear-gradient(90deg, rgba(59, 172, 196, 1) 0%, rgba(43, 103, 204, 1) 100%);
+    color: white;
+    padding: 8px 24px;
+    margin-left: 16px;
+    margin-right: 16px;
+    border-radius: 20px;
+    z-index: 1;
+    line-height: 200%;
+}
+
+.right-bubble {
+    float: right;
+}
+
+.right-bubble:after {
+    content: "";
+    width: 0;
+    height: 0;
+    background: transparent;
+
+    /*position: absolute;*/
+    /*right: 16px;*/
+    /*bottom: 10px;*/
+    /*border-left: 25px solid transparent;*/
+    /*border-bottom: 25px solid transparent;*/
+    /*border-right: 20px solid rgba(43,103,204,1);*/
+}
+
+.left-bubble {
+    float: left;
+}
+
+/*.message-wrap + .time {*/
+    /*display: none;*/
+    /*background-color: transparent;*/
+/*}*/
+/**/
+/*.message-wrap:hover + .time {*/
+/**/
+    /*display: inline-block;*/
+    /*position: absolute;*/
+    /*background-color: #bbbbbb;*/
+    /*color: white;*/
+    /*padding: 10px;*/
+    /*border-radius: 8px;*/
+    /*z-index: 100;*/
+/*}*/
+
+.quick-replies > button {
+    background-color: #f0f0f0;
+    padding: 6px;
+    margin: 5px 5px;
+    border: none;
+    border-radius: 3px;
+color: black;
+}
+
+.quick-replies > button:focus, .quick-replies > button:hover {
+    background-color: #dddddd;
+}
+
+.buttons > button {
+    background-color: #ffffff;
+    padding: 6px;
+    margin: 5px 5px;
+    border: none;
+    border-radius: 8px;
+    font-family: "Roboto", 'sans-serif';
+    /*{#text-transform: uppercase;#}*/
+    color: #0d6ceb;
+}
+
+.buttons > button:focus, .buttons > button:hover {
+    background-color: #efefef;
+}
+
+.template-element {
+    width: 250px;
+    border: solid 1px rgb(220,226,231);
+    margin: 5px;
+    background: rgb(243,249,254);
+    white-space: normal;
+}
+
+.carousel-element {
+    display: inline-block;
+}
+
+.template-element > img {
+    /*{#margin-left: 20%;#}*/
+    /*{#margin-right: 20%;#}*/
+    height: 150px;
+    width: 250px;
+}
+
+.template-element > p {
+    padding-left: 5%;
+    padding-right: 5%;
+    text-align: justify-all;
+    font-family: "Roboto Light", "sans-serif";
+    color: black;
+}
+
+
+.template-element > h3 {
+    z-index: 100;
+    color: #0f0f0f;
+    margin-top: auto;
+    margin-bottom: auto;
+    text-align: center;
+    font-size: 100%;
+    font-weight: 600;
+    font-family: "Open Sans", "sans-serif";
+}
+
+.template-message {
+    /*display: flex;*/
+    white-space: nowrap;
+    flex-wrap: nowrap;
+    height: auto;
+    margin-right: auto;
+    margin-left: auto;
+    overflow: hidden;
+    width: 100%;
+}
+
+.carousel-template {
+    overflow-x: scroll;
+}
+
+.list-template {
+    display: block;
+}
+
+#form_msg {
+    background-color: #0d6ceb;
+    padding-bottom: 10px;
+    padding-top: 10px;
+    margin-top: 10px;
+    box-shadow: 0 -5px 10px #cccccc;
+    display: flex;
+}
+
+#form_msg > label {
+    display: none;
+}
+
+input[type='submit'] {
+    background-color: white;
+    text-transform: uppercase;
+    font-weight: 700;
+    font-family: "Roboto", 'sans-serif';
+    color: #222222;
+    border: none;
+    border-radius: 2px;
+    padding: 10px 15px;
+    margin: 0 5px;
+    outline: 0;
+}
+
+input[type='submit']:focus, input[type='submit']:hover {
+    background-color: #eaeaea;
+}
+
+input[type="text"] {
+    padding: 10px;
+    border: none;
+    margin-left: 10px;
+    font-family: "Roboto", 'sans-serif';
+    background-color: white;
+    color: #777777;
+    box-shadow: 0 0 1px #aaaaaa;
+    width: 100%;
+}
+
+input[type="text"]:focus {
+    border-bottom: 5px solid #00d1eb;
+    color: #222222;
+    outline: none;
+
+    -webkit-transition: border-bottom-width 200ms;
+    -moz-transition: border-bottom-width 200ms;
+    -ms-transition: border-bottom-width 200ms;
+    -o-transition: border-bottom-width 200ms;
+    transition: border-bottom-width 200ms;
+}

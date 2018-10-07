@@ -153,7 +153,7 @@ class EntityQuery:
     def get_age(self) -> int:
         """Returns age of the latest entity in messages, or -1 if there are no entities."""
         self.items = sorted(self.items, key=lambda x: x.timestamp, reverse=True)
-        return (self.items[0].counter - self.context.counter) if len(self.items) > 0 else -1
+        return (self.context.counter - self.items[0].counter) if len(self.items) > 0 else -1
 
     def values(self):
         """Returns a list with values of all present entities."""

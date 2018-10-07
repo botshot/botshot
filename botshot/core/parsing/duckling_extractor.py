@@ -2,6 +2,7 @@ import json
 import logging
 
 import requests
+from django.conf import settings
 
 from botshot.core.parsing import date_utils
 from botshot.core.parsing.entity_extractor import EntityExtractor
@@ -9,12 +10,12 @@ from botshot.core.parsing.entity_extractor import EntityExtractor
 
 class DucklingExtractor(EntityExtractor):
 
-    def __init__(self, url, lang='en_US'):
+    def __init__(self):
         super().__init__()
-        if not url:
-            raise ValueError("Duckling URL must be set")
-        self.duckling_url = url
-        self.language = lang
+        self.duckling_url = settings.BOT_CONFIG.get('DUCKLING_URL')
+        self.language = settings.BOT_CONFIG.get('DUCKLING_LANGUAGE', "en_US")
+        if not self.duckling_url:
+            raise ValueError("Duckling URL not set! Please set it as settings.BOT_CONFIG['DUCKLING_URL'].")
 
     def extract_entities(self, text: str, max_retries=1):
         """
