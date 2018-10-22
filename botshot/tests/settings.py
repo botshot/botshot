@@ -16,3 +16,9 @@ DATABASES = {
 }
 
 SECRET_KEY = "foo"
+
+INSTALLED_APPS = (
+    'botshot',
+)
+
+USE_TZ = True

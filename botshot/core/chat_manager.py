@@ -18,6 +18,7 @@ class ChatManager:
         self.save_messages = config.get("SAVE_MESSAGES", True)
 
     def accept(self, raw_message: RawMessage):
+        """Parses a received message and accepts it for processing."""
         entities = self.parse_raw_message_entities(raw_message)
         logging.info("Parsed entities from message %s: %s", raw_message, entities)
         return self.accept_with_entities(raw_message, entities)
