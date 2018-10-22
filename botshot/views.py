@@ -19,27 +19,9 @@ from botshot.serializers import ChatConversationSerializer, ChatMessageSerialize
 
 @csrf_exempt
 def interface_webhook(request, interface_name):
+    # print(request.body.decode('utf8'))
     interface = InterfaceFactory.from_name(interface_name)
     return interface.webhook(request)
-
-class TelegramView(generic.View):
-
-    def get(self, request, *args, **kwargs):
-        request_body = json.loads(self.request.body.decode('utf-8'))
-        from pprint import pprint
-        pprint(request_body)
-        return HttpResponse()
-
-    @method_decorator(csrf_exempt)
-    def dispatch(self, request, *args, **kwargs):
-        return generic.View.dispatch(self, request, *args, **kwargs)
-
-    # Post function to handle Telegram messages
-    def post(self, request, *args, **kwargs):
-        # Converts the text payload into a python dictionary
-        request_body = json.loads(self.request.body.decode('utf-8'))
-        TelegramInterface.accept_request(request_body)
-        return HttpResponse()
 
 
 class GActionsView(generic.View):
