@@ -4,6 +4,7 @@ import pytest
 from django.conf import settings
 from django.test import RequestFactory
 
+from botshot.core.interfaces.alexa import AlexaInterface
 from botshot.core.interfaces.facebook import FacebookInterface
 from botshot.core.interfaces.telegram import TelegramInterface
 from botshot.models import ChatMessage
@@ -94,3 +95,23 @@ class TestTelegramInterface():
     def test_postback_received(self, interface):
         # TODO
         pass
+
+
+class TestAlexaInterface():
+
+    request = {
+        "version": "1.0",
+        "session": {},
+        "request": {
+            "type": "LaunchRequest",
+            "requestId": "request.id.string",
+            "timestamp": "string"
+        }
+    }
+
+    @pytest.fixture
+    def interface(self):
+        yield AlexaInterface()
+
+    def test_message_received(self, interface):
+        req = self.request.copy()
