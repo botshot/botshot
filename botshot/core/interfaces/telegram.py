@@ -21,14 +21,13 @@ class TelegramInterface(BasicAsyncInterface):
 
     name = 'telegram'
     adapter = TelegramAdapter()
+    base_url = 'https://api.telegram.org/bot{}/'.format(config.get_required('TELEGRAM_TOKEN'))
 
-    def base_url(self) -> str:
-        token = config.get_required('TELEGRAM_TOKEN')
-        return 'https://api.telegram.org/bot{}/'.format(token)
+    should_hide_keyboard = config.get('TELEGRAM_HIDE_KEYBOARD', False)
 
     def on_server_startup(self):
         from django.urls import reverse
-        endpoint_url = self.base_url() + 'setWebhook'
+        endpoint_url = self.base_url + 'setWebhook'
 
         deploy_url = config.get_required(
             'DEPLOY_URL',
@@ -50,7 +49,7 @@ class TelegramInterface(BasicAsyncInterface):
             yield self._parse_raw_message(request['message'])
         elif 'channel_post' in request:
             yield self._parse_raw_message(request['channel_post'])
-        elif 'callback_query' in request:
+        elif 'callback_query' in request:  # payload button clicked
             yield self._parse_callback_query(request['callback_query'])
         else:
             logging.warning("Ignoring unsupported telegram request")
@@ -80,23 +79,39 @@ class TelegramInterface(BasicAsyncInterface):
         )
 
     def _parse_callback_query(self, callback):
-        query_id = callback['callback_query_id']
-        user_id = callback['user']['id']
-        chat_id = callback['chat_instance']  # FIXME: is this correct?
-        if 'data' not in callback:
-            logging.warning("Ignoring callback without data")
+        query_id = callback['id']
+        user_id = callback['from']['id']
+        chat_instance_id = callback['chat_instance']  # this isn't chat_id
+        message = callback.get('message')
+        data_key = callback.get('data')  # TODO: sanitize
+
+        if not message:
+            logging.warning("Ignoring telegram callback without original message")
             return None
-        data_key = callback['data']  # TODO: sanitize
+
+        if not data_key:
+            logging.warning("Ignoring telegram callback without data")
+            return None
+
+        chat_id = message['chat']['id']
+        message_id = message['message_id']
         data = self._retrieve_callback(data_key)
+        data = json.loads(data)
 
         # answer query to hide loading bar in frontend
-        url = self.base_url() + 'answerCallbackQuery'
+        url = self.base_url + 'answerCallbackQuery'
         payload = {'callback_query_id': query_id}
         response = requests.post(url, data=payload)
         if not response.json()['ok']:
             logging.error('Error occurred while answering to telegram callback: {}'.format(response.json()))
 
-        # TODO: hide reply keyboard (if needed)
+        # hide keyboard with buttons (not quick replies)
+        if self.should_hide_keyboard:
+            url = self.base_url + 'editMessageReplyMarkup'
+            payload = {'chat_id': chat_id, 'message_id': message_id, 'reply_markup': ''}
+            response = requests.post(url, data=payload)
+            if not response.json()['ok']:
+                logging.error('Error occurred while hiding telegram keyboard: {}'.format(response.json()))
 
         return RawMessage(
             interface=self,
@@ -109,7 +124,8 @@ class TelegramInterface(BasicAsyncInterface):
             timestamp=time()
         )
 
-    def _persist_callback(self, payload) -> str:
+    @classmethod
+    def _persist_callback(cls, payload) -> str:
         """
         Persists payload to be used with Telegram callbacks (which can be max. 64B)
         and returns a string that can be used to retrieve the payload from redis.
@@ -124,153 +140,43 @@ class TelegramInterface(BasicAsyncInterface):
         redis.set(key, payload, ex=3600 * 24 * 7)
         return key
 
-    def _retrieve_callback(self, key) -> Optional[str]:
+    @classmethod
+    def _retrieve_callback(cls, key) -> Optional[str]:
         redis = get_redis()
         if redis.exists(key):
-            return redis.get(key)
+            return redis.get(key).decode('utf8')
         return None
 
-    def send_responses(self, user: ChatUser, responses):
-        raise NotImplementedError()
-
-    def broadcast_responses(self, users, responses):
-        raise NotImplementedError()
-
-    ########################################################################################################################
-
-    @staticmethod
-    def accept_request(body, num_tries=1) -> bool:
-        if not body or 'update_id' not in body:
-            logging.warning('Invalid message received: {}'.format(body))
-            return False
-
-        if 'message' in body:
-            message = body['message']
-
-            chat_id = message['chat']['id']
-            uid = message['from']['id'] if 'from' in message else None  # null for group chats
-            if uid and not TelegramInterface.has_message_expired(message):
-                logging.info('Adding message to queue')
-                meta = {"chat_id": chat_id, "uid": uid}
-                session = ChatSession(TelegramInterface, str(chat_id), meta=meta)
-                TelegramInterface.fill_session_profile(session)
-                accept_user_message.delay(session, body)
-                return True
-            else:
-                logging.warning('No sender specified, ignoring message')
-                return False
-        elif 'callback_query' in body:
-            callback_query = body['callback_query']
-            query_id = callback_query['id']
-            message = callback_query['message']
-            if message:
-                chat_id = message['chat']['id']
-                message_id = message['message_id']
-                TelegramInterface.answer_callback_query(query_id, chat_id, message_id)
-            else:
-                logging.error('No message in callback query, probably too old, ignoring.')
-            if 'message' in callback_query:
-    #             unfortunately, there is no way to check the age of callback itself
-                chat_id = callback_query['message']['chat']['id']
-                uid = message['from']['id'] if 'from' in message else None
-                accept_user_message.delay(TelegramInterface.name, uid, body, chat_id=chat_id)
-                return True
-        else:
-            logging.warning('Unknown message type')
-            return False
-
-    @staticmethod
-    def init_webhooks():
-        from django.urls import reverse
-
-        base_url = TelegramInterface.get_base_url()
-        if not base_url:
-            return
-        url = base_url + 'setWebhook'
-
-        logging.info('Reverse telegram is: {}'.format(reverse('telegram')))
-        callback_url = settings.BOT_CONFIG.get('DEPLOY_URL') + reverse('telegram')
-
-        payload = {'url': callback_url}
-        response = requests.post(url, data=payload)
-        if not response.json()['ok']:
-            logging.warning(response.json())
-
-
-    @staticmethod
-    def clear():
-        pass
-
-    @staticmethod
-    def load_profile(uid):
-        return {'first_name': 'Tests', 'last_name': ''}
-
-    @staticmethod
-    def post_message(session, response):
-        from botshot.core.interfaces.adapter.telegram import TelegramAdapter
-        base_url = TelegramInterface.get_base_url()
-        if not base_url:
-            return
-        adapter = TelegramAdapter()
-        adapter.prepare_message(response, session)
-        messages = adapter.transform_message(response, session)
-        for method, payload in messages:
-            url = base_url + method
-            response = requests.post(url, data=payload)
-            if not response.json()['ok']:
-                logging.error('Telegram request failed!')
-                logging.error(response.json())
-                logging.error('for method {}'.format(method))
-                logging.error('message is:')
-                logging.error(payload)
-                return
-
-    @staticmethod
-    def answer_callback_query(query_id, chat_id, message_id):
-        base_url = TelegramInterface.get_base_url()
-        if not base_url:
-            return
-        url = base_url + 'answerCallbackQuery'
+    def on_message_processing_start(self, message: ChatMessage):
+        url = self.base_url + 'sendChatAction'
         payload = {
-            'callback_query_id': str(query_id)
-        }
-        response = requests.post(url, data=payload)
-        if not response.json()['ok']:
-            logging.error('Unable to answer callback query')
-            logging.error(response.json())
-        # hide reply keyboard after clicking
-        url = base_url + 'editMessageReplyMarkup'
-        payload = {'chat_id': chat_id, 'message_id': message_id, 'reply_markup': ''}
-        response = requests.post(url, data=payload)
-        if not response.json()['ok']:
-            logging.error('Unable to remove quick replies')
-            logging.error(response.json())
-
-    @staticmethod
-    def send_settings(settings):
-        pass
-
-    @staticmethod
-    def processing_start(session):
-        base_url = TelegramInterface.get_base_url()
-        if not base_url:
-            return
-        url = base_url + 'sendChatAction'
-        payload = {
-            'chat_id': session.meta['chat_id'],
+            'chat_id': message.user.conversation.raw_conversation_id,
             'action': 'typing'
         }
         response = requests.post(url, data=payload)
         if not response.json()['ok']:
-            logging.warning(response.json())
+            logging.warning("Error occurred while sending Telegram typing action: {}".format(response.json()))
 
-    @staticmethod
-    def processing_end(session):
-        pass
+    def send_responses(self, user: ChatUser, responses):
+        messages = []
+        chat_id = user.conversation.raw_conversation_id
+        for response in responses:
+            messages += self.adapter.transform_message(response, chat_id)
+        for method, payload in messages:
+            url = self.base_url + method
+            response = requests.post(url, data=payload)
+            if not response.json()['ok']:
+                logging.warning("Telegram message for method {} failed to send: {}".format(
+                    url,
+                    response.json())
+                )
+                break
 
-    @staticmethod
-    def state_change(state):
-        pass
+    def broadcast_responses(self, users, responses):
+        for user in users:
+            self.send_responses(user, responses)
+
+    ########################################################################################################################
 
     @staticmethod
     def has_message_expired(message: dict) -> bool:
@@ -284,19 +190,3 @@ class TelegramInterface(BasicAsyncInterface):
             logging.warning('Ignoring message, too old')
             return True
         return False
-
-    @staticmethod
-    def parse_message(raw, num_tries=1):
-        if 'message' in raw and 'text' in raw['message']:
-            return parse_text_message(raw['message']['text'])
-        elif 'callback_query' in raw:
-            callback_query = raw['callback_query']
-            data = TelegramInterface.retrieve_callback(callback_query.get('data'))
-            if data:
-                payload = json.loads(data)
-                return {'entities': payload, 'type': 'postback'}
-        return {'type': 'undefined'}
-
-    @staticmethod
-    def fill_session_profile(session):
-        pass
