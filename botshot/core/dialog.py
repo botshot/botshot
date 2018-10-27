@@ -37,7 +37,9 @@ class Dialog:
             self.chat_manager.accept_scheduled,
             _at=at,
             _seconds=seconds,
-            reply_to=self.message.message_id,
+            # reply_to=self.message.message_id,
+            conversation_id=self.conversation.id,
+            user_id=self.sender.user_id,
             payload=payload
         )
 
