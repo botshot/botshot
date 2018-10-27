@@ -277,12 +277,13 @@ class MockDialog:
         self.message = ChatMessage()
         self.sender = ChatUser()
         self.conversation = ChatConversation()
+        self.conversation.conversation_id = 1
         self.chat_manager = ChatManager()
         self.context = Context.from_dict(self, {})
         self.logging_service = Mock()
 
         self.sent = []
-        self.callbacks = []
+        self.schedules = []
         self.inactive_callbacks = []
 
     def inactive(self, payload, seconds=None):
@@ -293,8 +294,8 @@ class MockDialog:
             raise ValueError('Specify either "at" or "seconds" parameter')
         time_formatted = "at {}".format(at) if at else "in {} seconds".format(seconds)
         logging.info('Scheduling callback %s with payload "%s"', time_formatted, payload)
-        self.callbacks.append((payload, at, seconds))
-        return len(self.callbacks) - 1
+        self.schedules.append((payload, at, seconds))
+        return Mock()
 
     def send(self, responses):
         if not responses:
@@ -322,5 +323,11 @@ class MockDialog:
     def has_template(self, template):
         for msg in self.sent:
             if isinstance(msg, template):
+                return True
+        return False
+
+    def is_state_scheduled(self, state):
+        for payload, at, seconds in self.schedules:
+            if payload.get("_state") == state:
                 return True
         return False
