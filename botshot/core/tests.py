@@ -1,16 +1,22 @@
 import importlib
 import logging
 import os
+import re
 import time
 import traceback
+from unittest.mock import Mock
 
+from botshot.core.context import Context
 from django.conf import settings
 from django.utils.crypto import get_random_string
+
+from botshot.core.chat_manager import ChatManager
 from botshot.core.parsing.message_parser import parse_text_entities
 from botshot.core.persistence import get_redis
 from botshot.core.responses import CarouselTemplate
 from botshot.core.responses.buttons import *
 from botshot.core.responses.responses import *
+from botshot.models import ChatMessage, ChatConversation, ChatUser
 from .interfaces.test import TestInterface
 
 
@@ -262,3 +268,59 @@ def _run_test_actions(name, actions, benchmark=False):
 
     elapsed_time = time.time() - start_time
     return {'status': 'passed', 'log':TestLog.get(), 'duration':elapsed_time, 'report':report}
+
+
+class MockDialog:
+
+    def __init__(self):
+
+        self.message = ChatMessage()
+        self.sender = ChatUser()
+        self.conversation = ChatConversation()
+        self.chat_manager = ChatManager()
+        self.context = Context.from_dict(self, {})
+        self.logging_service = Mock()
+
+        self.sent = []
+        self.callbacks = []
+        self.inactive_callbacks = []
+
+    def inactive(self, payload, seconds=None):
+        self.inactive_callbacks.append((payload, seconds))
+
+    def schedule(self, payload, at=None, seconds=None):
+        if not at and not seconds:
+            raise ValueError('Specify either "at" or "seconds" parameter')
+        time_formatted = "at {}".format(at) if at else "in {} seconds".format(seconds)
+        logging.info('Scheduling callback %s with payload "%s"', time_formatted, payload)
+        self.callbacks.append((payload, at, seconds))
+        return len(self.callbacks) - 1
+
+    def send(self, responses):
+        if not responses:
+            return
+        if not isinstance(responses, list) and not isinstance(responses, tuple):
+            responses = [responses]
+
+        self.sent += responses
+
+    def has_text(self, text, regex=True):
+        for msg in self.sent:
+            if regex:
+                if isinstance(msg, str) and re.match(text, msg):
+                    return True
+                if isinstance(msg, TextMessage) and re.match(text, msg.text):
+                    return True
+            if not regex:
+                if msg == text or (isinstance(msg, TextMessage) and msg.text == text):
+                    return True
+        return False
+
+    def has_only(self, text):
+        return len(self.sent) == 1 and self.has_text(text)
+
+    def has_template(self, template):
+        for msg in self.sent:
+            if isinstance(msg, template):
+                return True
+        return False

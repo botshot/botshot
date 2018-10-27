@@ -15,10 +15,10 @@ class BotshotInterface():
     def webhook(self, request):
         raise NotImplementedError()
 
-    def send_responses(self, user: ChatUser, responses):
+    def send_responses(self, conversation, reply_to, responses):
         raise NotImplementedError()
 
-    def broadcast_responses(self, users, responses):
+    def broadcast_responses(self, conversations, responses):
         raise NotImplementedError()
 
     def fill_conversation_details(self, conversation: ChatConversation):

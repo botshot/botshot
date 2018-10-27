@@ -1,11 +1,11 @@
 import json
 import logging
+import random
 import string
 from datetime import datetime, timedelta
 from time import time
 from typing import Optional, Generator
 
-import random
 import requests
 from django.conf import settings
 
@@ -14,7 +14,7 @@ from botshot.core.interfaces import BasicAsyncInterface
 from botshot.core.interfaces.adapter.telegram import TelegramAdapter
 from botshot.core.parsing.raw_message import RawMessage
 from botshot.core.persistence import get_redis
-from botshot.models import ChatMessage, ChatUser
+from botshot.models import ChatMessage
 
 
 class TelegramInterface(BasicAsyncInterface):
@@ -157,9 +157,9 @@ class TelegramInterface(BasicAsyncInterface):
         if not response.json()['ok']:
             logging.warning("Error occurred while sending Telegram typing action: {}".format(response.json()))
 
-    def send_responses(self, user: ChatUser, responses):
+    def send_responses(self, conversation, reply_to, responses):
         messages = []
-        chat_id = user.conversation.raw_conversation_id
+        chat_id = conversation.raw_conversation_id
         for response in responses:
             messages += self.adapter.transform_message(response, chat_id)
         for method, payload in messages:
@@ -172,9 +172,9 @@ class TelegramInterface(BasicAsyncInterface):
                 )
                 break
 
-    def broadcast_responses(self, users, responses):
-        for user in users:
-            self.send_responses(user, responses)
+    def broadcast_responses(self, conversations, responses):
+        for conversation in conversations:
+            self.send_responses(conversation=conversation, reply_to=None, responses=responses)
 
     ########################################################################################################################
 

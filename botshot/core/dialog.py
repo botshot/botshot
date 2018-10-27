@@ -1,8 +1,9 @@
 import logging
 import time
+
 from botshot.core.logging.logging_service import AsyncLoggingService
 from botshot.core.responses.responses import TextMessage
-from botshot.models import ChatMessage
+from botshot.models import ChatMessage, ChatConversation, ChatUser
 from botshot.tasks import run_async
 
 
@@ -12,9 +13,14 @@ class Dialog:
         from botshot.core.chat_manager import ChatManager
         from botshot.core.context import Context
         self.message = message
+        self.sender = self.message.user  # type: ChatUser
+        self.conversation = self.message.conversation  # type: ChatConversation
         self.chat_manager = chat_manager  # type: ChatManager
         self.context = context  # type: Context
         self.logging_service = logging_service
+
+    def inactive(self, payload, seconds=None):
+        logging.warning("dialog.inactive is not implemented yet!")
 
     def schedule(self, payload, at=None, seconds=None):
         """
@@ -31,7 +37,7 @@ class Dialog:
             self.chat_manager.accept_scheduled,
             _at=at,
             _seconds=seconds,
-            user_id=self.message.user.user_id,
+            reply_to=self.message.message_id,
             payload=payload
         )
 
@@ -51,7 +57,7 @@ class Dialog:
             if isinstance(responses[i], str):
                 responses[i] = TextMessage(text=responses[i])
 
-        self.chat_manager.send(self.message.user, responses)
+        self.chat_manager.send(self.message.conversation, self.message, responses)
 
         for response in responses:
             self.logging_service.log_bot_response(self.message, response, timestamp=time.time())

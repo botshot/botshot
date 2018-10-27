@@ -125,14 +125,14 @@ class FacebookInterface(BasicAsyncInterface):
 
     def on_message_processing_start(self, message: ChatMessage):
         # Show typing animation when message processing starts
-        self.send_responses(message.user, SenderActionMessage('typing_on'))
+        self.send_responses(message.conversation, None, SenderActionMessage('typing_on'))
 
     def fill_user_details(self, user: ChatUser):
         try:
             url = "https://graph.facebook.com/v2.6/" + user.raw_user_id
             params = {
                 'fields': 'first_name,last_name,profile_pic,picture.type(normal),locale,timezone,gender',
-                'access_token': self.get_page(user.conversation.meta.get('page_id')).token
+                'access_token': None # TODO: self.get_page(user.conversation.meta.get('page_id')).token
             }
             res = requests.get(url, params=params)
             if not res.status_code == requests.codes.ok:
@@ -146,12 +146,17 @@ class FacebookInterface(BasicAsyncInterface):
             user.first_name = response.get("first_name")
             user.last_name = response.get("last_name")
             user.locale = response.get("locale")
-            user.conversation.name = '{} {}'.format(user.first_name, user.last_name)
+            # user.conversation.name = '{} {}'.format(user.first_name, user.last_name)
         except:
             logging.error('Unexpected error loading FB user profile')
 
-    def send_responses(self, user: ChatUser, responses):
-        return self._send_responses(fbid=user.raw_user_id, conversation_meta=user.conversation.meta, responses=responses)
+    def send_responses(self, conversation, reply_to, responses):
+
+        return self._send_responses(
+            fbid=conversation.raw_conversation_id,
+            conversation_meta=conversation.meta,
+            responses=responses
+        )
 
     def _send_responses(self, fbid, conversation_meta, responses):
         page_id = conversation_meta.get('page_id')

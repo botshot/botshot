@@ -6,6 +6,7 @@ import pytest
 from botshot.core.chat_manager import ChatManager
 from botshot.core.interfaces import BasicAsyncInterface
 from botshot.core.parsing.raw_message import RawMessage
+from botshot.core.responses import TextMessage
 from botshot.models import ChatUser, ChatConversation
 
 
@@ -16,10 +17,10 @@ class TestInterface(BasicAsyncInterface):
     def parse_raw_messages(self, request) -> Generator[RawMessage, None, None]:
         pass
 
-    def send_responses(self, user: ChatUser, responses):
+    def send_responses(self, conversation, reply_to, responses):
         pass
 
-    def broadcast_responses(self, users, responses):
+    def broadcast_responses(self, conversations, responses):
         pass
 
 
@@ -27,6 +28,18 @@ class TestInterface(BasicAsyncInterface):
 def chat_mgr():
     yield ChatManager()
 
+@pytest.fixture
+def conversation():
+
+    user = ChatUser()
+    user.user_id = -1
+    user.save()
+
+    conversation = ChatConversation()
+    conversation.interface_name = 'test'
+    conversation.conversation_id = -1
+    conversation.save()
+    yield conversation
 
 @pytest.mark.django_db
 def test_accept(chat_mgr):
@@ -49,3 +62,10 @@ def test_accept(chat_mgr):
     )
 
     assert model is not None
+
+
+@pytest.mark.django_db
+def test_send(chat_mgr, conversation):
+
+    responses = [TextMessage("Hello world!")]
+    chat_mgr.send(conversation, None, responses)

@@ -107,7 +107,7 @@ class Context(object):
         return self.history[index] if len(self.history) > index >= 0 else None
 
     def get_state_name(self):
-        return self.dialog.current_state_name
+        return ""  # FIXME: self.dialog.current_state_name
         # return self.history[-1] if len(self.history) > 0 else None
 
     def get_all(self, entity, max_age=None, limit=None, ignored_values=None) -> list:

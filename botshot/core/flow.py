@@ -146,7 +146,7 @@ class State:
                 try:
                     # try to import as absolute path
                     module = importlib.import_module(module_path)
-                except:
+                except ImportError:
                     # try to import relative to flow module
                     abs_module = relpath + "." + module_path
                     module = importlib.import_module(abs_module)

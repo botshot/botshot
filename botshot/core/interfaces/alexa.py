@@ -72,9 +72,9 @@ class AlexaInterface(BotshotInterface):
             }
             return HttpResponse(content=json.dumps(payload))
 
-    def send_responses(self, user: ChatUser, responses):
-        responses_for_user = self.responses[user.raw_user_id]
+    def send_responses(self, conversation, reply_to, responses):
+        responses_for_user = self.responses[conversation.raw_conversation_id]
         responses_for_user += responses
 
-    def broadcast_responses(self, users, responses):
+    def broadcast_responses(self, conversations, responses):
         raise NotImplementedError()

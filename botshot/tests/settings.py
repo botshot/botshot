@@ -6,6 +6,9 @@ BOT_CONFIG = {
         "PORT": 6379,
         "PASSWORD": None,
     },
+    "INTERFACES": [
+        "botshot.tests.test_chat_manager.TestInterface",
+    ]
 }
 
 DATABASES = {

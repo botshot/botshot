@@ -1,9 +1,11 @@
 import logging
+from datetime import datetime
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.utils import timezone
 from django.utils.timezone import make_aware
-from datetime import datetime
+
 from botshot.core import config
 from botshot.core.flow import FLOWS
 from botshot.core.message_processor import MessageProcessor
@@ -58,6 +60,7 @@ class ChatManager:
                 conversation.save()
 
             message = ChatMessage()
+            message.conversation = conversation
             message.user = user
             message.type = raw_message.type
             message.text = raw_message.text
@@ -67,10 +70,13 @@ class ChatManager:
 
             self._process(message)
 
-    def accept_scheduled(self, user_id, payload):
+    def accept_scheduled(self, conversation_id, user_id, payload):
         with transaction.atomic():
-            user = ChatUser.objects.select_for_update().select_related('conversation').get(pk=user_id)
+            conversation = ChatConversation.objects.select_for_update().get(pk=conversation_id)
+            user = conversation.users.get(pk=user_id)
+
             message = ChatMessage()
+            message.conversation = conversation
             message.user = user
             message.type = ChatMessage.SCHEDULE
             message.is_user = True
@@ -87,7 +93,7 @@ class ChatManager:
             logging.exception("ERROR: Exception while processing message")
             # TODO: Save error message (ChatMessage.type = ERROR)
 
-        message.user.conversation.save()
+        message.conversation.save()
         message.user.save()
         if self.save_messages:
             message.save()
@@ -101,14 +107,14 @@ class ChatManager:
         # Remove empty lists
         return {entity: value for entity, value in entities.items() if value is not None and value != []}
 
-    def send(self, user: ChatUser, responses):
+    def send(self, conversation, reply_to, responses):
         logging.info("Sending bot responses: %s", responses)
-
-        user.conversation.interface.send_responses(user, responses)
+        conversation.interface.send_responses(conversation, reply_to, responses)
 
         for response in responses:
             message = ChatMessage()
-            message.user = user
+            message.conversation = conversation
+            message.user = reply_to.user if reply_to else None
             message.type = ChatMessage.MESSAGE
             message.text = response.get_text()
             message.time = timezone.now()
@@ -124,3 +130,12 @@ class ChatManager:
         #     #                                      state=self.current_state_name, response=response)
         # except Exception as e:
         #     print('Error scheduling message log', e)
+
+    def broadcast(self, conversations, responses):
+        logging.info("Sending broadcast to %d conversations: %s" % (len(conversations), responses))
+        interfaces = {}
+        for conversation in conversations:
+            a = interfaces.setdefault(conversation.interface, [])
+            a.append(conversation)
+        for interface, targets in interfaces.items():
+            interface.send_broadcast(conversations, responses)
