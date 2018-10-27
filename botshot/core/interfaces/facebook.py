@@ -63,7 +63,7 @@ class FacebookInterface(BasicAsyncInterface):
         timestamp = event['timestamp'] / 1000
         user_id = event['sender']['id']
         page_id = event['recipient']['id']
-        raw_conversation_id = "{}_{}".format(page_id, user_id)
+        raw_conversation_id = user_id
         conversation_meta = {"page_id": page_id}
         text = None
 
