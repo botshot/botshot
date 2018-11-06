@@ -278,6 +278,7 @@ class MockDialog:
         self.sender = ChatUser()
         self.conversation = ChatConversation()
         self.conversation.conversation_id = 1
+        self.conversation.save()
         self.chat_manager = ChatManager()
         self.context = Context.from_dict(self, {})
         self.logging_service = Mock()
@@ -326,8 +327,8 @@ class MockDialog:
                 return True
         return False
 
-    def is_state_scheduled(self, state):
+    def is_state_scheduled(self, state, times=1):
         for payload, at, seconds in self.schedules:
             if payload.get("_state") == state:
-                return True
-        return False
+                times -= 1
+        return times == 0

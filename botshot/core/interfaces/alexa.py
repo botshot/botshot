@@ -68,7 +68,8 @@ class AlexaInterface(BotshotInterface):
                 "outputSpeech": {
                     "type": "PlainText",
                     "text": str(response)
-                }
+                },
+                "shouldEndSession": False
             }
             return HttpResponse(content=json.dumps(payload))
 

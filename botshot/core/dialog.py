@@ -20,7 +20,20 @@ class Dialog:
         self.logging_service = logging_service
 
     def inactive(self, payload, seconds=None):
-        logging.warning("dialog.inactive is not implemented yet!")
+        if not seconds or seconds < 0:
+            raise ValueError('Specify a positive "seconds" parameter')
+        time_formatted = "in {} seconds".format(seconds)
+        logging.info('Setting inactivity callback %s with payload "%s"', time_formatted, payload)
+        task_id = run_async(
+            self.chat_manager.accept_inactive,
+            _at=None,
+            _seconds=seconds,
+            conversation_id=self.conversation.id,
+            user_id=self.sender.user_id,
+            payload=payload,
+            counter=self.context.counter
+        )
+        return task_id
 
     def schedule(self, payload, at=None, seconds=None):
         """
@@ -29,11 +42,11 @@ class Dialog:
         :param at:       A datetime with timezone
         :param seconds:  An integer, seconds from now
         """
-        if not at and not seconds:
-            raise ValueError('Specify either "at" or "seconds" parameter')
+        if not at and (not seconds or seconds < 0):
+            raise ValueError('Specify either "at" or a positive "seconds" parameter')
         time_formatted = "at {}".format(at) if at else "in {} seconds".format(seconds)
         logging.info('Scheduling callback %s with payload "%s"', time_formatted, payload)
-        return run_async(
+        task_id = run_async(
             self.chat_manager.accept_scheduled,
             _at=at,
             _seconds=seconds,
@@ -42,6 +55,7 @@ class Dialog:
             user_id=self.sender.user_id,
             payload=payload
         )
+        return task_id
 
     def send(self, responses):
         """

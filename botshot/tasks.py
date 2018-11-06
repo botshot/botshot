@@ -1,3 +1,5 @@
+import logging
+
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.utils.timezone import is_naive
@@ -24,7 +26,24 @@ def run_async(method, _at=None, _seconds=None, **kwargs):
     else:
         return celery_method_call_wrapper.delay(method, **kwargs)
 
+
 @shared_task
 def celery_method_call_wrapper(method, **kwargs):
-    return method(**kwargs)
+    task_id = celery_method_call_wrapper.request.id
+    logging.info("Accepting task {} for method {}".format(task_id, method))
+    already_done = get_set_task_flag(task_id)
+    if not already_done:
+        return method(**kwargs)
+    else:
+        logging.info("Prevented duplicate task {}!".format(task_id))
 
+
+def get_set_task_flag(task_id):
+    """Prevents duplicate scheduled tasks."""
+    from botshot.core.persistence import get_redis
+    redis = get_redis()
+    key = "botshot_task_flag_{}".format(task_id)
+    is_done = redis.exists(name=key)
+    # remove the flag 3600 sec. after executing for the first time
+    redis.set(name=key, value=True, ex=3600)
+    return is_done

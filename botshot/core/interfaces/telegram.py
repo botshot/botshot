@@ -150,7 +150,7 @@ class TelegramInterface(BasicAsyncInterface):
     def on_message_processing_start(self, message: ChatMessage):
         url = self.base_url + 'sendChatAction'
         payload = {
-            'chat_id': message.user.conversation.raw_conversation_id,
+            'chat_id': message.conversation.raw_conversation_id,
             'action': 'typing'
         }
         response = requests.post(url, data=payload)

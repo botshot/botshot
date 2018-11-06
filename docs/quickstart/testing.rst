@@ -24,3 +24,9 @@ my_tests/foo.py:
     actions.append(StateChange("greeting.intro"))
 
     actions.append(UserTextMessage ...
+
+#######################
+Unit testing
+#######################
+Take a look at the package `botshot.core.tests`.
+TODO

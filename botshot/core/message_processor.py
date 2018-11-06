@@ -20,8 +20,8 @@ class MessageProcessor:
         self.chat_manager = chat_manager
         self.send_exceptions = config.get("SEND_EXCEPTIONS", default=settings.DEBUG)
         self.flows = flows
-        self.current_state_name = self.message.user.conversation.state or 'default.root'
-        self.context = Context.from_dict(dialog=self, data=message.user.conversation.context_dict or {})
+        self.current_state_name = self.message.conversation.state or 'default.root'
+        self.context = Context.from_dict(dialog=self, data=message.conversation.context_dict or {})
         self.logging_service = AsyncLoggingService(self._create_loggers())
         self.dialog = Dialog(message=self.message, context=self.context, chat_manager=self.chat_manager, logging_service=self.logging_service)
 
@@ -34,8 +34,8 @@ class MessageProcessor:
     def process(self):
         self._process_base()
         # Set conversation state if the message was processed successfully
-        self.message.user.conversation.state = self.current_state_name
-        self.message.user.conversation.context_dict = self.context.to_dict()
+        self.message.conversation.state = self.current_state_name
+        self.message.conversation.context_dict = self.context.to_dict()
 
     def _process_base(self):
         self.context.add_message_entities(entities=self.message.entities)
@@ -240,7 +240,7 @@ class MessageProcessor:
                               new_state_name,
                               self.message.__dict__,
                               self.message.user.__dict__,
-                              self.message.user.conversation.__dict__
+                              self.message.conversation.__dict__
                           )
             )
 

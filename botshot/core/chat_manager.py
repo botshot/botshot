@@ -46,7 +46,7 @@ class ChatManager:
             conversation.last_message_time = timezone.now()
 
             try:
-                user = conversation.users.get(raw_user_id=raw_message.raw_user_id)
+                user = ChatUser.objects.get(raw_user_id=raw_message.raw_user_id)
             except ObjectDoesNotExist:
                 user = ChatUser()
                 user.conversation = conversation
@@ -70,10 +70,14 @@ class ChatManager:
 
             self._process(message)
 
-    def accept_scheduled(self, conversation_id, user_id, payload):
+    def accept_inactive(self, conversation_id, user_id, payload, counter):
         with transaction.atomic():
             conversation = ChatConversation.objects.select_for_update().get(pk=conversation_id)
-            user = conversation.users.get(pk=user_id)
+            user = ChatUser.objects.get(pk=user_id)
+
+            # TODO: this might break for more users or with special messages
+            if conversation.context_dict != counter:  # user was active
+                return
 
             message = ChatMessage()
             message.conversation = conversation
@@ -82,7 +86,21 @@ class ChatManager:
             message.is_user = True
             message.time = timezone.now()
             message.entities = payload
-            self._process(message)
+        self._process(message)
+
+    def accept_scheduled(self, conversation_id, user_id, payload):
+        with transaction.atomic():
+            conversation = ChatConversation.objects.select_for_update().get(pk=conversation_id)
+            user = ChatUser.objects.get(pk=user_id)
+
+            message = ChatMessage()
+            message.conversation = conversation
+            message.user = user
+            message.type = ChatMessage.SCHEDULE
+            message.is_user = True
+            message.time = timezone.now()
+            message.entities = payload
+        self._process(message)
 
     def _process(self, message):
         try:
