@@ -12,6 +12,7 @@ from botshot.core.message_processor import MessageProcessor
 from botshot.core.parsing.message_parser import parse_text_entities
 from botshot.core.parsing.raw_message import RawMessage
 from botshot.core.persistence import todict
+from botshot.core.responses import TextMessage
 from botshot.models import ChatConversation, ChatUser, ChatMessage
 
 
@@ -156,4 +157,15 @@ class ChatManager:
             a = interfaces.setdefault(conversation.interface, [])
             a.append(conversation)
         for interface, targets in interfaces.items():
-            interface.send_broadcast(conversations, responses)
+            interface.broadcast_responses(targets, responses)
+
+    @staticmethod
+    def process_responses(responses):
+        if responses is None:
+            return []
+        if not (isinstance(responses, list) or isinstance(responses, tuple)):
+            responses = [responses]
+        for i in range(0, len(responses)):
+            if isinstance(responses[i], str):
+                responses[i] = TextMessage(text=responses[i])
+        return responses

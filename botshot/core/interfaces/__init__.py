@@ -3,7 +3,7 @@ from botshot.models import ChatConversation, ChatUser, ChatMessage
 from botshot.core.parsing.raw_message import RawMessage
 from botshot.core import config
 from django.http.response import HttpResponse, HttpResponseBadRequest
-from typing import Generator
+from typing import Generator, Iterable
 import json
 import logging
 import time
@@ -15,10 +15,24 @@ class BotshotInterface():
     def webhook(self, request):
         raise NotImplementedError()
 
-    def send_responses(self, conversation, reply_to, responses):
+    def send_responses(self, conversation: ChatConversation, reply_to, responses: Iterable):
+        """
+        Send responses to a conversation.
+
+        :param conversation: a ChatConversation object
+        :param reply_to: (optional) message that we're replying to (used for example in Telegram)
+        :param responses: the messages we're sending, Iterable of MessageElement objects
+        """
         raise NotImplementedError()
 
-    def broadcast_responses(self, conversations, responses):
+    def broadcast_responses(self, conversations: Iterable[ChatConversation], responses: Iterable):
+        """
+        Send the same responses to multiple conversations at once.
+        Example usage: notifications, news, ...
+
+        :param conversations: Iterable of Conversation objects
+        :param responses: Iterable of MessageElement objects
+        """
         raise NotImplementedError()
 
     def fill_conversation_details(self, conversation: ChatConversation):
@@ -72,3 +86,8 @@ class BasicAsyncInterface(BotshotInterface):
 
     def on_server_startup(self):
         pass
+
+    def broadcast_responses(self, conversations, responses):
+        # send one at a time by default, override this for bulk messaging
+        for conversation in conversations:
+            self.send_responses(conversation=conversation, reply_to=None, responses=responses)

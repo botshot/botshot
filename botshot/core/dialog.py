@@ -63,16 +63,7 @@ class Dialog:
         :param responses:       Instance of MessageElement, str or Iterable.
         """
 
-        if responses is None:
-            return
-
-        if not (isinstance(responses, list) or isinstance(responses, tuple)):
-            responses = [responses]
-
-        for i in range(0, len(responses)):
-            if isinstance(responses[i], str):
-                responses[i] = TextMessage(text=responses[i])
-
+        responses = self.chat_manager.process_responses(responses)
         self.chat_manager.send(self.message.conversation, self.message, responses)
 
         for response in responses:
