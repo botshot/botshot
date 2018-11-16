@@ -151,3 +151,20 @@ Sending more messages at once
 TODO picture
 
 .. warning:: Avoid calling dialog.send() in a loop. In bad network conditions, the messages might be sent in wrong order.
+
+-------------------
+Scheduling messages
+-------------------
+
+You can schedule a message to be sent in the future.
+You can optionally send it only if the user doesn't say anything first.
+
+.. code-block:: python
+
+    payload = {"_state": "default.schedule", "schedule_id": "123"}
+
+    # Regular scheduled message - use a datetime or number of seconds
+    dialog.schedule(payload, at=None, seconds=None)
+
+    # Runs only if the user remains inactive
+    dialog.inactive(payload, seconds=None)
