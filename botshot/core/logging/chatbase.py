@@ -28,7 +28,7 @@ class ChatbaseLogger(MessageLogger):
 
     def log_user_message_end(self, message: ChatMessage, final_state):
 
-        intent = False
+        intent = None
         if message.entities.get('intent'):
             intent_entity = message.entities["intent"]
             if isinstance(intent_entity, list):
@@ -42,10 +42,12 @@ class ChatbaseLogger(MessageLogger):
             "time_stamp": int(calendar.timegm(message.time.utctimetuple()) * 1000),
             "platform": self._interface_to_platform(message.conversation.interface_name),
             "message": self._message_description(message),
-            "intent": intent,
+            "intent": intent,  # docs: don't set if it's a generic catch-all intent
             "not_handled": not message.supported,
             "version": self.bot_version
         }
+        # TODO: add session_id attribute
+        logging.debug("Sending to chatbase: {}".format(payload))
         response = requests.post(self.base_url + "/message", params=payload)
         if not response.ok:
             logging.error("Chatbase request with code %d, reason: %s", response.status_code, response.reason)
@@ -58,11 +60,12 @@ class ChatbaseLogger(MessageLogger):
             "user_id": message.conversation.id,
             "time_stamp": int(timestamp * 1000),
             "platform": self._interface_to_platform(message.conversation.interface_name),
-            "message": response.get_text() or str(message),
+            "message": response.get_text() or str(message),  # docs: the raw message body regardless of type
             "intent": None,
             "not_handled": False,  # only for user messages
             "version": self.bot_version
         }
+        logging.debug("Sending to chatbase: {}".format(payload))
         response = requests.post(self.base_url + "/message", params=payload)
         if not response.ok:
             logging.error("Chatbase request with code %d, reason: %s", response.status_code, response.reason)
@@ -79,7 +82,7 @@ class ChatbaseLogger(MessageLogger):
 
     def _message_description(self, message):
         if message.type == ChatMessage.MESSAGE:
-            return message.text or "(template)"
+            return message.text
         elif message.type == ChatMessage.BUTTON:
             return "(button)"
         else:

@@ -15,7 +15,7 @@ class AsyncLoggingService(MessageLogger):
         self._log_all('log_user_message_start', message=message, accepted_state=accepted_state)
 
     def log_user_message_end(self, message: ChatMessage, final_state):
-        self._log_all('log_user_message_start', message=message, final_state=final_state)
+        self._log_all('log_user_message_end', message=message, final_state=final_state)
 
     def log_state_change(self, message: ChatMessage, state):
         self._log_all('log_state_change', message=message, state=state)

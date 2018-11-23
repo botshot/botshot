@@ -32,7 +32,9 @@ class MessageProcessor:
         return loggers
 
     def process(self):
+        self.logging_service.log_user_message_start(self.message, self.current_state_name)
         self._process_base()
+        self.logging_service.log_user_message_end(self.message, self.current_state_name)
         # Set conversation state if the message was processed successfully
         self.message.conversation.state = self.current_state_name
         self.message.conversation.context_dict = self.context.to_dict()
@@ -43,8 +45,6 @@ class MessageProcessor:
 
         if self._special_message(self.message.text):
             return
-
-        self.logging_service.log_user_message_start(self.message, self.current_state_name)
 
         if self._check_state_transition():
             return
@@ -71,8 +71,6 @@ class MessageProcessor:
         # if not provided, give up and go to default.root
         else:
             self._move_to("default.root:")
-
-        self.logging_service.log_user_message_end(self.message, self.current_state_name)
 
     def _special_message(self, text):
         if not text:
