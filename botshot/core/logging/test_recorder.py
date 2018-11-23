@@ -1,5 +1,5 @@
 import logging
-from botshot.core.logging.abs_logger import MessageLogger
+from botshot.core.logging import MessageLogger
 
 
 class ConversationTestRecorder(MessageLogger):

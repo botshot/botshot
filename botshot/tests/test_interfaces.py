@@ -1,8 +1,10 @@
+import json
 from time import time
 
 import pytest
 from django.conf import settings
 from django.test import RequestFactory
+from django.test.client import JSON_CONTENT_TYPE_RE
 
 from botshot.core.interfaces.alexa import AlexaInterface
 from botshot.core.interfaces.facebook import FacebookInterface
@@ -34,6 +36,7 @@ class TestFacebookInterface():
                     "messaging": [{
                             "sender": {"id": sender},
                             "recipient": {"id": recipient},
+                            "timestamp": 0,
                     }]
                 }]
         }
@@ -55,11 +58,11 @@ class TestFacebookInterface():
             "mid": "mid.1457764197618:41d102a3e1ae206a38",
             "text": "hello, world!",
             "quick_reply": {
-                "payload": "<DEVELOPER_DEFINED_PAYLOAD>"
+                "payload": '{"x": "DEVELOPER_DEFINED_PAYLOAD"}'
             }
         }
         data['entry'][0]['messaging'][0]['message'] = message
-        req = self.req_factory.post('', data=data)
+        req = self.req_factory.post('', data=data, content_type="application/json")
         retval = interface.webhook(req)
         assert retval.status_code == 200
 

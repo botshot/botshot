@@ -10,7 +10,7 @@ from botshot.core.responses import TextMessage
 from botshot.models import ChatUser, ChatConversation
 
 
-class TestInterface(BasicAsyncInterface):
+class _TestInterface(BasicAsyncInterface):
 
     name = "test"
 
@@ -45,7 +45,7 @@ def conversation():
 def test_accept(chat_mgr):
     chat_id = 'chat_id'
     message = RawMessage(
-        interface=TestInterface(),
+        interface=_TestInterface(),
         raw_user_id="foo",
         raw_conversation_id=chat_id,
         conversation_meta={},

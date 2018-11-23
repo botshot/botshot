@@ -2,7 +2,7 @@ import json
 import time
 
 from botshot.core.chat_session import ChatSession
-from botshot.core.logging.abs_logger import MessageLogger
+from botshot.core.logging import MessageLogger
 
 
 def get_elastic():

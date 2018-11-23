@@ -5,7 +5,7 @@ import requests
 from django.conf import settings
 
 from botshot.core import config
-from botshot.core.logging.abs_logger import MessageLogger
+from botshot.core.logging import MessageLogger
 from botshot.core.responses import MessageElement
 from botshot.models import ChatMessage
 import calendar
@@ -41,7 +41,7 @@ class ChatbaseLogger(MessageLogger):
             "user_id": message.conversation.id,
             "time_stamp": int(calendar.timegm(message.time.utctimetuple()) * 1000),
             "platform": self._interface_to_platform(message.conversation.interface_name),
-            "message": message,
+            "message": self._message_description(message),
             "intent": intent,
             "not_handled": not message.supported,
             "version": self.bot_version
@@ -76,3 +76,11 @@ class ChatbaseLogger(MessageLogger):
 
     def log_error(self, message: ChatMessage, state, exception):
         pass
+
+    def _message_description(self, message):
+        if message.type == ChatMessage.MESSAGE:
+            return message.text or "(template)"
+        elif message.type == ChatMessage.BUTTON:
+            return "(button)"
+        else:
+            return "(event)"

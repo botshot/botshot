@@ -7,6 +7,7 @@ from django.http import HttpResponse, HttpResponseBadRequest
 from botshot.core import config
 from botshot.core.interfaces import BotshotInterface
 from botshot.core.parsing.raw_message import RawMessage
+from botshot.core.responses import EndSessionResponse, TextMessage
 from botshot.models import ChatUser, ChatMessage
 
 
@@ -63,15 +64,26 @@ class AlexaInterface(BotshotInterface):
         payload = {
             "version": "1.0"
         }
+        final_text = []
+        end_session = False
         for response in self.responses[user_id]:
-            payload['response'] = {
-                "outputSpeech": {
-                    "type": "PlainText",
-                    "text": str(response)
-                },
-                "shouldEndSession": False
-            }
-            return HttpResponse(content=json.dumps(payload))
+            if isinstance(response, EndSessionResponse):
+                end_session = True
+                break
+            elif isinstance(response, TextMessage):
+                final_text.append(str(response))
+            else:
+                logging.warning("Skipping response {} as it's unsupported in Alexa".format(response))
+
+        # TODO: what if there are no responses?
+        payload['response'] = {
+            "outputSpeech": {
+                "type": "PlainText",
+                "text": ' '.join(final_text)
+            },
+            "shouldEndSession": end_session
+        }
+        return HttpResponse(content=json.dumps(payload))
 
     def send_responses(self, conversation, reply_to, responses):
         responses_for_user = self.responses[conversation.raw_conversation_id]

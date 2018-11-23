@@ -7,8 +7,10 @@ BOT_CONFIG = {
         "PASSWORD": None,
     },
     "INTERFACES": [
-        "botshot.tests.test_chat_manager.TestInterface",
-    ]
+        "botshot.tests.test_chat_manager._TestInterface",
+    ],
+    "GREETING_INTENT": "default",
+    "TELEGRAM_TOKEN": "foo"
 }
 
 DATABASES = {

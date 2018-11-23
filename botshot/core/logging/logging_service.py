@@ -1,6 +1,6 @@
 import logging
 from typing import List
-from botshot.core.logging.abs_logger import MessageLogger
+from botshot.core.logging import MessageLogger
 from botshot.core.responses import MessageElement
 from botshot.models import ChatMessage
 from botshot.tasks import run_async
