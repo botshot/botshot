@@ -84,6 +84,6 @@ class ChatbaseLogger(MessageLogger):
         if message.type == ChatMessage.MESSAGE:
             return message.text
         elif message.type == ChatMessage.BUTTON:
-            return "(button)"
+            return "(button): " + str(message.text or "")
         else:
-            return "(event)"
+            return "(event): " + str(message.text or "")
