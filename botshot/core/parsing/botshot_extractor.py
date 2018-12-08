@@ -1,4 +1,35 @@
+import logging
+
+import requests
+from django.conf import settings
+
 from botshot.core.parsing.entity_extractor import EntityExtractor
+from requests import HTTPError
+
+
+class BotshotRemoteNLU(EntityExtractor):
+
+    def __init__(self):
+        super().__init__()
+        self.url = settings.BOT_CONFIG.get("REMOTE_NLU_URL")
+        if not self.url:
+            logging.error("Remote NLU URL not provided. NLU will not work.")
+
+    def extract_entities(self, text: str, max_retries=1):
+        for i in range(max_retries):
+            try:
+                return self._parse_request(text)
+            except HTTPError:
+                logging.exception("Exception at Botshot NLU request")
+
+    def _parse_request(self, text):
+        payload = {
+            "text": text,
+            "lang": "en_US",
+        }
+        resp = requests.get(self.url + '/parse', params=payload)
+        resp.raise_for_status()
+        return resp.json()
 
 
 class BotshotExtractor(EntityExtractor):
