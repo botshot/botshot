@@ -27,7 +27,7 @@ class BotshotInterface():
 
     def broadcast_responses(self, conversations: Iterable[ChatConversation], responses: Iterable):
         """
-        Send the same responses to multiple conversations at once.
+        Send the same responses to multiple conversations.
         Example usage: notifications, news, ...
 
         :param conversations: Iterable of Conversation objects

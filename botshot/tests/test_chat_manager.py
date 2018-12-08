@@ -68,4 +68,4 @@ def test_accept(chat_mgr):
 def test_send(chat_mgr, conversation):
 
     responses = [TextMessage("Hello world!")]
-    chat_mgr.send(conversation, None, responses)
+    chat_mgr.send(conversation, responses, None)

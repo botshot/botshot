@@ -126,7 +126,14 @@ class ChatManager:
         # Remove empty lists
         return {entity: value for entity, value in entities.items() if value is not None and value != []}
 
-    def send(self, conversation, reply_to, responses):
+    def send(self, conversation, responses, reply_to=None):
+        """
+        Send responses to a conversation.
+
+        :param conversation: a ChatConversation object
+        :param responses: the messages we're sending, Iterable of MessageElement objects
+        :param reply_to: (optional) message that we're replying to (used for example in Telegram)
+        """
         logging.info("Sending bot responses: %s", responses)
         conversation.interface.send_responses(conversation, reply_to, responses)
 
@@ -151,6 +158,13 @@ class ChatManager:
         #     print('Error scheduling message log', e)
 
     def broadcast(self, conversations, responses):
+        """
+        Send the same responses to multiple conversations.
+        Example usage: notifications, news, ...
+
+        :param conversations: Iterable of Conversation objects
+        :param responses: Iterable of MessageElement objects
+        """
         logging.info("Sending broadcast to %d conversations: %s" % (len(conversations), responses))
         interfaces = {}
         for conversation in conversations:

@@ -64,7 +64,7 @@ class Dialog:
         """
 
         responses = self.chat_manager.process_responses(responses)
-        self.chat_manager.send(self.message.conversation, self.message, responses)
+        self.chat_manager.send(self.message.conversation, responses, self.message)
 
         for response in responses:
             self.logging_service.log_bot_response(self.message, response, timestamp=time.time())
