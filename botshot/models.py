@@ -93,3 +93,13 @@ class ChatMessage(models.Model):
     entities = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     response_dict = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     supported = models.BooleanField(default=True)
+
+
+class ScheduledAction(models.Model):
+
+    _id = models.BigAutoField(primary_key=True)
+    description = models.TextField(null=True, blank=True)
+    at = models.TimeField(null=True)
+    cron = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
+    until = models.DateTimeField(null=True)
+    action = JSONField(load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
