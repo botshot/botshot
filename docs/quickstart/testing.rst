@@ -28,5 +28,9 @@ my_tests/foo.py:
 #######################
 Unit testing
 #######################
+You can use `pytest-django`.
 Take a look at the package `botshot.core.tests`.
-TODO
+
+.. code-block:: bash
+
+    pytest chatbot/tests

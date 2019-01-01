@@ -126,10 +126,34 @@ Video message
 TODO
 
 +++++++++++++++++++++
+Card template
++++++++++++++++++++++
+
+.. code-block:: python
+
+    msg = CardTemplate(
+        title="A card",
+        subtitle="Hello world!",
+        image_url="http://placehold.it/300x300",
+        item_url="http://example.com"
+    )
+    msg.add_button(button)
+
+
++++++++++++++++++++++
 Carousel template
 +++++++++++++++++++++
 
-TODO
+.. code-block:: python
+
+    msg = CarouselTemplate()
+    msg.add_element(
+        CardTemplate(
+            title="Card 1",
+            subtitle="Hello world!",
+            image_url="http://placehold.it/300x300"
+        )
+    )
 
 +++++++++++++++++++++
 List template
