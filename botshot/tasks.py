@@ -43,7 +43,7 @@ def get_set_task_flag(task_id):
     from botshot.core.persistence import get_redis
     redis = get_redis()
     key = "botshot_task_flag_{}".format(task_id)
-    is_done = redis.exists(name=key)
+    is_done = redis.exists(key)
     # remove the flag 3600 sec. after executing for the first time
-    redis.set(name=key, value=True, ex=3600)
+    redis.set(name=key, value=1, ex=3600)
     return is_done
