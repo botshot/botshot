@@ -109,7 +109,7 @@ class ChatManager:
     def _process(self, message):
         try:
             logging.info("Processing user message: %s", message)
-            processor = MessageProcessor(message=message, chat_manager=self)
+            processor = MessageProcessor(message=message, save_messages=self.save_messages)
             processor.process()
         except Exception as e:
             logging.exception("ERROR: Exception while processing message")
