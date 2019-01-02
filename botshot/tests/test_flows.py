@@ -1,14 +1,12 @@
-from unittest import TestCase
-
+import pytest
 import yaml
 
 from botshot.core.flow import Flow
 
 
-class TestFlows(TestCase):
+class TestFlows():
 
-    def setUp(self):
-        self.flow = yaml.load("""
+    flow = yaml.load("""
         default:
             intent: "(default.*)"
             states:
@@ -21,6 +19,8 @@ class TestFlows(TestCase):
 
     def test_import_flow(self):
         flow = Flow.load("default", self.flow['default'], relpath="botshot.tests")
-        self.assertEqual(flow.name, "default")
-        self.assertEqual(flow.intent, "(default.*)")
-        self.assertIn("root", flow.states)
+        assert flow.name == "default"
+        assert flow.intent == "(default.*)"
+        assert "root" in flow.states
+        assert flow.matches_intent("default")
+        assert not flow.matches_intent("deflate")
