@@ -1,5 +1,6 @@
 import os
 import tempfile
+import pytz
 
 import requests
 from django.db import models
@@ -99,7 +100,20 @@ class ScheduledAction(models.Model):
 
     _id = models.BigAutoField(primary_key=True)
     description = models.TextField(null=True, blank=True)
-    at = models.TimeField(null=True)
+    _at = models.DateTimeField(null=True)
     cron = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
-    until = models.DateTimeField(null=True)
+    _until = models.DateTimeField(null=True)
     action = JSONField(load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
+    users = JSONField(load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
+
+    @property
+    def at(self):
+        if self._at:
+            return self._at.replace(tzinfo=pytz.UTC)
+        return None
+    
+    @property
+    def until(self):
+        if self._until:
+            return self._until.replace(tzinfo=pytz.UTC)
+        return None

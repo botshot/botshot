@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 
 from botshot.core import config
-from botshot.core.flow import FLOWS
+from botshot.core.flow import FLOWS, init_flows
 from botshot.core.message_processor import MessageProcessor
 from botshot.core.parsing.message_parser import parse_text_entities
 from botshot.core.parsing.raw_message import RawMessage
@@ -92,7 +92,10 @@ class ChatManager:
     def accept_scheduled(self, conversation_id, user_id, payload):
         with transaction.atomic():
             conversation = ChatConversation.objects.select_for_update().get(pk=conversation_id)
-            user = ChatUser.objects.get(pk=user_id)
+            if user_id is not None:
+                user = ChatUser.objects.get(pk=user_id)
+            else:  # generic postback for conversation, not for a specific member
+                user = None  # TODO: if there's just one user, set this to the user
 
             message = ChatMessage()
             message.conversation = conversation
@@ -106,14 +109,15 @@ class ChatManager:
     def _process(self, message):
         try:
             logging.info("Processing user message: %s", message)
-            processor = MessageProcessor(flows=FLOWS, message=message, chat_manager=self)
+            processor = MessageProcessor(message=message, chat_manager=self)
             processor.process()
         except Exception as e:
             logging.exception("ERROR: Exception while processing message")
             # TODO: Save error message (ChatMessage.type = ERROR)
 
         message.conversation.save()
-        message.user.save()
+        if message.user is not None:
+            message.user.save()
         if self.save_messages:
             message.save()
 
