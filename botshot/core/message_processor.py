@@ -18,7 +18,11 @@ class MessageProcessor:
         from botshot.core.flow import FLOWS
         if FLOWS is None:
             raise ValueError("Flows have not been initialized.")
-        
+        if message is None:
+            raise ValueError("Message is None")
+        if message.conversation is None:
+            raise ValueError("Conversation is None")
+
         self.message = message
         self.chat_manager = ChatManager()
         self.send_exceptions = config.get("SEND_EXCEPTIONS", default=settings.DEBUG)

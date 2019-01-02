@@ -53,7 +53,7 @@ class State:
         :param name:            name of this state
         :param action:          function that will run when moving to this state
         :param intent
-        :param requires
+        :param requires         list of EntityRequirement (optional)
         :param is_temporary     whether the action should fire just once,
                                  after that, the state will be used just as a basis for transitions
                                  and unrecognized messages will move to default.root instead.
@@ -64,7 +64,7 @@ class State:
         self.name = str(name)
         self.action = action
         self.intent = intent
-        self.requires = requires
+        self.requires = requires or []
         self.is_temporary = is_temporary
         self.supported = supported or set()
         self.unsupported = unsupported
