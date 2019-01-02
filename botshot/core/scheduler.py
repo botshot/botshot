@@ -17,7 +17,17 @@ from django.db.models.signals import post_save, post_delete
 
 class MessageScheduler:
 
-    def add_schedule(self, action: str, user: str, at: datetime, description=None) -> str:
+    def add_schedule(self, action, user: str, at: datetime, description=None) -> str:
+        """
+        Schedules an action for the future.
+
+        :param action:          either a dict containing payload or a MessageElement
+        :param user:            conversation_id where to send the schedule
+        :param at:              localized datetime, when to send the schedule
+        :param description:     (optional) short human-readable description of event
+        :return: ID of this schedule
+        """
+        # FIXME: more users at once; better action parameter
         self._validate_user(user)
         self._validate_action(action)
         at = self._validate_datetime(at)
@@ -29,7 +39,7 @@ class MessageScheduler:
         return task_id
     
     def add_recurrent_schedule(
-        self, action: str, user: str, 
+        self, action, user: str, 
         hour, minute, day_of_week='*', day_of_month='*',
         month_of_year='*', until=None, description=None
     ) -> str:

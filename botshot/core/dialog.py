@@ -1,8 +1,12 @@
 import logging
 import time
 
+from django.utils import timezone
+from datetime import timedelta
+
 from botshot.core.logging.logging_service import AsyncLoggingService
 from botshot.core.responses.responses import TextMessage
+from botshot.core.scheduler import MessageScheduler
 from botshot.models import ChatMessage, ChatConversation, ChatUser
 from botshot.tasks import run_async
 
@@ -17,6 +21,7 @@ class Dialog:
         self.conversation = self.message.conversation  # type: ChatConversation
         self.chat_manager = chat_manager  # type: ChatManager
         self.context = context  # type: Context
+        self.scheduler = MessageScheduler()
         self.logging_service = logging_service
 
     def inactive(self, payload, seconds=None):
@@ -37,29 +42,28 @@ class Dialog:
 
     def schedule(self, payload, at=None, seconds=None):
         """
-        Schedules a state transition in the future.
+        Schedules a state transition in the future using MessageScheduler.
+
         :param payload:  Payload to send in the scheduled message.
         :param at:       A datetime with timezone
         :param seconds:  An integer, seconds from now
+        :return: ID of the task, see botshot.core.scheduler.MessageScheduler.
         """
         if not at and (not seconds or seconds < 0):
             raise ValueError('Specify either "at" or a positive "seconds" parameter')
         time_formatted = "at {}".format(at) if at else "in {} seconds".format(seconds)
         logging.info('Scheduling callback %s with payload "%s"', time_formatted, payload)
-        task_id = run_async(
-            self.chat_manager.accept_scheduled,
-            _at=at,
-            _seconds=seconds,
-            # reply_to=self.message.message_id,
-            conversation_id=self.conversation.id,
-            user_id=self.sender.user_id,
-            payload=payload
-        )
+
+        if seconds and not at:
+            at = timezone.now() + timedelta(seconds=seconds)
+        
+        task_id = self.scheduler.add_schedule(action=payload, user=self.conversation.id, at=at)
         return task_id
 
     def send(self, responses):
         """
         Send one or more messages to the user.
+        
         :param responses:       Instance of MessageElement, str or Iterable.
         """
 
