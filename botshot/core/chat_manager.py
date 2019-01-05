@@ -5,6 +5,8 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 from datetime import datetime
 from botshot.core import config
+from botshot.core.flow import get_flows
+from botshot.core.message_processor import MessageProcessor
 from botshot.core.parsing.message_parser import parse_text_entities
 from botshot.core.parsing.raw_message import RawMessage
 from botshot.core.persistence import todict
@@ -50,13 +52,14 @@ class ChatManager:
                 user = ChatUser.objects.get(raw_user_id=raw_message.raw_user_id)
             except ObjectDoesNotExist:
                 user = ChatUser()
-                user.conversation = conversation
                 user.raw_user_id = raw_message.raw_user_id
                 # Save user before filling details so that image field can be saved
                 user.save()
                 # TODO: also update details of existing users every once in a while
                 raw_message.interface.fill_user_details(user)
                 logging.info("Created new user: %s", user.__dict__)
+                user.save()
+                user.conversations.add(conversation)
                 user.save()
                 conversation.save()
 
@@ -107,7 +110,6 @@ class ChatManager:
             self._process(message)
 
     def _process(self, message):
-        from botshot.core.message_processor import MessageProcessor
         try:
             logging.info("Processing user message: %s", message)
             processor = MessageProcessor(self, message=message, interceptors=self.interceptors)

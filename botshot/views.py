@@ -15,6 +15,7 @@ from botshot.core.interface_factory import InterfaceFactory
 from botshot.core.logging.test_recorder import ConversationTestRecorder
 from botshot.core.persistence import get_redis
 from botshot.core.tests import _run_test_module
+from botshot.core.flow import get_flows
 from botshot.models import ChatMessage, ChatConversation, ChatUser
 from botshot.serializers import ChatConversationSerializer, ChatMessageSerializer, ChatUserSerializer
 
@@ -66,9 +67,8 @@ def index(request):
 
 @login_required(login_url=reverse_lazy('login'))
 def flows(request):
-    from botshot.core.flow import FLOWS
     context = {
-        'flows': FLOWS
+        'flows': get_flows()
     }
     template = loader.get_template('botshot/flows.html')
     return HttpResponse(template.render(context,request))

@@ -35,7 +35,7 @@ class TestContext():
         self.message.user = ChatUser()
         self.message.is_user = True
         self.message.message_id = 105
-        self.dialog = MessageProcessor(self.message, save_messages=False)
+        self.dialog = MessageProcessor(self.message, chat_manager=None, flows=flows) # TODO: mock chat manager
 
     def test_context_get_set(self):
         dialog = MockDialog()

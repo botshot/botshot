@@ -9,40 +9,41 @@ import logging
 from inspect import getsource
 from django.utils.module_loading import import_string
 
-FLOWS = None
+_FLOWS = None
 
-
-def init_flows():
+def get_flows(cache=True):
     """Creates flows from their YAML definitions."""
-    global FLOWS
-    import yaml
-    flows = {}  # a dict with all the flows loaded from YAML
-    BOTS = settings.BOT_CONFIG.get('BOTS', [])
-    for filename in BOTS:
-        try:
-            with open(os.path.join(settings.BASE_DIR, filename)) as f:
-                definitions = yaml.load(f)
-                if not definitions:
-                    logging.warning("Skipping empty flow definition {}".format(filename))
-                    break
-                for flow_name in definitions:
-                    if flow_name in flows:
-                        raise Exception("Error: duplicate flow {}".format(flow_name))
-                    definition = definitions[flow_name]
-                    flow = Flow.load(flow_name, definition, relpath=os.path.dirname(filename))
-                    flows[flow_name] = flow
-        except OSError as e:
-            raise ValueError("Unable to open definition {}".format(filename)) from e
-        except TypeError as e:
-            raise ValueError("Unable to read definition {}".format(filename)) from e
+    global _FLOWS
+    if not cache or _FLOWS is None:
+        import yaml
+        flows = {}  # a dict with all the flows loaded from YAML
+        BOTS = settings.BOT_CONFIG.get('BOTS', [])
+        for filename in BOTS:
+            try:
+                with open(os.path.join(settings.BASE_DIR, filename)) as f:
+                    definitions = yaml.load(f)
+                    if not definitions:
+                        logging.warning("Skipping empty flow definition {}".format(filename))
+                        break
+                    for flow_name in definitions:
+                        if flow_name in flows:
+                            raise Exception("Error: duplicate flow {}".format(flow_name))
+                        definition = definitions[flow_name]
+                        flow = Flow.load(flow_name, definition, relpath=os.path.dirname(filename))
+                        flows[flow_name] = flow
+            except OSError as e:
+                raise ValueError("Unable to open definition {}".format(filename)) from e
+            except TypeError as e:
+                raise ValueError("Unable to read definition {}".format(filename)) from e
 
-    if not flows.get('default') or not flows.get('default').get_state('root'):
-        raise Exception("Required state default.root was not found. "
-                        "Please add this state, Botshot uses it as the first state when starting a conversation.")
+        if not flows.get('default') or not flows.get('default').get_state('root'):
+            raise Exception("Required state default.root was not found. "
+                            "Please add this state, Botshot uses it as the first state when starting a conversation.")
 
-    print('Initialized {} flows: {}'.format(len(flows), sorted(list(flows.keys()))))
+        print('Initialized {} flows: {}'.format(len(flows), sorted(list(flows.keys()))))
 
-    FLOWS = flows
+        _FLOWS = flows
+    return _FLOWS
 
 
 class State:
@@ -140,21 +141,7 @@ class State:
             return action
         elif isinstance(action, str):
             # dynamically load the function
-
-            try:
-                module_path, fn_name = action.rsplit(".", maxsplit=1)
-                try:
-                    # try to import as absolute path
-                    module = importlib.import_module(module_path)
-                except ImportError:
-                    # try to import relative to flow module
-                    abs_module = relpath + "." + module_path
-                    module = importlib.import_module(abs_module)
-
-                fn = getattr(module, fn_name)
-                return fn
-            except Exception as e:
-                raise Exception("An error occurred while importing action {}. See the exception above.".format(action)) from e
+            return import_string(action)
         elif isinstance(action, dict):
             # load a static action, such as text or image
             return State.make_default_action(action)

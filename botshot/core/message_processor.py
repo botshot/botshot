@@ -12,10 +12,9 @@ from django.utils.module_loading import import_string
 
 class MessageProcessor:
 
-    def __init__(self, chat_manager, message, interceptors=None):
+    def __init__(self, message, flows, chat_manager, interceptors=None):
         from botshot.core.logging.logging_service import AsyncLoggingService
-        from botshot.core.flow import FLOWS
-        if FLOWS is None:
+        if flows is None:
             raise ValueError("Flows have not been initialized.")
         if chat_manager is None:
             raise ValueError("ChatManager is None")
@@ -27,7 +26,7 @@ class MessageProcessor:
         self.message = message
         self.chat_manager = chat_manager
         self.send_exceptions = config.get("SEND_EXCEPTIONS", default=settings.DEBUG)
-        self.flows = FLOWS
+        self.flows = flows
         self.current_state_name = self.message.conversation.state or 'default.root'
         self.context = Context.from_dict(dialog=self, data=message.conversation.context_dict or {})
         loggers = [import_string(path)() for path in config.get('MESSAGE_LOGGERS', default=[])]

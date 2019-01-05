@@ -59,12 +59,12 @@ class ChatUser(models.Model):
     user_id = models.BigAutoField(primary_key=True)
     raw_user_id = models.CharField(max_length=255, db_index=True)
     conversations = models.ManyToManyField(ChatConversation, related_name="users")
-    # conversation = models.ForeignKey(ChatConversation, on_delete=models.CASCADE, related_name='users')
     first_name = models.CharField(max_length=64, blank=True, null=True)
     last_name = models.CharField(max_length=64, blank=True, null=True)
     image = models.ImageField(upload_to='profile_pic', default='images/icon_user.png')
     locale = models.CharField(max_length=16, blank=True, null=True)
     last_message_time = models.DateTimeField(blank=True, null=True)
+    is_admin = models.BooleanField(default=False)
 
     def save_image(self, image_url, extension=None):
         if not self.user_id:
@@ -94,6 +94,9 @@ class ChatMessage(models.Model):
     entities = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     response_dict = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     supported = models.BooleanField(default=True)
+
+    def __repr__(self):
+        return 'ChatMessage({})'.format({k:v for k, v in self.__dict__.items() if k not in ['_state']})
 
 
 class ScheduledAction(models.Model):
