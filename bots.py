@@ -5,7 +5,7 @@ import subprocess
 import sys
 import os
 from django.core.management import execute_from_command_line
-from shutil import copyfile, rmtree
+from shutil import copyfile, rmtree, move
 import time
 import atexit
 import tempfile
@@ -101,8 +101,8 @@ def init_project(args):
         rmtree(tmp_path)
         raise e
 
-    # Move final directory to target path
-    os.rename(tmp_path, project_path)
+    # Move final directory to target path (note: rename can't be used, this may be on another filesystem)
+    move(tmp_path, project_path)
 
     print("New project initialized in: {}".format(project_path))
     print("You can start the server inside the directory with: botshot start")

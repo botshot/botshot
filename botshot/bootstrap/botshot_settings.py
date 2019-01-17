@@ -9,17 +9,22 @@ BOT_CONFIG = {
     },
     "INTERFACES": [
         'botshot.webchat.interface.WebchatInterface',
-        'botshot.core.interfaces.MessengerInterface'
+        'botshot.core.interfaces.facebook.FacebookInterface',
     ],
     # Change this secret url to hide your public webhooks!
     "WEBHOOK_SECRET_URL": "8gu20xksls94udjv840f1",
-    "REDIS_URL": os.environ.get('BOTSHOT_REDIS_URL', "redis://localhost:6379/"),
+    "FB_VERIFY_TOKEN": "INSERT_YOUR_VERIFY_TOKEN",
+    "FB_PAGES": [{
+        "NAME": "INSERT_YOUR_FB_PAGE_NAME",
+        "TOKEN": "INSERT_YOUR_FB_PAGE_TOKEN",
+    }],
+    "MESSAGE_BROKER_URL": os.environ.get('MESSAGE_BROKER_URL', "redis://localhost:6379/1"),
     'DEPLOY_URL': os.environ.get('BOTSHOT_DEPLOY_URL', 'http://localhost:8000/'),
     'MSG_LIMIT_SECONDS': 20,
     'MESSAGE_LOGGERS': []
 }
 
-CELERY_BROKER_URL = BOT_CONFIG.get('REDIS_URL')+'/1'
+CELERY_BROKER_URL = BOT_CONFIG['MESSAGE_BROKER_URL']
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_ACCEPT_CONTENT = ['pickle']
 CELERY_TASK_SERIALIZER = 'pickle'
