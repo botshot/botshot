@@ -29,7 +29,7 @@ class EntityValue:
     # Common methods to access values
 
     def __str__(self):
-        return self.value
+        return str(self.value)
 
     def __repr__(self):
         return "EntityValue:" + str(self.value)

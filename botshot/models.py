@@ -111,7 +111,7 @@ class ScheduledAction(models.Model):
         if self._at:
             return self._at.replace(tzinfo=pytz.UTC)
         return None
-    
+
     @property
     def until(self):
         if self._until:

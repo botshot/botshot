@@ -13,6 +13,7 @@ urlpatterns = [
 
     url(r'^flows/?$', views.flows, name='flows'),
 
+    url(r'^test/recording/?$', views.test_recording, name='botshot-test-recording'),
     url(r'^test/?$', views.test, name='test'),
     url(r'^test/run/(?P<name>[a-zA-Z0-9_\-]+)/?$', views.run_test, name='run_test'),
 

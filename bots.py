@@ -123,7 +123,7 @@ def start(args):
 
     atexit.register(exit_and_close)
 
-    start_subprocess('Redis Database', ["redis-server", "--loglevel", "warning"])
+    start_subprocess('Redis Database', ["redis-server"])
     start_subprocess('Celery Worker', ["celery", "-A", app_name, "worker", "-l", "info"])
     # Give some time to Redis and Celery to start
     time.sleep(0.5)
@@ -150,7 +150,7 @@ def exit_and_close():
         except ProcessLookupError:
             pass
     # Newline to show that we are finished
-    time.sleep(0.2)
+    time.sleep(1.0)
     print('-'*80)
     print('Botshot stopped.')
     print('-'*80)

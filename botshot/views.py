@@ -12,6 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, renderers, generics, pagination
 
 from botshot.core.interface_factory import InterfaceFactory
+from botshot.core.logging.test_recorder import ConversationTestRecorder
 from botshot.core.persistence import get_redis
 from botshot.core.tests import _run_test_module
 from botshot.models import ChatMessage, ChatConversation, ChatUser
@@ -110,9 +111,20 @@ def test(request):
     return HttpResponse(template.render(context, request))
 
 
+@login_required(login_url=reverse_lazy('login'))
 def run_test(request, name):
     benchmark = request.GET.get('benchmark', False)
     return JsonResponse(data=_run_test_module(name, benchmark=benchmark))
+
+
+@login_required(login_url=reverse_lazy('login'))
+def test_recording(request):
+    recorded_yaml = ConversationTestRecorder.get_result_yaml()
+    context = {
+        'recorded_yaml': recorded_yaml
+    }
+    template = loader.get_template('botshot/test_recording.html')
+    return HttpResponse(template.render(context, request))
 
 
 @login_required(login_url=reverse_lazy('login'))

@@ -38,4 +38,5 @@ ADMIN_VIEWS = [
     {"name": "Flows", "view": "flows"},
     {"name": "Messages", "view": "log"},
     {"name": "Tests", "view": "test"},
+    {"name": "Recording", "view": "botshot-test-recording"},
 ]

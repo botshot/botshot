@@ -2,6 +2,7 @@ from time import time
 from typing import Generator
 
 import pytest
+import mock
 
 from botshot.core.chat_manager import ChatManager
 from botshot.core.interfaces import BasicAsyncInterface
@@ -23,14 +24,20 @@ class _TestInterface(BasicAsyncInterface):
     def broadcast_responses(self, conversations, responses):
         pass
 
+@pytest.fixture
+def mock_processor(monkeypatch):
+    mock_processor = mock.Mock()
+    monkeypatch.setattr('botshot.core.message_processor.MessageProcessor', mock_processor)
+    yield mock_processor
+
 
 @pytest.fixture
 def chat_mgr():
     yield ChatManager()
 
+
 @pytest.fixture
 def conversation():
-
     user = ChatUser()
     user.user_id = -1
     user.save()
@@ -41,31 +48,35 @@ def conversation():
     conversation.save()
     yield conversation
 
-@pytest.mark.django_db
-def test_accept(chat_mgr):
-    chat_id = 'chat_id'
-    message = RawMessage(
-        interface=_TestInterface(),
-        raw_user_id="foo",
-        raw_conversation_id=chat_id,
-        conversation_meta={},
-        type="message",
-        text="Hello world!",
-        payload=None,
-        timestamp=time()
-    )
-    chat_mgr.accept(message)
 
-    model = ChatConversation.objects.get(
-        raw_conversation_id=chat_id,
-        interface_name="test"
-    )
-
-    assert model is not None
+@pytest.fixture
+def message():
+    yield RawMessage(interface=_TestInterface(), raw_user_id="foo", raw_conversation_id="chat_id",
+            conversation_meta={}, type="message", text="Hello world!", payload=None, timestamp=time())
 
 
 @pytest.mark.django_db
-def test_send(chat_mgr, conversation):
+class TestChatManager:
+    def test_accept(self, chat_mgr, mock_processor):
+        chat_id = 'chat_id'
+        message = RawMessage(interface=_TestInterface(), raw_user_id="foo", raw_conversation_id=chat_id,
+            conversation_meta={}, type="message", text="Hello world!", payload=None, timestamp=time())
+        chat_mgr.accept(message)
+        model = ChatConversation.objects.get(
+            raw_conversation_id=chat_id,
+            interface_name="test"
+        )
+        assert mock_processor.called
+        assert model is not None
 
-    responses = [TextMessage("Hello world!")]
-    chat_mgr.send(conversation, responses, None)
+    def test_db_inside(self, monkeypatch, chat_mgr, message, conversation):
+        # test whether DB operations work inside chatmanager._process()
+        mock_processor = mock.Mock()
+        mock_processor.process = lambda self: conversation.save()
+        monkeypatch.setattr("botshot.core.message_processor.MessageProcessor", mock_processor)
+        chat_mgr.accept(message)
+        assert mock_processor.called
+
+    def test_send(self, chat_mgr, conversation):
+        responses = [TextMessage("Hello world!")]
+        chat_mgr.send(conversation, responses, None)

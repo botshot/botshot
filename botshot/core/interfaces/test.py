@@ -1,8 +1,21 @@
-class TestInterface():
+from botshot.core.interfaces import BotshotInterface
+from botshot.models import ChatUser
+
+
+class TestInterface(BotshotInterface):
+
     name = 'test'
-    prefix = 'test'
     messages = []
     states = []
+
+    def webhook(self, request):
+        pass
+
+    def send_responses(self, user: ChatUser, responses):
+        pass
+
+    def broadcast_responses(self, users, responses):
+        pass
 
     @staticmethod
     def clear():

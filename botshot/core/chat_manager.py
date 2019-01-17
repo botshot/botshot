@@ -1,24 +1,24 @@
 import logging
-from datetime import datetime
-
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.utils import timezone
 from django.utils.timezone import make_aware
-
+from datetime import datetime
 from botshot.core import config
-from botshot.core.flow import FLOWS, init_flows
-from botshot.core.message_processor import MessageProcessor
 from botshot.core.parsing.message_parser import parse_text_entities
 from botshot.core.parsing.raw_message import RawMessage
 from botshot.core.persistence import todict
-from botshot.core.responses import TextMessage
+from botshot.core.responses import TextMessage, MessageElement
 from botshot.models import ChatConversation, ChatUser, ChatMessage
 
 
 class ChatManager:
+
     def __init__(self):
+        from botshot.core.interceptors import AdminDialogInterceptor, BotshotVersionDialogInterceptor
         self.save_messages = config.get("SAVE_MESSAGES", True)
+        # TODO: Register extra interceptors in config
+        self.interceptors = [AdminDialogInterceptor(), BotshotVersionDialogInterceptor()]
 
     def accept(self, raw_message: RawMessage):
         """Parses a received message and accepts it for processing."""
@@ -87,7 +87,7 @@ class ChatManager:
             message.is_user = True
             message.time = timezone.now()
             message.entities = payload
-        self._process(message)
+            self._process(message)
 
     def accept_scheduled(self, conversation_id, user_id, payload):
         with transaction.atomic():
@@ -104,12 +104,13 @@ class ChatManager:
             message.is_user = True
             message.time = timezone.now()
             message.entities = payload
-        self._process(message)
+            self._process(message)
 
     def _process(self, message):
+        from botshot.core.message_processor import MessageProcessor
         try:
             logging.info("Processing user message: %s", message)
-            processor = MessageProcessor(message=message, save_messages=self.save_messages)
+            processor = MessageProcessor(self, message=message, interceptors=self.interceptors)
             processor.process()
         except Exception as e:
             logging.exception("ERROR: Exception while processing message")
@@ -181,9 +182,11 @@ class ChatManager:
     def process_responses(responses):
         if responses is None:
             return []
-        if not (isinstance(responses, list) or isinstance(responses, tuple)):
+        if not isinstance(responses, (list, tuple)):
             responses = [responses]
         for i in range(0, len(responses)):
             if isinstance(responses[i], str):
                 responses[i] = TextMessage(text=responses[i])
+            elif not isinstance(responses[i], MessageElement):
+                raise ValueError("Invalid message element of type %s" % type(responses[i]))
         return responses

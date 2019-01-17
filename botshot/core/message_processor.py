@@ -12,36 +12,31 @@ from django.utils.module_loading import import_string
 
 class MessageProcessor:
 
-    def __init__(self, message, save_messages):
+    def __init__(self, chat_manager, message, interceptors=None):
         from botshot.core.logging.logging_service import AsyncLoggingService
-        from botshot.core.chat_manager import ChatManager
         from botshot.core.flow import FLOWS
         if FLOWS is None:
             raise ValueError("Flows have not been initialized.")
+        if chat_manager is None:
+            raise ValueError("ChatManager is None")
         if message is None:
             raise ValueError("Message is None")
         if message.conversation is None:
             raise ValueError("Conversation is None")
 
         self.message = message
-        self.chat_manager = ChatManager()
+        self.chat_manager = chat_manager
         self.send_exceptions = config.get("SEND_EXCEPTIONS", default=settings.DEBUG)
         self.flows = FLOWS
         self.current_state_name = self.message.conversation.state or 'default.root'
         self.context = Context.from_dict(dialog=self, data=message.conversation.context_dict or {})
-        self.logging_service = AsyncLoggingService(self._create_loggers())
-        self.dialog = Dialog(message=self.message, context=self.context, chat_manager=self.chat_manager, logging_service=self.logging_service)
-
-    def _create_loggers(self):
         loggers = [import_string(path)() for path in config.get('MESSAGE_LOGGERS', default=[])]
-        if self.context.get('_admin_test_record'):
-            loggers.append(ConversationTestRecorder())
-        return loggers
+        self.logging_service = AsyncLoggingService(loggers)
+        self.dialog = Dialog(message=self.message, context=self.context, chat_manager=self.chat_manager, logging_service=self.logging_service)
+        self.interceptors = interceptors or []
 
     def process(self):
-        self.logging_service.log_user_message_start(self.message, self.current_state_name)
         self._process_base()
-        self.logging_service.log_user_message_end(self.message, self.current_state_name)
         # Set conversation state if the message was processed successfully
         self.message.conversation.state = self.current_state_name
         self.message.conversation.context_dict = self.context.to_dict()
@@ -50,8 +45,14 @@ class MessageProcessor:
         self.context.add_message_entities(entities=self.message.entities)
         self.context.debug()
 
-        if self._special_message(self.message.text):
+        if self.context.get_value(ConversationTestRecorder.ENTITY_KEY):
+            self.logging_service.loggers.append(ConversationTestRecorder())
+
+        # Stop after first interception == True
+        if any(interceptor.intercept(self.dialog) for interceptor in self.interceptors):
             return
+
+        self.logging_service.log_user_message_start(self.message, self.current_state_name)
 
         if self._check_state_transition():
             return
@@ -79,14 +80,7 @@ class MessageProcessor:
         else:
             self._move_to("default.root:")
 
-    def _special_message(self, text):
-        if not text:
-            return False
-        if text == '/areyoubotshot':
-            from botshot import __version__
-            self.dialog.send("Botshot Framework version {}".format(__version__))
-            return True
-        return False
+        self.logging_service.log_user_message_end(self.message, self.current_state_name)
 
     def _run_accept(self):
         """Runs action of the current state."""

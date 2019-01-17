@@ -1,71 +1,50 @@
-import logging
 from botshot.core.logging import MessageLogger
+from botshot.core.persistence import get_redis
+from botshot.core.responses import MessageElement
+from botshot.models import ChatMessage
+import pickle
+
+DB_KEY = 'test_actions'
 
 
 class ConversationTestRecorder(MessageLogger):
+    ENTITY_KEY = '_admin_test_recording'
 
-    def log_user_message(self, message, accepted_state, final_state):
+    @staticmethod
+    def restart():
+        get_redis().delete(DB_KEY)
+
+    @staticmethod
+    def get_actions():
+        raw_actions = get_redis().lrange(DB_KEY, 0, -1)
+        return [pickle.loads(raw) for raw in raw_actions]
+
+    def _record(self, type, value):
+        action = RecordedAction(type=type, value=value)
+        get_redis().rpush(DB_KEY, pickle.dumps(action))
+
+    def log_user_message_start(self, message: ChatMessage, accepted_state):
+        self._record(type=RecordedAction.USER_MESSAGE, value=message)
+
+    def log_user_message_end(self, message: ChatMessage, final_state):
         pass
 
-    def log_state_change(self, message, state):
+    def log_state_change(self, message: ChatMessage, state):
+        self._record(type=RecordedAction.STATE_CHANGE, value=state)
+
+    def log_bot_response(self, message: ChatMessage, response: MessageElement, timestamp):
+        self._record(type=RecordedAction.BOT_MESSAGE, value=response)
+
+    def log_error(self, message: ChatMessage, state, exception):
         pass
 
-    def log_bot_response(self, message, response, timestamp):
-        pass
-
-    def log_error(self, message, state, exception):
-        pass
-
     @staticmethod
-    def record_user_message(message_type, entities):
-        logging.warning('Recording user {}: {}'.format(message_type, message))
-        db = get_redis()
-        db.lpush('test_actions', json.dumps({'type': 'user', 'body': {'type': message_type, 'entities': message}},
-                                            default=json_serialize))
-
-    @staticmethod
-    def record_bot_message(message):
-        record = {'type': type(message).__name__}
-        if isinstance(message, TextMessage):
-            record['text'] = message.text
-        logging.warning('Recording bot message: {}'.format(record))
-        db = get_redis()
-        db.lpush('test_actions', json.dumps({'type': 'bot', 'body': record}))
-
-    @staticmethod
-    def record_state_change(state):
-        logging.warning('Recording state change: {}'.format(state))
-        db = get_redis()
-        db.lpush('test_actions', json.dumps({'type': 'state', 'body': state}))
-
-    @staticmethod
-    def record_start():
-        logging.warning('Starting recording')
-        db = get_redis()
-        db.delete('test_actions')
-        message = TextMessage(text="Starting to record ;)") \
-            .add_button(PayloadButton(title="Stop recording", payload={"test_record": "stop"}))
-        return message
-
-    @staticmethod
-    def record_stop():
-        logging.warning('Stopping recording')
-        deploy_url = settings.BOT_CONFIG.get('DEPLOY_URL', "localhost:8000")
-        message = TextMessage("Done recording ;)") \
-            .add_button(LinkButton(title='Get result', url=deploy_url + '/botshot/test_record')) \
-            .add_button(PayloadButton(title='Start again', payload={"test_record": "start"}))
-        return [message]
-
-    @staticmethod
-    def get_result():
-        db = get_redis()
-        actions = db.lrange('test_actions', 0, -1)
-        response = """from botshot.core.responses import *
-from botshot.core.tests import *
-
-actions = []
-"""
+    def get_result_yaml():
+        actions = ConversationTestRecorder.get_actions()
+        response = ""
         state = None
+        return "\n".join([str(action) for action in actions])
+
         for action in actions[::-1]:
             action = json.loads(action.decode('utf-8'), object_hook=json_deserialize)
             body = action['body']
@@ -101,3 +80,16 @@ actions = []
             response += "\n"
 
         return response
+
+class RecordedAction:
+
+    USER_MESSAGE = 'user_message'
+    BOT_MESSAGE = 'bot_message'
+    STATE_CHANGE = 'state_change'
+
+    def __init__(self, type, value):
+        self.type = type
+        self.value = value
+
+    def __repr__(self):
+        return 'RecordedAction({})'.format(self.__dict__)
