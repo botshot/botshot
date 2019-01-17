@@ -6,7 +6,6 @@ from datetime import timedelta
 
 from botshot.core.logging.logging_service import AsyncLoggingService
 from botshot.core.responses.responses import TextMessage
-from botshot.core.scheduler import MessageScheduler
 from botshot.models import ChatMessage, ChatConversation, ChatUser
 from botshot.tasks import run_async
 
@@ -15,6 +14,7 @@ class Dialog:
 
     def __init__(self, message: ChatMessage, context, chat_manager, logging_service: AsyncLoggingService):
         from botshot.core.chat_manager import ChatManager
+        from botshot.core.scheduler import MessageScheduler
         from botshot.core.context import Context
         self.message = message
         self.sender = self.message.user  # type: ChatUser
