@@ -65,8 +65,10 @@ class NaoInterface(BotshotInterface):
             if isinstance(response, EndSessionResponse):
                 end_session = True
                 break
+            elif isinstance(response, str):
+                final_text.append(response)
             elif isinstance(response, TextMessage):
-                final_text.append(str(response))
+                final_text.append(response.as_string(humanize=True))
             else:
                 logging.warning("Skipping response {} as it's unsupported in Nao".format(response))
 
