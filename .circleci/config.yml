@@ -42,7 +42,8 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            pytest botshot/tests
+            pytest botshot/tests         # unit tests
+            bots init mybot && cd mybot  # test init script
 
       - store_artifacts:
           path: test-reports
