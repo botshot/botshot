@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+{% load staticfiles %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="static/css/webchat_login.css">
+    <title>Welcome</title>
+</head>
+<body>
+<div id="login-box">
+    <div id="login-inner">
+        <h1 id="login-title">Welcome!</h1>
+        <p id="login-text">What's your name?</p>
+        <form class="login-form" method="post">
+            {% csrf_token %}
+            <input class="text-input" type="text" name="username" placeholder="Username" autocomplete="off">
+            <br>
+            <input class="material-button" type="image"
+                   src="{% static 'images/ic_keyboard_arrow_right_black_24px.svg' %}">
+        </form>
+    </div>
+</div>
+</body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script type="text/javascript">
+    $(document).ready(function () {
+        $('.login-form').submit(function (e) {
+            e.preventDefault();
+            $.ajax({
+                url: '{% url 'do_login' %}',
+                data: {
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                    'username': $('.login-form').find('input[name="username"]').val()
+                },
+                method: "POST"
+            })
+                .success(function (result) {
+                    window.location.reload()
+                });
+            return false;
+        });
+    });
+</script>
+</html>
