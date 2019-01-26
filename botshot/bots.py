@@ -24,7 +24,7 @@ def install_skeleton(project_app_dir):
     if not os.path.isdir(project_app_dir):
         raise ValueError("{} is not a directory".format(project_app_dir))
 
-    src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'botshot/bootstrap'))
+    src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'bootstrap'))
 
     print('Installing botshot files from {}'.format(src_dir))
 
@@ -105,7 +105,7 @@ def init_project(args):
     move(tmp_path, project_path)
 
     print("New project initialized in: {}".format(project_path))
-    print("You can start the server inside the directory with: botshot start")
+    print("You can start the server inside the directory with: bots start")
 
 
 PROCESSES = {}
@@ -123,7 +123,7 @@ def start(args):
 
     atexit.register(exit_and_close)
 
-    start_subprocess('Redis Database', ["redis-server"])
+    # start_subprocess('Redis Database', ["redis-server"])
     start_subprocess('Celery Worker', ["celery", "-A", app_name, "worker", "-l", "info"])
     # Give some time to Redis and Celery to start
     time.sleep(0.5)
