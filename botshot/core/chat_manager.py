@@ -5,8 +5,6 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 from datetime import datetime
 from botshot.core import config
-from botshot.core.flow import get_flows
-from botshot.core.message_processor import MessageProcessor
 from botshot.core.parsing.message_parser import parse_text_entities
 from botshot.core.parsing.raw_message import RawMessage
 from botshot.core.persistence import todict
@@ -110,6 +108,9 @@ class ChatManager:
             self._process(message)
 
     def _process(self, message):
+        # Import here to be able to mock the message processor class
+        # TODO: Could be implemented using a MessageProcessorFactory instead
+        from botshot.core.message_processor import MessageProcessor
         try:
             logging.info("Processing user message: %s", message)
             processor = MessageProcessor(self, message=message, interceptors=self.interceptors)

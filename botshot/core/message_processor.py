@@ -3,7 +3,7 @@ from typing import Optional
 from django.conf import settings
 from botshot.core.context import Context
 from botshot.core.dialog import Dialog
-from botshot.core.flow import Flow, State
+from botshot.core.flow import Flow, State, get_flows
 from botshot.core.logging.test_recorder import ConversationTestRecorder
 from botshot.core.responses import TextMessage
 from botshot.core import config
@@ -12,8 +12,9 @@ from django.utils.module_loading import import_string
 
 class MessageProcessor:
 
-    def __init__(self, message, flows, chat_manager, interceptors=None):
+    def __init__(self, chat_manager, message, interceptors=None):
         from botshot.core.logging.logging_service import AsyncLoggingService
+        flows = get_flows()
         if flows is None:
             raise ValueError("Flows have not been initialized.")
         if chat_manager is None:
