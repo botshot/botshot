@@ -141,7 +141,12 @@ class State:
             return action
         elif isinstance(action, str):
             # dynamically load the function
-            return import_string(action)
+            try:
+                # try to import as absolute path
+                return import_string(action)
+            except ImportError:
+                # try to import relative to flow module
+                return import_string(relpath + "." + action)
         elif isinstance(action, dict):
             # load a static action, such as text or image
             return State.make_default_action(action)

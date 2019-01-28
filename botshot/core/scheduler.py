@@ -9,6 +9,7 @@ from celery.signals import beat_init
 
 from botshot.models import ScheduledAction
 from botshot.core.responses import MessageElement
+from botshot.core.chat_manager import ChatManager
 
 
 class MessageScheduler:
@@ -112,7 +113,6 @@ class MessageScheduler:
     @staticmethod
     @shared_task(name='botshot.schedule_wrapper', bind=True)
     def _schedule_wrapper(self, user_spec: dict, action, task_id=None):
-        from botshot.core.chat_manager import ChatManager
         logging.debug("Running schedule %s", task_id)
         conversations = []
         if 'conversation_ids' in user_spec:
