@@ -39,6 +39,14 @@ class MessageElement:
             return self.tag
         return None
 
+    def as_string(self, humanize=True):
+        """
+        Returns the string representation of this message element.
+        If humanize is True, will try to convert the message to plain text.
+        Used in voice-only interfaces.
+        """
+        return self.__str__()
+
     def __str__(self):
         return str(self.__dict__)
 
@@ -110,6 +118,11 @@ class TextMessage(MessageElement):
         for button in buttons:
             self.add_button(button)
         return self
+    
+    def as_string(self, humanize=True):
+        if humanize:
+            return self.text or ""
+        return super().as_string(humanize)
 
 
 class AttachmentMessage(MessageElement):

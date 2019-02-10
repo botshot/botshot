@@ -30,20 +30,41 @@ class AlexaInterface(BotshotInterface):
 
         return HttpResponseBadRequest()
 
+    def _parse_entities(self, slots):
+        parsed = {}
+        if not slots:
+            return parsed
+        for slot_name, entity_dict in slots.items():
+            entity_name = entity_dict['name']
+            entity_value = entity_dict['value']
+            source = "amazon_{}".format(entity_dict.get("source", ""))
+            parsed.setdefault(entity_name, []).append({
+                "value": entity_value,
+                "slot": slot_name,
+                "source": source
+            })
+        return parsed
+
     def parse_raw_message(self, request):
         print(request)
         req_data = request['request']
         type = req_data['type']
         user_id = request['session']['user']['userId']
+        is_new_session = request['session'].get('new', False)
         timestamp = time()  # int(req_data['timestamp'])
-
         entities = {}
 
         if type == 'LaunchRequest':
             entities['intent'] = [{"value": self.greeting_intent, "source": self.name, "confidence": 1.0}]
         elif type == 'IntentRequest':
             intent = req_data['intent']['name']
-            entities['intent'] = [{"value": intent, "source": self.name, "confidence": 1.0}]
+            if intent == "AMAZON.FallbackIntent" and is_new_session:
+                entities['intent'] = [{"value": self.greeting_intent, "source": self.name, "confidence": 1.0}]
+            else:
+                entities['intent'] = [{"value": intent, "source": self.name, "confidence": 1.0}]
+
+                parsed_entities = self._parse_entities(req_data['intent'].get('slots'))
+                entities.update(parsed_entities)
         elif type == 'SessionEndedRequest':
             pass
 
@@ -70,8 +91,10 @@ class AlexaInterface(BotshotInterface):
             if isinstance(response, EndSessionResponse):
                 end_session = True
                 break
+            elif isinstance(response, str):
+                final_text.append(response)
             elif isinstance(response, TextMessage):
-                final_text.append(str(response))
+                final_text.append(response.as_string(humanize=True))
             else:
                 logging.warning("Skipping response {} as it's unsupported in Alexa".format(response))
 
