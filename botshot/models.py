@@ -64,7 +64,6 @@ class ChatUser(models.Model):
     image = models.ImageField(upload_to='profile_pic', default='images/icon_user.png')
     locale = models.CharField(max_length=16, blank=True, null=True)
     last_message_time = models.DateTimeField(blank=True, null=True)
-    is_admin = models.BooleanField(default=False)
 
     def save_image(self, image_url, extension=None):
         if not self.user_id:
