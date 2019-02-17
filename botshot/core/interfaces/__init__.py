@@ -84,9 +84,6 @@ class BasicAsyncInterface(BotshotInterface):
     def parse_raw_messages(self, request) -> Generator[RawMessage, None, None]:
         raise NotImplementedError()
 
-    def on_server_startup(self):
-        pass
-
     def broadcast_responses(self, conversations, responses):
         # send one at a time by default, override this for bulk messaging
         for conversation in conversations:

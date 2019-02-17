@@ -50,13 +50,14 @@ class ChatManager:
                 user = ChatUser.objects.get(raw_user_id=raw_message.raw_user_id)
             except ObjectDoesNotExist:
                 user = ChatUser()
-                user.conversation = conversation
                 user.raw_user_id = raw_message.raw_user_id
                 # Save user before filling details so that image field can be saved
                 user.save()
                 # TODO: also update details of existing users every once in a while
                 raw_message.interface.fill_user_details(user)
                 logging.info("Created new user: %s", user.__dict__)
+                user.save()
+                user.conversations.add(conversation)
                 user.save()
                 conversation.save()
 
@@ -107,6 +108,8 @@ class ChatManager:
             self._process(message)
 
     def _process(self, message):
+        # Import here to be able to mock the message processor class
+        # TODO: Could be implemented using a MessageProcessorFactory instead
         from botshot.core.message_processor import MessageProcessor
         try:
             logging.info("Processing user message: %s", message)

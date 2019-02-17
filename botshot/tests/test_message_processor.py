@@ -27,7 +27,7 @@ def flows(monkeypatch):
     flows = {}
     flows['default'] = Flow("default", intent='default')
     flows['default'].add_state(State(name="root", action=None))
-    monkeypatch.setattr("botshot.core.flow.FLOWS", flows)
+    monkeypatch.setattr("botshot.core.flow._FLOWS", flows)
     return flows
 
 
@@ -36,7 +36,7 @@ def set_called(dialog):
 
 
 class TestMessageProcessor:
-    
+
     def test_defaults(self, message, flows, monkeypatch):
         chat_mgr = Mock()
         processor = MessageProcessor(chat_mgr, message)
@@ -45,7 +45,7 @@ class TestMessageProcessor:
         assert processor.get_state()
         assert processor.get_state().name == 'root'
         assert processor.current_state_name == 'default.root'
-    
+
     def test_logging(self, monkeypatch, message, flows):
         chat_mgr = Mock()
         logger = Mock()
@@ -59,7 +59,6 @@ class TestMessageProcessor:
         end_state = processor.current_state_name
         assert logger.log_user_message_start.called_once_with(message, start_state)
         assert logger.log_user_message_end.called_once_with(message, end_state)
-
 
     def test_unsupported(self, message, flows):
         chat_mgr = Mock()

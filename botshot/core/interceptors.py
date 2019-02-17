@@ -1,5 +1,4 @@
 from abc import abstractmethod, ABC
-from django.urls import reverse
 from botshot.core.dialog import Dialog
 from botshot.core.logging.test_recorder import ConversationTestRecorder
 from botshot.core.responses import TextMessage, PayloadButton, LinkButton
