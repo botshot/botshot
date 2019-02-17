@@ -36,13 +36,22 @@ class AlexaInterface(BotshotInterface):
             return parsed
         for slot_name, entity_dict in slots.items():
             entity_name = entity_dict['name']
-            entity_value = entity_dict['value']
+            utterance = entity_dict.get('value')
             source = "amazon_{}".format(entity_dict.get("source", ""))
-            parsed.setdefault(entity_name, []).append({
-                "value": entity_value,
-                "slot": slot_name,
-                "source": source
-            })
+            resolutions = entity_dict.get('resolutions', {}).get('resolutionsPerAuthority')
+            if not resolutions:
+                continue
+            for resolution in resolutions:
+                authority = resolution['authority']
+                for value_obj in resolution['values']:  # ??!!
+                    value = value_obj['value']['id']
+                    parsed.setdefault(entity_name, []).append({
+                        "value": value,
+                        "slot": slot_name,
+                        "source": source,
+                        "authority": authority,
+                        "utterance": utterance,
+                    })
         return parsed
 
     def parse_raw_message(self, request):

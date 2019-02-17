@@ -112,9 +112,43 @@ class TestAlexaInterface():
         }
     }
 
+    request_entity = {
+        "version": "1.0", 
+        "session": {"user": {"userId": "foobar"}}, 
+        "context": {},
+        "request": {
+            "type": "IntentRequest",
+            "requestId": "amzn1.echo-api.request.12345",
+            "timestamp": "2019-02-17T13:09:28Z",
+            "locale": "en-US",
+            "intent": {
+                "name": "search",
+                "confirmationStatus": "NONE",
+                "slots": {
+                    "asset_type": {
+                        "name": "asset_type",
+                        "value": "movies",
+                        "resolutions": {
+                            "resolutionsPerAuthority": [{
+                                    "authority": "amzn1.er-authority.echo-sdk.amzn1.ask.skill.foo.asset_type",
+                                    "status": {"code": "ER_SUCCESS_MATCH"},
+                                    "values": [{"value": {"name": "movie", "id": "movie"}}]
+                                }]
+                        },
+                        "confirmationStatus": "NONE",
+                        "source": "USER"
+                    }
+                }
+            }
+        }
+    }
+
     @pytest.fixture
     def interface(self):
         yield AlexaInterface()
 
-    def test_message_received(self, interface):
-        req = self.request.copy()
+    def test_extract_entities(self, interface):
+        req = self.request_entity.copy()
+        message, entities = interface.parse_raw_message(req)
+        assert entities['intent'][0]['value'] == 'search'
+        assert entities['asset_type'][0]['value'] == 'movie'
