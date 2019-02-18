@@ -147,10 +147,7 @@ def start(args):
 def exit_and_close():
     print("Stopping...")
     for name, proc in PROCESSES.items():
-        try:
-            os.kill(proc.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+        proc.terminate()
     # Newline to show that we are finished
     time.sleep(1.0)
     print('-'*80)
