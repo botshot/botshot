@@ -14,13 +14,13 @@ class FacebookAdapter(MessageAdapter):
             LinkButton: self._link_button,
             PayloadButton: self._payload_button,
             PhoneButton: self._phone_button,
-            ShareButton: lambda button: {'type': 'element_share'},
+            ShareButton: self._share_button,
             AccountLinkButton: self._account_link_button,
-            AccountUnlinkButton: lambda button: {'type': 'account_unlink'},
+            AccountUnlinkButton: self._account_unlink_button,
 
             # Quick replies
             QuickReply: self._quick_reply,
-            LocationQuickReply: lambda reply: {'content_type': 'location'},
+            LocationQuickReply: self._location_quick_reply,
 
             # Templates
             CardTemplate: self._card_template,
@@ -32,29 +32,39 @@ class FacebookAdapter(MessageAdapter):
             MediaMessage: self._media_message,
         }
 
-    def transform_message(self, message: MessageElement, session=None):
+    def _share_button(self, button):
+        return {'type': 'element_share'}
+
+    def _account_unlink_button(self, button):
+        return {'type': 'account_unlink'}
+
+    def _location_quick_reply(self, button):
+        return {'content_type': 'location'}
+
+    def transform_message(self, message: MessageElement, conversation_meta=None):
+        if isinstance(message, MediaMessage):
+            # FIXME: media messages upload
+            raise NotImplementedError("Media messages are not supported yet.")
+            #if not self._is_facebook_url(message) and not self._retrieve_attachment(message.url):
+            #    self._upload_attachment(conversation, message.url, message.media_type, message.allow_cache)
         message_type = type(message)
         fn = self.functions.get(message_type)
         if not fn:
             raise Exception("Response {} is not supported in Facebook Messenger at the moment!".format(message_type))
         return fn(message)
 
-    def prepare_message(self, message: MessageElement, session):
-        if isinstance(message, MediaMessage):
-            if not self._is_facebook_url(message) and not self._retrieve_attachment(message.url):
-                self._upload_attachment(session, message.url, message.media_type, message.allow_cache)
 
     def _is_facebook_url(self, url):
         """Used to check whether an attachment needs to be uploaded to Facebook before sending."""
         return False  # FIXME
 
-    def _upload_attachment(self, session, url, type, allow_cache):
+    def _upload_attachment(self, conversation, url, type, allow_cache):
         """Uploads an attachment to FB servers."""
         from botshot.core.persistence import get_redis
         from botshot.core.interfaces.facebook import FacebookInterface
 
         redis = get_redis()
-        att_id = FacebookInterface.upload_attachment(session, url, type, allow_cache)
+        att_id = FacebookInterface.upload_attachment(conversation, url, type, allow_cache)
         if att_id is not None:
             expiry = 60 * 60 * 24  # a day
             redis.set("FB_ATTACHMENT_FOR_{url}".format(url=url), att_id, ex=expiry)
@@ -68,8 +78,6 @@ class FacebookAdapter(MessageAdapter):
         return att_id.decode("utf8") if att_id else None
 
     def _text_message(self, message: TextMessage):
-        print("TRANSFORMING TEXT MESSAGE!")
-
         if len(message.buttons) and message.quick_replies:
             raise Exception("A message can only have one of: quick replies, buttons")
         elif len(message.buttons):
@@ -101,7 +109,7 @@ class FacebookAdapter(MessageAdapter):
         return {
             'title': button.title,
             'type': 'postback',
-            'payload': json.dumps(button.payload, default=json_serialize)
+            'payload': json.dumps(button.payload)
         }
 
     def _phone_button(self, button: PhoneButton):
@@ -121,7 +129,7 @@ class FacebookAdapter(MessageAdapter):
         response = {
             "content_type": 'text',
             'title': reply.title[:20],
-            'payload': json.dumps(reply.payload if reply.payload else {}, default=json_serialize)
+            'payload': json.dumps(reply.payload or {})
         }
         if reply.image_url:
             response['image_url'] = reply.image_url

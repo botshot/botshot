@@ -1,10 +1,21 @@
-from botshot.core.chat_session import ChatSession, Profile
+from botshot.core.interfaces import BotshotInterface
+from botshot.models import ChatUser
 
-class TestInterface():
+
+class TestInterface(BotshotInterface):
+
     name = 'test'
-    prefix = 'test'
     messages = []
     states = []
+
+    def webhook(self, request):
+        pass
+
+    def send_responses(self, user: ChatUser, responses):
+        pass
+
+    def broadcast_responses(self, users, responses):
+        pass
 
     @staticmethod
     def clear():
@@ -12,7 +23,7 @@ class TestInterface():
         TestInterface.states = []
 
     @staticmethod
-    def fill_session_profile(session: ChatSession):
+    def fill_session_profile(session):
         if not session:
             raise ValueError("Session is None")
         session.profile = Profile(first_name='Test', last_name='')

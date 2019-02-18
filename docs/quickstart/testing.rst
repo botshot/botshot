@@ -24,3 +24,13 @@ my_tests/foo.py:
     actions.append(StateChange("greeting.intro"))
 
     actions.append(UserTextMessage ...
+
+#######################
+Unit testing
+#######################
+You can use `pytest-django`.
+Take a look at the package `botshot.core.tests`.
+
+.. code-block:: bash
+
+    pytest chatbot/tests

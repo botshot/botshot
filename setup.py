@@ -9,9 +9,14 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
 # allow setup.py to be run from any path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
+with open("botshot/version.py") as fp:
+    version_dict = {}
+    exec(fp.read(), version_dict)
+    __version__ = version_dict['__version__']
+
 setup(
     name='botshot',
-    version='0.90-beta',
+    version=__version__,
     packages=find_packages(),
     include_package_data=True,
     license='GPL',
@@ -22,7 +27,7 @@ setup(
     author_email='david.prihoda@gmail.com, zilinec.m@gmail.com',
     entry_points={
           'console_scripts': [
-              'bots = bots:main'
+              'bots = botshot.bots:main'
           ]
       },
     classifiers=[
@@ -41,6 +46,7 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
         'Topic :: Communications :: Chat',
     ],
-    install_requires=['django>=2.0.0', 'networkx', 'requests', 'six', 'sqlparse', 'wit==4.3.0', 'wheel', 'redis',
-                      'pytz', 'unidecode', 'emoji', 'elasticsearch', 'celery==4.1.1', 'python-dateutil', 'pyyaml'],
+    install_requires=['django>=2.1.5', 'networkx', 'requests', 'six', 'sqlparse', 'wit==4.3.0', 'wheel', 'redis', 'Pillow', 'jsonfield',
+                      'pytz', 'unidecode', 'emoji', 'elasticsearch', 'celery>=4.1.1', 'python-dateutil', 'pyyaml', 'djangorestframework',
+                      'pytest', 'pytest-django', 'mock'],
 )

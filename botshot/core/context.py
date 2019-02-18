@@ -50,12 +50,11 @@ class Context(object):
         entities = data.get("entities", {})
         return Context(dialog=dialog, entities=entities, history=history, counter=counter)
 
-    def add_entities(self, new_entities):
-        if new_entities is None:
-            return {}
-
-        # add all new entities
-        for entity_name, entity_values in new_entities.items():
+    def add_message_entities(self, entities):
+        # TODO don't increment when @ requires -> input and it's valid
+        # TODO what to say and do on invalid requires -> input?
+        self.counter += 1
+        for entity_name, entity_values in entities.items():
             # allow also direct passing of {'entity' : 'value'}
 
             if not isinstance(entity_values, dict) and not isinstance(entity_values, list):
@@ -64,24 +63,21 @@ class Context(object):
                 entity_values = [entity_values]
 
             # FIXME use a factory to build the correct subclass with right arguments
-
             # prepend each value to start of the list with 0 age
             for value in entity_values:
                 self.add_entity_dict(entity_name, value)
-        self.debug()
-        return new_entities
 
     def add_entity_dict(self, entity_name, entity_dict):
 
         if 'value' in entity_dict:
-            entity = EntityValue(self, entity_name, raw=entity_dict)
+            entity = EntityValue(entity_name, counter=self.counter, state_set=self.get_state_name(), raw=entity_dict)
             self.entities.setdefault(entity_name, []).insert(0, entity)
 
         if 'values' in entity_dict:  # compound entities (probably Wit.ai?)
             for item in entity_dict['values']:
                 for role, entity in item.items():
                     canon_name = entity_name + "__" + role
-                    entity = EntityValue(self, canon_name, value=entity)
+                    entity = EntityValue(canon_name, counter=self.counter, state_set=self.get_state_name(), value=entity)
                     self.entities.setdefault(canon_name, []).insert(0, entity)
 
     def add_state(self, state_name):
@@ -111,10 +107,10 @@ class Context(object):
         return self.history[index] if len(self.history) > index >= 0 else None
 
     def get_state_name(self):
-        return self.dialog.current_state_name
+        return ""  # FIXME: self.dialog.current_state_name
         # return self.history[-1] if len(self.history) > 0 else None
 
-    def get_all(self, entity, max_age=None, limit=None, ignored_values=tuple()) -> list:
+    def get_all(self, entity, max_age=None, limit=None, ignored_values=None) -> list:
         values = []
         if entity not in self.entities:
             return values
@@ -124,7 +120,7 @@ class Context(object):
             if max_age is not None and age > max_age:
                 break
             v = entity_obj.value
-            if v in ignored_values:
+            if ignored_values and v in ignored_values:
                 logging.info('Skipping ignored entity value: {} == {}'.format(entity, v))
                 continue
 
@@ -134,28 +130,28 @@ class Context(object):
                 break
         return values
     
-    def debug(self, max_age=5):
-        logging.info('-- HEAD of Context (max age {}): --'.format(max_age))
+    def debug(self, max_age=5, level=logging.INFO):
+        logging.log(level, '-- HEAD of Context (max age {}): --'.format(max_age))
         for entity in self.entities:
             entities = self.get_all_first(entity, max_age=max_age)
             if entities:
                 vs = [entity.value for entity in entities]
-                logging.info('{} (age {}): {}'.format(entity, self.counter - entities[0].counter, vs if len(vs) > 1 else vs[0]))
-        logging.info('----------------------------------')
+                logging.log(level, '{} (age {}): {}'.format(entity, self.counter - entities[0].counter, vs if len(vs) > 1 else vs[0]))
+        logging.log(level, '----------------------------------')
 
-    def get(self, entity, max_age=None, ignored_values=tuple()) -> EntityValue or None:
+    def get(self, entity, max_age=None, ignored_values=None) -> EntityValue or None:
         values = self.get_all(entity, max_age=max_age, limit=1, ignored_values=ignored_values)
         if not values:
             return None
         return values[0]
 
-    def get_value(self, entity, max_age=None, ignored_values=tuple()) -> object:
-        values = self.get_all(entity, max_age, ignored_values)
+    def get_value(self, entity, max_age=None, ignored_values=None) -> object:
+        values = self.get_all(entity, max_age=max_age, limit=1, ignored_values=ignored_values)
         if not values:
             return None
         return values[0].value
 
-    def get_age(self, entity, max_age=None, ignored_values=tuple()):
+    def get_age(self, entity, max_age=None, ignored_values=None):
         ents = self.get_all(entity, max_age=max_age, limit=1, ignored_values=ignored_values)
         if not ents:
             return None, None
@@ -186,12 +182,12 @@ class Context(object):
         if not isinstance(value_dict, dict):
             raise ValueError('Use a dict to set a context value, e.g. {"value":"foo"}. Call multiple times to add more.')
         value_dict['counter'] = self.counter
-        entity_obj = EntityValue(self, entity_name, raw=value_dict)
+        entity_obj = EntityValue(entity_name, counter=self.counter, state_set=self.get_state_name(), raw=value_dict)
         self.entities.setdefault(entity_name, []).insert(0, entity_obj)
         self.entities[entity_name] = self.entities[entity_name][:self.max_depth - 1]
 
     def set_value(self, entity_name, value):
-        entity_obj = EntityValue(self, entity_name, value=value)
+        entity_obj = EntityValue(entity_name, counter=self.counter, state_set=self.get_state_name(), value=value)
         self.entities.setdefault(entity_name, []).insert(0, entity_obj)
         self.entities[entity_name] = self.entities[entity_name][:self.max_depth - 1]
 
@@ -212,6 +208,6 @@ class Context(object):
 
     def __setitem__(self, key, value):
         if not isinstance(value, EntityValue):
-            value = EntityValue(self, key, value=value)
+            value = EntityValue(key, counter=self.counter, state_set=self.get_state_name(), value=value)
         self.entities.setdefault(key, []).insert(0, value)
         return self.__getitem__(key)  # mainly to shut up IDE warnings

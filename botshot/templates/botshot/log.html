@@ -3,17 +3,11 @@
 {% block title %}Messages{% endblock %}
 {% block content %}
   <div class="row">
-    <div class="col-xs-6 col-sm-3">
+    <div class="col-6 col-sm-3">
       <div id="log-conversations">
-      {% for group in groups %}
-        <a class="log-conversation" href="#{{ group.id }}">
-        <strong>{{ group.name }}</strong>
-        </a>
-        
-      {% endfor %}
       </div>
     </div>
-    <div class="col-xs-6 col-sm-9" id="content">
+    <div class="col-6 col-sm-9" id="content">
       Loading...
     </div>
   </div>
@@ -23,18 +17,48 @@
 var page = 1;
 $(function(){
 
-  var id = window.location.hash.replace('#','');
-  if(!id) {
-    id = $('.log-conversation').eq(0).attr('href').replace('#','')
-  }
-  load_group(id, page);
+  var $conversations = $('#log-conversations')
+  var $content = $('#content')
+
+ $.get(url='{% url 'log/conversations' %}?page='+page, {}, function(data){
+    console.log('Conversations', data)
+    var hash_id = window.location.hash ? window.location.hash.replace('#','') : null
+    var conversation_id = null
+    if(data.results === undefined || data.results.length == 0){
+      console.log('No conversations', data)
+      return;
+    }
+    for(var i in data.results){
+      var result = data.results[i]
+      console.log(result)
+      // Accept hash ID if the conversation is present in current list
+      if(result.conversation_id == hash_id){
+        conversation_id = hash_id
+      }
+
+      var name = result.name || "Anonymous user"
+      var $conversation = $('<a />').attr({'class':'log-conversation clearfix','href':'#'+result.conversation_id})
+      var image_url = result.users ? result.users[0].image : null
+      console.log(result.image)
+      var $conversationImage = $('<span />').attr({'class': 'log-conversation-image'}).css({'background-image': 'url('+image_url+')'})
+      var $conversationName = $('<span />').addClass('log-conversation-name').text(name)
+      $conversation.append($conversationImage).append($conversationName)
+      $conversations.append($conversation)
+    }
+    if(!conversation_id){
+      conversation_id = data.results[0].conversation_id
+    }
+    load_conversation(conversation_id, page);
+
+  });
+
   $(window).bind('hashchange', function(){
     page = 1;
-    load_group(window.location.hash.replace('#',''), page)
+    load_conversation(window.location.hash.replace('#',''), page)
   })
+
   $(document).on('click', '.message', function(){
-      meta = $(this).data('meta')
-      //console.log('-- '+ $(this).find('.message-bubble').text()+' -------------')
+      var meta = $(this).data('meta')
       console.log(meta)
       var $debug = $(this).find('.debug');
       $debug.html('')
@@ -49,46 +73,65 @@ $(function(){
       }
     })
 
+    function format_message(message){
+      var $message = $('<div />')
+      if(message.is_user){
+        $message.addClass('message-user float-right')
+      } else {
+        $message.addClass('message-bot float-left')
+      }
+      var $bubble = $('<div />').addClass('message-bubble').text(message.text)
+      $message.append($bubble)
+      return $message
+    }
+
+    function load_conversation(id, page){
+      if(!id) return;
+      $('.log-conversation').removeClass('active');
+      $('a.log-conversation[href="#'+id+'"]').addClass('active');
+
+      if(page == 1){
+        $content.html('')
+      }
+      $.get(url='{% url 'log/messages' '' %}'+id+'?page='+page, {}, function(data){
+        if(!data.results){
+          console.log('No messages:', data)
+          return;
+        }
+        var $div = $('<div />')
+        var $older = $('<a/>')
+        $older.attr('class','show-older')
+        $older.text('Load older...')
+        $older.click(function(){
+          $(this).hide()
+          page += 1
+          load_conversation(id, page)
+        })
+
+        for(var i in data.results){
+          var result = data.results[i]
+          console.log(result)
+          var $message = format_message(result)
+          $div.prepend('<div class="clearfix"></div>')
+          $div.prepend($message)
+        }
+        if(data.next){
+          $div.prepend($older)
+        }
+        $content.prepend($div)
+
+        if(page == 1){
+          // Scroll down
+          setTimeout(function(){
+            $content.scrollTop($content.prop("scrollHeight"));
+          }, 100)
+        }
+      })
+
+    }
 })
 
 
-  
-
-function load_group(id, page){
-  if(!id) return;
-  $('.log-conversation').removeClass('active');
-  $('a[href="#'+id+'"]').addClass('active');
-
-
-  var $content = $('#content')
-  if(page == 1){
-    $content.html('')
-  }
-  $.get(url='{% url 'log_conversation' %}'+id+'/'+page, {}, function(data){
-    var $div = $('<div />')
-    var $older = $('<a/>')
-
-    $older.attr('class','show-older')
-    $older.text('Load older...')
-    $older.click(function(){
-      $(this).hide()
-      page += 1
-      load_group(id, page)
-    })
-    $div.append($older)
-    $div.append(data)
-
-    $content.prepend($div)
-
-    if(page == 1){
-      setTimeout(function(){
-        $content.scrollTop($content.prop("scrollHeight"));
-      }, 100)
-    }
-  })
-
-
-}
 </script>
 {% endblock %}
 
@@ -198,15 +241,23 @@ body{
 }
 .log-conversation {
   display: block;
-  padding: 10px 15px;
   border-bottom: 1px solid #bbb;
   background: #eee;
   text-decoration: none;
   color: black;
 }
-.log-conversation strong {
-  text-decoration: none;
-  color: black;
+.log-conversation .log-conversation-image {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    float: left;
+    background: no-repeat white top left;
+    background-size: cover;
+}
+.log-conversation .log-conversation-name {
+    padding: 10px 10px;
+    display: inline-block;
+    float: left;
 }
 .log-conversation:hover {
   background: #f8f8f8;
@@ -217,6 +268,7 @@ body{
   background: white;
   text-decoration: none;
   color: black;
+  font-weight: bold;
 }
 #header {
   height: 10vh;

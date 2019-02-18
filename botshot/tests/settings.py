@@ -6,6 +6,11 @@ BOT_CONFIG = {
         "PORT": 6379,
         "PASSWORD": None,
     },
+    "INTERFACES": [
+        "botshot.tests.test_chat_manager._TestInterface",
+    ],
+    "GREETING_INTENT": "default",
+    "TELEGRAM_TOKEN": "foo"
 }
 
 DATABASES = {
@@ -16,3 +21,9 @@ DATABASES = {
 }
 
 SECRET_KEY = "foo"
+
+INSTALLED_APPS = (
+    'botshot',
+)
+
+USE_TZ = True

@@ -1,10 +1,49 @@
 from typing import Optional
-
 import importlib
 import re
 from abc import abstractmethod, ABC
-
+from django.conf import settings
 from botshot.core.responses import AttachmentMessage
+import os
+import logging
+from inspect import getsource
+from django.utils.module_loading import import_string
+
+_FLOWS = None
+
+def get_flows(cache=True):
+    """Creates flows from their YAML definitions."""
+    global _FLOWS
+    if not cache or _FLOWS is None:
+        import yaml
+        flows = {}  # a dict with all the flows loaded from YAML
+        BOTS = settings.BOT_CONFIG.get('BOTS', [])
+        for filename in BOTS:
+            try:
+                with open(os.path.join(settings.BASE_DIR, filename)) as f:
+                    definitions = yaml.load(f)
+                    if not definitions:
+                        logging.warning("Skipping empty flow definition {}".format(filename))
+                        break
+                    for flow_name in definitions:
+                        if flow_name in flows:
+                            raise Exception("Error: duplicate flow {}".format(flow_name))
+                        definition = definitions[flow_name]
+                        flow = Flow.load(flow_name, definition, relpath=os.path.dirname(filename))
+                        flows[flow_name] = flow
+            except OSError as e:
+                raise ValueError("Unable to open definition {}".format(filename)) from e
+            except TypeError as e:
+                raise ValueError("Unable to read definition {}".format(filename)) from e
+
+        if not flows.get('default') or not flows.get('default').get_state('root'):
+            raise Exception("Required state default.root was not found. "
+                            "Please add this state, Botshot uses it as the first state when starting a conversation.")
+
+        print('Initialized {} flows: {}'.format(len(flows), sorted(list(flows.keys()))))
+
+        _FLOWS = flows
+    return _FLOWS
 
 
 class State:
@@ -15,7 +54,7 @@ class State:
         :param name:            name of this state
         :param action:          function that will run when moving to this state
         :param intent
-        :param requires
+        :param requires         list of EntityRequirement (optional)
         :param is_temporary     whether the action should fire just once,
                                  after that, the state will be used just as a basis for transitions
                                  and unrecognized messages will move to default.root instead.
@@ -26,7 +65,7 @@ class State:
         self.name = str(name)
         self.action = action
         self.intent = intent
-        self.requires = requires
+        self.requires = requires or []
         self.is_temporary = is_temporary
         self.supported = supported or set()
         self.unsupported = unsupported
@@ -102,21 +141,12 @@ class State:
             return action
         elif isinstance(action, str):
             # dynamically load the function
-
             try:
-                rel_module, fn_name = action.rsplit(".", maxsplit=1)
-                try:
-                    # try to import as relative path
-                    module = importlib.import_module(rel_module)
-                except:
-                    # try to import as absolute path
-                    abs_module = relpath + "." + rel_module
-                    module = importlib.import_module(abs_module)
-
-                fn = getattr(module, fn_name)
-                return fn
-            except Exception as e:
-                raise Exception("An error occurred while importing action {}. See the exception above.".format(action)) from e
+                # try to import as absolute path
+                return import_string(action)
+            except ImportError:
+                # try to import relative to flow module
+                return import_string(relpath + "." + action)
         elif isinstance(action, dict):
             # load a static action, such as text or image
             return State.make_default_action(action)
@@ -201,6 +231,9 @@ class State:
                 return requirement
         return True
 
+    def get_action_code(self):
+        return getsource(self.action) if callable(self.action) else None
+
     def is_supported(self, msg_entities: set) -> bool:
         """Checks whether this state can handle a message with given entities."""
         return not self.supported.isdisjoint(msg_entities)
@@ -229,8 +262,7 @@ class Flow:
         self.unsupported = unsupported
 
     @staticmethod
-    def load(name, data: dict):
-        relpath = data.get("relpath")  # directory of relative imports
+    def load(name, data: dict, relpath: str):
         states = dict(State.load(s, relpath) for s in data["states"])
         intent = data.get("intent", name)
         unsupported = None
@@ -317,14 +349,6 @@ class ConditionRequirement(Requirement):
 
     def matches(self, context) -> bool:
         return self.condition(context)
-
-
-def load_flows_from_definitions(data: dict):
-    flows = {}
-    for flow_name, flow_definition in data.items():
-        flow = Flow.load(flow_name, flow_definition)
-        flows[flow_name] = flow
-    return flows
 
 
 def dynamic_response_fn(messages, next=None):

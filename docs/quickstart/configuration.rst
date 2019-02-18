@@ -57,3 +57,10 @@ Then, to make it load automatically, you can for example:
 
 - (virtualenv) add this line to `env/bin/activate`: ``export $(grep -v '^#' .env | xargs)``
 - (PyCharm) use the EnvFile plugin, add the file in run configuration
+
+
++++++++++++++++++++++++++++++++++++++++++++++
+BOT_CONFIG reference
++++++++++++++++++++++++++++++++++++++++++++++
+
+- WEBCHAT_WELCOME_MESSAGE

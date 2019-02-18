@@ -9,23 +9,11 @@ class MessageAdapter(ABC):
         pass
 
     @abstractmethod
-    def transform_message(self, message: MessageElement, session):
+    def transform_message(self, message: MessageElement, conversation_meta):
         """
         Transform a message to messaging platform's native format.
         :param message: Instance of MessageElement.
-        :param session: Instance of ChatSession.
+        :param conversation_meta: Dict with ChatConversation metadata.
         :returns: the transformed message object
-        """
-        pass
-
-    @abstractmethod
-    def prepare_message(self, message: MessageElement, session):
-        """
-        Do any additional work you have to do in this method,
-        such as caching or uploading images.
-        Called before transform_message.
-        :param message: Instance of MessageElement.
-        :param session: Instance of ChatSession.
-        :returns: Nothing.
         """
         pass

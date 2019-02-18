@@ -1,347 +1,279 @@
-import datetime
 import logging
-
 import requests
-from django.conf import settings
-
-from botshot.core.chat_session import ChatSession
 from botshot.core.interfaces.adapter.facebook import FacebookAdapter
-from botshot.core.message_parser import parse_text_message
-from botshot.core.persistence import get_redis
+from botshot.core.parsing.raw_message import RawMessage
 from botshot.core.responses.buttons import *
-from botshot.core.responses.quick_reply import QuickReply
 from botshot.core.responses.responses import *
 from botshot.core.responses.settings import ThreadSetting, GreetingSetting, GetStartedSetting, MenuSetting
-from botshot.core.responses.templates import ListTemplate
-from botshot.core.serialize import json_deserialize
-from botshot.tasks import accept_user_message
+from django.http.response import HttpResponse
+from botshot.core.interfaces import BasicAsyncInterface
+from botshot.core import config
+from botshot.models import ChatMessage, ChatUser
 
 
-class FacebookInterface():
+class FacebookInterface(BasicAsyncInterface):
     name = 'facebook'
-    prefix = 'fb'
-    TEXT_LENGTH_LIMIT = 320
-    adapter = FacebookAdapter()
 
-    # Post function to handle Facebook messages
-    @staticmethod
-    def accept_request(request):
+    def __init__(self):
+        super().__init__()
+        self.verify_token = config.get_required('FB_VERIFY_TOKEN')
+        self.pages = self._init_pages()
+        self.adapter = FacebookAdapter()
+
+    def _init_pages(self):
+        page_configs = config.get_required('FB_PAGES')
+        pages = []
+        for page_config in page_configs:
+            name = page_config.get('NAME')
+            if name is None:
+                raise ValueError("FB_PAGES page property 'NAME' is missing.")
+            token = page_config.get('TOKEN')
+            if token is None:
+                raise ValueError("FB_PAGES page '{}' property 'TOKEN' is missing.".format(name))
+            page_id = page_config.get('PAGE_ID')
+            if page_id is None and len(page_configs) > 1:
+                raise ValueError("FB_PAGES page '{}' property 'PAGE_ID' has to be specified "
+                                 "when multiple pages are present.".format(name))
+            pages.append(MessengerPage(name=name, token=token, page_id=page_id))
+        return pages
+
+    def webhook_get(self, request):
+        if request.GET.get('hub.verify_token') == self.verify_token:
+            return HttpResponse(request.GET['hub.challenge'])
+        else:
+            return HttpResponse('Error, token not matching FB_VERIFY_TOKEN.')
+
+    def get_page(self, page_id):
+        for page in self.pages:
+            if page.page_id == page_id or page.page_id is None:
+                return page
+        raise ValueError("Facebook page not found by page_id = '{}' in FB_PAGES.".format(page_id))
+
+    def parse_raw_messages(self, request):
         # Facebook recommends going through every entry since they might send
         # multiple messages in a single call during high load.
         for entry in request['entry']:
-            for raw_message in entry['messaging']:
-                ts_datetime = datetime.datetime.fromtimestamp(int(raw_message['timestamp']) / 1000)
-                crr_datetime = datetime.datetime.utcnow()
-                diff = crr_datetime - ts_datetime
-                if diff.total_seconds() < settings.BOT_CONFIG.get('MSG_LIMIT_SECONDS', 15):
-                    # get and persist user and page ids
-                    logging.debug('Incoming raw FB message: {}'.format(raw_message))
-                    user_id = raw_message['sender']['id']
-                    page_id = entry['id']
-                    chat_id = FacebookInterface.create_chat_id(page_id, user_id)
-                    meta = {"user_id": user_id, "page_id": page_id}
-                    session = ChatSession(FacebookInterface, chat_id, meta=meta)
-                    FacebookInterface.fill_session_profile(session)
-                    # Confirm accepted message
-                    FacebookInterface.post_message(session, SenderActionMessage('mark_seen'))
-                    # Add it to the message queue
-                    accept_user_message.delay(session.to_json(), raw_message)
-                elif raw_message.get('timestamp'):
-                    logging.warning("Delay {} too big, ignoring message!".format(diff))
+            for event in entry['messaging']:
+                raw_message = self._parse_raw_message(event)
+                if raw_message is None:
+                    continue
+                yield raw_message
 
-    @staticmethod
-    def chat_id_to_page_id(chat_id):
-        return chat_id.split('_', maxsplit=1)[0]
+    def _parse_raw_message(self, event):
+        timestamp = event['timestamp'] / 1000
+        user_id = event['sender']['id']
+        page_id = event['recipient']['id']
+        raw_conversation_id = user_id
+        conversation_meta = {"page_id": page_id}
+        text = None
 
-    @staticmethod
-    def create_chat_id(page_id, fbid):
-        return "{}_{}".format(page_id, fbid)
+        if 'postback' in event:
+            payload = json.loads(event['postback']['payload'])
+            type = ChatMessage.BUTTON
+        elif 'message' in event:
+            message = event['message']
+            type = ChatMessage.MESSAGE
+            payload = None
+            if 'text' in message:
+                text = message['text']
+            # Parse payload from special messages
+            if 'sticker_id' in message:
+                payload = {'sticker_id': message['sticker_id']}
+                if message['sticker_id'] in [369239383222810, 369239343222814, 369239263222822]:
+                    payload['intent'] = 'thumbs_up'
+            elif 'attachments' in message:
+                payload = {
+                    'current_location': [],
+                    'attachment': []
+                }
+                for attachment in message['attachments']:
+                    if 'coordinates' in attachment['payload']:
+                        payload['current_location'].append({
+                            'value': attachment['title'],
+                            'name': attachment['title'],
+                            'coordinates': attachment['payload']['coordinates']
+                        })
+                    if 'url' in attachment['payload']:
+                        url = attachment['payload']['url']
+                        # TODO: add attachment type by extension
+                        payload['attachment'].append({'value': url})
+                        payload['intent'] = 'attachment'
+            elif 'quick_reply' in message:
+                payload = json.loads(message['quick_reply'].get('payload'))
+        else:
+            logging.warning("Ignoring unrecognized Messenger webhook event: %s", event)
+            return None
 
-    @staticmethod
-    def get_page_token(page_id):
-        if 'FB_PAGE_TOKENS' in settings.BOT_CONFIG:
-            tokens = settings.BOT_CONFIG.get('FB_PAGE_TOKENS')
-            if page_id not in tokens:
-                raise Exception('Page id "{}" not in tokens: {}'.format(page_id, tokens))
-            return tokens.get(page_id)
-        elif 'FB_PAGE_TOKEN' in settings.BOT_CONFIG:  # there is just one page
-            return settings.BOT_CONFIG.get("FB_PAGE_TOKEN")
-        return None
+        return RawMessage(
+            interface=self,
+            raw_user_id=user_id,
+            raw_conversation_id=raw_conversation_id,
+            conversation_meta=conversation_meta,
+            type=type,
+            text=text,
+            payload=payload,
+            timestamp=timestamp
+        )
 
-    @staticmethod
-    def load_profile(user_id, page_id, cache=True):
+    def on_message_received(self, raw_message: RawMessage):
+        # Confirm accepted message
+        self._send_responses(
+            fbid=raw_message.raw_user_id,
+            conversation_meta=raw_message.conversation_meta,
+            responses=[SenderActionMessage('mark_seen')]
+        )
 
-        db = get_redis()
-        key = 'fb_profile_' + user_id
+    def on_message_processing_start(self, message: ChatMessage):
+        # Show typing animation when message processing starts
+        self.send_responses(message.conversation, None, SenderActionMessage('typing_on'))
 
-        if not cache or not db.exists(key):
-            logging.debug('Loading fb profile...')
-
-            url = "https://graph.facebook.com/v2.6/" + user_id
+    def fill_user_details(self, user: ChatUser):
+        try:
+            url = "https://graph.facebook.com/v2.6/" + user.raw_user_id
             params = {
-                'fields': 'first_name,last_name,profile_pic,locale,timezone,gender',
-                'access_token': FacebookInterface.get_page_token(page_id)
+                'fields': 'first_name,last_name,profile_pic,picture.type(normal),locale,timezone,gender',
+                'access_token': None # TODO: self.get_page(user.conversation.meta.get('page_id')).token
             }
             res = requests.get(url, params=params)
             if not res.status_code == requests.codes.ok:
-                logging.error("ERROR loading FB profile! Response: {}".format(res.text))
-                return {}
+                logging.error("ERROR: Loading FB profile, got response: {}".format(res.text))
+                return
 
-            db.set(key, json.dumps(res.json()), ex=3600 * 24 * 14)  # save value, expire in 14 days
+            response = res.json()
 
-        return json.loads(db.get(key).decode('utf-8'))
+            image_url = response.get("picture", {}).get('data', {}).get('url')
+            user.save_image(image_url, extension='.jpeg')
+            user.first_name = response.get("first_name")
+            user.last_name = response.get("last_name")
+            user.locale = response.get("locale")
+            # user.conversation.name = '{} {}'.format(user.first_name, user.last_name)
+        except:
+            logging.error('Unexpected error loading FB user profile')
 
-    @staticmethod
-    def fill_session_profile(session: ChatSession):
-        if not session:
-            raise ValueError("Session is None")
-        user_id, page_id = session.meta.get("user_id"), session.meta.get("page_id")
-        profile_dict = FacebookInterface.load_profile(user_id, page_id)
-        session.profile.first_name = profile_dict.get("first_name")
-        session.profile.last_name = profile_dict.get("last_name")
-        return session
+    def send_responses(self, conversation, reply_to, responses):
 
-    @staticmethod
-    def post_message(session: ChatSession, response):
-        fbid = session.meta.get("user_id")
-        page_id = session.meta.get("page_id")
+        return self._send_responses(
+            fbid=conversation.raw_conversation_id,
+            conversation_meta=conversation.meta,
+            responses=responses
+        )
 
-        if isinstance(response, SenderActionMessage):
-            request_mode = "messages"
-            response_dict = {
-                'sender_action': response.action,
-                'recipient': {"id": fbid},
-            }
-        elif isinstance(response, MessageElement):
-            message_tag = response.get_message_tag()
-            message = FacebookInterface.to_message(response, session)
-            response_dict = {
-                "recipient": {"id": fbid},
-                "message": message,
-                "messaging_type": "MESSAGE_TAG" if message_tag else "RESPONSE",
-                "tag": message_tag,
-            }
-            request_mode = "messages"
-        else:
-            raise ValueError('Error: Invalid message type: {}: {}'.format(type(response), response))
+    def _send_responses(self, fbid, conversation_meta, responses):
+        page_id = conversation_meta.get('page_id')
+        token = self.get_page(page_id).token
 
-        FacebookInterface._do_post(request_mode, response_dict, page_id)
+        if not isinstance(responses, list):
+            responses = [responses]
 
-    @staticmethod
-    def post_setting(page_id, response):
-        if isinstance(response, ThreadSetting):
-            request_mode = "thread_settings"
-            response_dict = FacebookInterface.to_setting(response)
-            logging.debug('Sending FB setting: {}'.format(response_dict))
-            FacebookInterface._do_post(request_mode, response_dict, page_id)
-        else:
-            raise ValueError('Error: Invalid message type: {}: {}'.format(type(response), response))
-
-    @staticmethod
-    def _do_post(request_mode, response_dict, page_id):
-        prefix_post_message_url = 'https://graph.facebook.com/v2.6/me/'
-        token = FacebookInterface.get_page_token(page_id)
-        post_message_url = prefix_post_message_url + request_mode + '?access_token=' + token
-
-        r = requests.post(post_message_url,
-                          headers={"Content-Type": "application/json"},
-                          data=json.dumps(response_dict, default=json_serialize))
-        if r.status_code != 200:
-            logging.error('ERROR: MESSAGE REFUSED: {}'.format(response_dict))
-            logging.error('ERROR: {}'.format(r.text))
-            logging.exception(r.json()['error']['message'])
-
-    @staticmethod
-    def to_setting(response):
-        if isinstance(response, GreetingSetting):
-            return {
-                "greeting": {'text': response.message},
-                "setting_type": "greeting"
-            }
-        elif isinstance(response, GetStartedSetting):
-            return {
-                "call_to_actions": [{'payload': json.dumps(response.payload, default=json_serialize)}],
-                "setting_type": "call_to_actions",
-                "thread_state": "new_thread"
-            }
-        elif isinstance(response, MenuSetting):
-            return {
-                "call_to_actions": [FacebookInterface.to_setting(element) for element in response.elements[:10]],
-                "setting_type": "call_to_actions",
-                "thread_state": "existing_thread"
-            }
-        elif isinstance(response, MenuElement):
-            r = {
-                "title": response.title,
-                "type": response.type,
-            }
-            if response.payload:
-                r['payload'] = json.dumps(response.payload, default=json_serialize)
-            if response.url:
-                r['url'] = response.url
-            return r
-        raise ValueError('Error: Invalid setting type: {}: {}'.format(type(response), response))
-
-    @staticmethod
-    def to_message(response, session):
-        FacebookInterface.adapter.prepare_message(response, session)
-        return FacebookInterface.adapter.transform_message(response)
-        # if isinstance(response, TextMessage):
-        #     if response.buttons:
-        #         return {
-        #             "attachment": {
-        #                 "type": "template",
-        #                 "payload": {
-        #                     "template_type": "button",
-        #                     "text": response.text[:FacebookInterface.TEXT_LENGTH_LIMIT],
-        #                     "buttons": [FacebookInterface.to_message(button) for button in response.buttons]
-        #                 }
-        #             }
-        #         }
-        #     message = {'text': response.text[:FacebookInterface.TEXT_LENGTH_LIMIT]}
-        #     if response.quick_replies:
-        #         message["quick_replies"] = [FacebookInterface.to_message(reply) for reply in response.quick_replies]
-        #     return message
-        #
-        # elif isinstance(response, GenericTemplateMessage):
-        #     return {
-        #         "attachment": {
-        #             "type": "template",
-        #             "payload": {
-        #                 "template_type": "generic",
-        #                 "elements": [FacebookInterface.to_message(element) for element in response.elements[:10]]
-        #             }
-        #         }
-        #     }
-        #
-        # elif isinstance(response, AttachmentMessage):
-        #     return {
-        #         "attachment": {
-        #             "type": response.attachment_type,
-        #             "payload": {
-        #                 "url": response.url
-        #             }
-        #         }
-        #     }
-        #
-        # elif isinstance(response, GenericTemplateElement):
-        #     message = {
-        #         "title": response.title,
-        #         "image_url": response.image_url,
-        #         "subtitle": response.subtitle,
-        #         "item_url": response.item_url
-        #     }
-        #     if response.buttons:
-        #         message["buttons"] = [FacebookInterface.to_message(button) for button in response.buttons]
-        #     return message
-        #
-        # elif isinstance(response, QuickReply):
-        #     return response.to_response()
-        #
-        # elif isinstance(response, Button):
-        #     return response.to_response()
-        #
-        # elif isinstance(response, ListTemplate):
-        #     return response.to_response()
-        #
-        # raise ValueError('Error: Invalid message type: {}: {}'.format(type(response), response))
-
-    @staticmethod
-    def send_settings(setting_list):
-        for setting in setting_list:
-            if 'FB_PAGE_TOKENS' in settings.BOT_CONFIG:
-                for page_id in settings.BOT_CONFIG.get('FB_PAGE_TOKENS'):
-                    FacebookInterface.post_setting(page_id, setting)
-            elif 'FB_PAGE_TOKEN' in settings.BOT_CONFIG:
-                FacebookInterface.post_setting("", setting)
-
-    @staticmethod
-    def processing_start(session: ChatSession):
-        # Show typing animation
-        FacebookInterface.post_message(session, SenderActionMessage('typing_on'))
-
-    @staticmethod
-    def processing_end(session: ChatSession):
-        pass
-
-    @staticmethod
-    def state_change(state):
-        pass
-
-    @staticmethod
-    def parse_message(raw_message, num_tries=1):
-        if 'postback' in raw_message:
-            payload = json.loads(raw_message['postback']['payload'], object_hook=json_deserialize)
-            payload['_message_text'] = [{'value': None}]
-            return {'entities': payload, 'type': 'postback'}
-        elif 'message' in raw_message:
-            if 'sticker_id' in raw_message['message']:
-                return FacebookInterface.parse_sticker(raw_message['message']['sticker_id'])
-            if 'attachments' in raw_message['message']:
-                attachments = raw_message['message']['attachments']
-                return FacebookInterface.parse_attachments(attachments)
-            if 'quick_reply' in raw_message['message']:
-                payload = json.loads(raw_message['message']['quick_reply'].get('payload'), object_hook=json_deserialize)
-                if payload:
-                    payload['_message_text'] = [{'value': raw_message['message']['text']}]
-                    return {'entities': payload, 'type': 'postback'}
-            if 'text' in raw_message['message']:
-                return parse_text_message(raw_message['message']['text'])
-        return {'type': 'undefined'}
-
-    @staticmethod
-    def parse_sticker(sticker_id):
-        if sticker_id in [369239383222810, 369239343222814, 369239263222822]:
-            return {'entities': {'emoji': 'thumbs_up_sign', '_message_text': None}, 'type': 'message'}
-
-        return {'entities': {'sticker_id': sticker_id, '_message_text': None}, 'type': 'message'}
-
-    @staticmethod
-    def parse_attachments(attachments):
-        entities = {
-            'intent': [],
-            'current_location': [],
-            'attachment': [],
-            '_message_text': [{'value': None}]
-        }
-        for attachment in attachments:
-            if 'coordinates' in attachment['payload']:
-                coordinates = attachment['payload']['coordinates']
-                entities['current_location'].append({'value': attachment['title'], 'name': attachment['title'],
-                                                     'coordinates': coordinates, 'timestamp': datetime.datetime.now()})
-            if 'url' in attachment['payload']:
-                url = attachment['payload']['url']
-                # TODO: add attachment type by extension
-                entities['attachment'].append({'value': url})
-                entities['intent'].append({'value': 'attachment'})
-        return {'entities': entities, 'type': 'message'}
-
-    @staticmethod
-    def upload_attachment(session, attachment_url, type, is_reusable=True):
-        """
-        Uploads a file from the given URL to Facebook's servers.
-        :returns: Id of the attachment if uploaded successfully, None otherwise.
-        """
-
-        data = {
-            "message": {
-                "attachment": {
-                    "type": type,
-                    "payload": {
-                        "is_reusable": is_reusable,
-                        "url": attachment_url
-                    }
+        for response in responses:
+            if isinstance(response, SenderActionMessage):
+                request_mode = "messages"
+                response_dict = {
+                    'sender_action': response.action,
+                    'recipient': {"id": fbid},
                 }
-            }
-        }
+            elif isinstance(response, MessageElement):
+                message_tag = response.get_message_tag()
+                message = self.adapter.transform_message(response, conversation_meta=conversation_meta)
 
-        prefix_post_message_url = 'https://graph.facebook.com/v2.6/me/'
-        page_id = session.meta.get("page_id")
-        token = FacebookInterface.get_page_token(page_id)
-        post_message_url = prefix_post_message_url + "message_attachments" + '?access_token=' + token
-        r = requests.post(url=post_message_url, data=json.dumps(data), headers={"Content-Type": "application/json"})
-        response = r.json()
-        if r.status_code != 200:
-            logging.error("Couldn't upload attachment: {}".format(response))
-            logging.exception(response['error']['message'])
-        return response.get("attachment_id")
+                response_dict = {
+                    "recipient": {"id": fbid},
+                    "message": message,
+                    "messaging_type": "MESSAGE_TAG" if message_tag else "RESPONSE",
+                    "tag": message_tag,
+                }
+                request_mode = "messages"
+            else:
+                # TODO: Check what happens when this error is thrown
+                raise ValueError('Error: Invalid message type: {}: {}'.format(type(response), response))
+
+            prefix_post_message_url = 'https://graph.facebook.com/v2.6/me/'
+
+            post_message_url = prefix_post_message_url + request_mode + '?access_token=' + token
+
+            r = requests.post(post_message_url,
+                              headers={"Content-Type": "application/json"},
+                              data=json.dumps(response_dict))
+
+            if r.status_code != 200:
+                logging.error('ERROR: MESSAGE REFUSED: {}'.format(response_dict))
+                logging.error('ERROR: {}'.format(r.text))
+                logging.exception(r.json()['error']['message'])
+
+    # @staticmethod
+    # def post_setting(page_id, response):
+    #     if isinstance(response, ThreadSetting):
+    #         request_mode = "thread_settings"
+    #         response_dict = FacebookInterface.to_setting(response)
+    #         logging.info('Sending FB setting: {}'.format(response_dict))
+    #         FacebookInterface._do_post(request_mode, response_dict, page_id)
+    #     else:
+    #         raise ValueError('Error: Invalid message type: {}: {}'.format(type(response), response))
+
+
+    # @staticmethod
+    # def to_setting(response):
+    #     if isinstance(response, GreetingSetting):
+    #         return {
+    #             "greeting": {'text': response.message},
+    #             "setting_type": "greeting"
+    #         }
+    #     elif isinstance(response, GetStartedSetting):
+    #         return {
+    #             "call_to_actions": [{'payload': json.dumps(response.payload)}],
+    #             "setting_type": "call_to_actions",
+    #             "thread_state": "new_thread"
+    #         }
+    #     elif isinstance(response, MenuSetting):
+    #         return {
+    #             "call_to_actions": [FacebookInterface.to_setting(element) for element in response.elements[:10]],
+    #             "setting_type": "call_to_actions",
+    #             "thread_state": "existing_thread"
+    #         }
+    #     elif isinstance(response, MenuElement):
+    #         r = {
+    #             "title": response.title,
+    #             "type": response.type,
+    #         }
+    #         if response.payload:
+    #             r['payload'] = json.dumps(response.payload)
+    #         if response.url:
+    #             r['url'] = response.url
+    #         return r
+    #     raise ValueError('Error: Invalid setting type: {}: {}'.format(type(response), response))
+
+    # def upload_attachment(self, conversation, attachment_url, type, is_reusable=True):
+    #     """
+    #     Uploads a file from the given URL to Facebook's servers.
+    #     :returns: Id of the attachment if uploaded successfully, None otherwise.
+    #     """
+    #
+    #     data = {
+    #         "message": {
+    #             "attachment": {
+    #                 "type": type,
+    #                 "payload": {
+    #                     "is_reusable": is_reusable,
+    #                     "url": attachment_url
+    #                 }
+    #             }
+    #         }
+    #     }
+    #
+    #     prefix_post_message_url = 'https://graph.facebook.com/v2.6/me/'
+    #     page_id = conversation.meta.get("page_id")
+    #     token = self.get_page(page_id).token
+    #     post_message_url = prefix_post_message_url + "message_attachments" + '?access_token=' + token
+    #     r = requests.post(url=post_message_url, data=json.dumps(data), headers={"Content-Type": "application/json"})
+    #     response = r.json()
+    #     if r.status_code != 200:
+    #         logging.error("Couldn't upload attachment: {}".format(response))
+    #         logging.exception(response['error']['message'])
+    #     return response.get("attachment_id")
+
+
+class MessengerPage:
+    def __init__(self, name, token, page_id):
+        self.name = name
+        self.token = token
+        self.page_id = page_id

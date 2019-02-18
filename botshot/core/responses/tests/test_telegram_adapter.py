@@ -7,9 +7,9 @@ from botshot.core.responses.responses import TextMessage
 from botshot.core.responses import CarouselTemplate, CardTemplate
 from botshot.core.responses.templates import ListTemplate
 
-
 class TelegramAdapterTest(TestCase):
     def test_chat_id(self):
+        # FIXME: calling constructor with chat_id
         adapter = TelegramAdapter(1099511627776)
         self.failUnless(adapter.id == 1099511627776)
         adapter = TelegramAdapter('1099511627776')

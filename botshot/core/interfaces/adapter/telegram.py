@@ -35,28 +35,25 @@ class TelegramAdapter(MessageAdapter):
             # MediaMessage: self._media_message,
         }
 
-    def transform_message(self, message: MessageElement, session=None):
+    def transform_message(self, message: MessageElement, chat_id):
         message_type = type(message)
         fn = self.functions.get(message_type)
         if not fn:
             raise Exception("Response {} is not supported in Telegram at the moment!".format(message_type))
-        return fn(message, session)
+        return fn(message, chat_id)
 
-    def prepare_message(self, message: MessageElement, session):
-        pass
-
-    def _text_message(self, message: TextMessage, session, parse_mode=None, silent=False) -> List[tuple]:
+    def _text_message(self, message: TextMessage, chat_id, parse_mode=None, silent=False) -> List[tuple]:
         """
         Builds a text message for telegram.
         :param text: Text of the message.
-        :param session: ChatSession
+        :param session_meta: ChatSession metadata
         :param parse_mode: None, html or markdown. Don't forget to escape reserved chars!
         :param silent: Whether to notify the user with a beep, used when sending more messages in row
         :param reply: Quick replies, buttons, or anything of the sort
         :return: telegram method, payload
         """
         payload = {
-            'chat_id': session.meta['chat_id'],
+            'chat_id': chat_id,
             'text': message.text
         }
         if parse_mode:
@@ -68,12 +65,14 @@ class TelegramAdapter(MessageAdapter):
             payload['reply_markup'] = json.dumps(self._quick_replies(message.quick_replies))
         elif message.buttons:
             payload['reply_markup'] = json.dumps(self._buttons(message.buttons))
+        else:
+            payload['reply_markup'] = json.dumps({"remove_keyboard": True})  # TODO: for all templates
 
         return [('sendMessage', payload)]
 
-    def _attachment_message(self, message: AttachmentMessage, session, caption=None):
+    def _attachment_message(self, message: AttachmentMessage, chat_id, caption=None):
         payload = {
-            'chat_id': session.meta['chat_id'],
+            'chat_id': chat_id,
             'photo': message.url,
             'disable_notification': False
         }
@@ -112,7 +111,7 @@ class TelegramAdapter(MessageAdapter):
             elif isinstance(button, PayloadButton):
                 payload = json.dumps(button.payload)
                 from botshot.core.interfaces.telegram import TelegramInterface
-                callback_data = TelegramInterface.persist_callback(payload)
+                callback_data = TelegramInterface._persist_callback(payload)
                 key = {
                     'text': button.title,
                     'callback_data': callback_data
@@ -128,7 +127,7 @@ class TelegramAdapter(MessageAdapter):
             'inline_keyboard': keyboard
         }
 
-    def _card_template(self, message: CardTemplate, session):
+    def _card_template(self, message: CardTemplate, chat_id):
 
         # FIXME html encode title, subtitle
         item_url = "<a>{url}</a>".format(url=message.item_url) if message.item_url else ""
@@ -137,7 +136,7 @@ class TelegramAdapter(MessageAdapter):
         )
 
         payload = {
-            'chat_id': session.meta['chat_id'],
+            'chat_id': chat_id,
             'parse_mode': "HTML",
             'text': html_text,
             'disable_web_page_preview': False
@@ -149,7 +148,7 @@ class TelegramAdapter(MessageAdapter):
             payload['reply_markup'] = json.dumps(self._buttons(message.buttons))
 
         photo_payload = {  # TODO image aspect ratio would be nice
-            'chat_id': session.meta['chat_id'],
+            'chat_id': chat_id,
             'photo': message.image_url,
             'disable_notification': True,
             'caption': message.title[:200] if message.title else None,

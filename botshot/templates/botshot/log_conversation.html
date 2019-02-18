@@ -1,7 +1,7 @@
 {% load golem_extras %}
 {% for message in messages %}
     <div 
-    class="{% if message.switch %}message-switch{% endif %} {% if message.is_user %}message-user pull-right{% else %}message-bot pull-left{% endif %} message"
+    class="{% if message.switch %}message-switch{% endif %} {% if message.is_user %}message-user float-right{% else %}message-bot float-left{% endif %} message"
     data-meta="{{ message.json }}"
     >
     {% if message.response.elements %}
@@ -43,7 +43,7 @@
       </div>
       {% if message.response.buttons %}
         {% for button in message.response.buttons %}
-          <div class="message-button pull-left clearfix">
+          <div class="message-button float-left clearfix">
           {{ button.title }}
           </div>
         {% endfor %}

@@ -2,12 +2,18 @@
 
 {% block title %}Tests{% endblock %}
 {% block content %}
-{% load golem_extras %}
+{% load botshot_extras %}
 <div class="container">
   <div class="row">
-    <div class="col-xs-12" id="header">
-      <h3>Tests</h3>
-      <h3>Updated: {{ updated_time }} <button class="btn btn-default run-tests">Run tests</button></h3>
+    <div class="col-12" id="header">
+      <h3>Tests {% if tests %}<button class="btn btn-success run-tests">Run all</button>{% endif %}</h3>
+
+      {% if not tests %}
+        <p>
+          See test documentation: [TODO: LINK]
+        </p>
+      {% else %}
+      <p>Updated: {% if updated_time %}{{ updated_time }}{% else %}Never{% endif %}</p>
 
       <table id="tests" class="table">
         
@@ -61,10 +67,8 @@
         </tr>
         
         {% endfor %}
-
-        
-
       </table>
+      {% endif %}
 
     </div>
   </div>
@@ -79,17 +83,14 @@ $(function(){
   })
 
   $('.run-tests').click(function(){
-    var $button = $(this)
-    $button.text('Running...')
-    $.get('{% url 'run_all_tests' %}', {}, function(e){
-      $button.text('Done.')
-      window.location.reload()
-    }).fail(function() {
-      alert( "Error running tests" );
-    })
+      $('.run-test').each(run_test);
   });
 
-  $('.run-test').click(function(e){
+  $('.run-test').click(run_test);
+  
+})
+
+function run_test(e) {
     $('.run-test').css('visibility','hidden')
     var $button = $(this)
     $button.text('Running...')
@@ -102,12 +103,7 @@ $(function(){
       alert( "Error running test "+module );
     })
     e.stopPropagation()
-  });
-  
-})
-
-
-  
+}
 
 function load_user(uid, page){
   

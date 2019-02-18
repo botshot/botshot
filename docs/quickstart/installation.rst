@@ -41,5 +41,6 @@ You will need to manually start these three components:
                 | **Script path:** path to celery - bot_env/bin/celery
                 | **Working directory:** chatbot root
 - Redis database
-                There are 3 options. You can either run ``redis-server`` from the terminal, from the IDE,
-                or with an init script, as you would any other database.
+                | You can either run ``redis-server`` from the terminal or with an init script, as you would any other database.
+                | If you're on Ubuntu and have installed redis with ``apt install redis``, it should already be running.
+                | You can connect to your database using ``redis-cli``.

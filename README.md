@@ -4,9 +4,9 @@
 ![PyPI](https://img.shields.io/pypi/v/botshot.svg)
 ![PyPI - Status](https://img.shields.io/pypi/status/botshot.svg)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/botshot.svg)
-![GitHub last commit](https://img.shields.io/github/last-commit/the-bots/botshot.svg)
+![GitHub last commit](https://img.shields.io/github/last-commit/botshot/botshot.svg)
 ![Read the Docs](https://img.shields.io/readthedocs/botshot.svg)
-![GitHub](https://img.shields.io/github/license/the-bots/botshot.svg)
+![GitHub](https://img.shields.io/github/license/botshot/botshot.svg)
 
 <!-- ![PyPI - Django Version](https://img.shields.io/pypi/djversions/botshot.svg) -->
 <p>
@@ -14,16 +14,16 @@
 </p>
 
 
-#### Botshot is a Python/Django framework for building stateful chatbots.
+#### Botshot is a Python/Django framework for building stateful chatbots and conversational interfaces.
 
 With Botshot, you can build complex chatbots that remember past conversations.
 
 Botshot can:
-- __Receive messages__ from __Messenger__ and __Telegram__ (Actions on Google coming soon)
-- __Extract entities__ from these messages using your favorite **NLU** service
+- __Receive messages__ from __Messenger__, __Telegram__ or __Amazon Alexa__ (more platforms coming soon)
+- __Understand__ these messages using your favorite **NLU** service
   - e.g. "Show me the best concert" -> *intent:* recommend, *query:* concert
-- __Keep track of the history__ of all entities in the *context*
-- __Move between different states__ of the conversation based on intent and other entities
+- __Keep track of the history__ of the conversation *(context)*
+- __Move between different states__ of the conversation based on the context
 - __Send messages__ and media back to the user
 <!-- - It's __language independent__ -->
 <!-- - It has a __web chat GUI__ for easy testing -->
@@ -37,7 +37,7 @@ bots init my-bot
 cd my-bot && bots start my-bot
 ```
 
-That's all! A development chat server should now be running at http://localhost:8000.
+That's it! You can now chat with your bot at http://localhost:8000/chat.
 
 
 You may also want to configure NLU, chat integrations and analytics, see the documentation for details.
@@ -55,4 +55,5 @@ Find out how to make your own bot in the **[Docs](https://botshot.readthedocs.io
 - Jakub Drdák   - [drdakjak](https://github.com/drdakjak)
 
 
-Made @ [Datalab](https://datalab.fit.cvut.cz) [FIT CTU](https://fit.cvut.cz/en) in Prague.
+## License
+This project is dual licensed. You may only use Botshot for open-source projects under the AGPL license.  If you'd like to use Botshot for commercial projects, please contact us for a commercial license.

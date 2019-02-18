@@ -5,4 +5,7 @@ class BotshotConfig(AppConfig):
     name = 'botshot'
 
     def ready(self):
-        pass
+        from botshot.core.interface_factory import InterfaceFactory
+        interfaces = InterfaceFactory().get_interfaces()
+        for itf in interfaces:
+            itf().on_server_startup()

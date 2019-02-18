@@ -1,0 +1,114 @@
+{% extends "botshot/base.html" %}
+
+{% block title %}Recording{% endblock %}
+{% block content %}
+{% load botshot_extras %}
+<div class="container">
+  <div class="row">
+    <div class="col-12" id="header">
+      <h3>Recording</h3>
+
+      <p>To start recording, view admin console by sending "/admin" message to the chatbot.</p>
+      <div class="form-group">
+          <textarea class="form-control" rows="20">{{ recorded_yaml }}</textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+
+$(function(){
+
+  $('[data-toggle]').click(function(){
+    $($(this).data('toggle')).toggleClass('hidden')
+  })
+
+  $('.run-tests').click(function(){
+      $('.run-test').each(run_test);
+  });
+
+  $('.run-test').click(run_test);
+  
+})
+
+function run_test(e) {
+    $('.run-test').css('visibility','hidden')
+    var $button = $(this)
+    $button.text('Running...')
+    $button.css('visibility','visible')
+    var module = $(this).data('module')
+    $.get('{% url 'run_test' 'foo' %}'.replace('foo', module), {}, function(e){
+      $button.text('Done.')
+      window.location.reload()
+    }).fail(function() {
+      alert( "Error running test "+module );
+    })
+    e.stopPropagation()
+}
+
+function load_user(uid, page){
+  
+
+
+}
+</script>
+{% endblock %}
+
+{% block headers %}
+<style>
+.test {
+  cursor: pointer;
+}
+.test-name {
+}
+.test-passed {
+  background: #ccffcc;
+}
+.test-failed {
+  background: #ffddaa;
+}
+.test-exception {
+  background: #ffaaaa;
+}
+.header2 th {
+  font-weight: normal;
+}
+.total {
+  color: white;
+  font-weight: bold;
+}
+.total.test-exception {
+  background: #dd3333;
+}
+.total.test-passed {
+  background: #11aa11;
+}
+.total.test-failed {
+  background: #dd5500;
+}
+.table tr.total td {
+  font-size: 110%;
+  padding: 12px 8px;
+  border-bottom: 5px solid white;
+}
+.hidden {
+  display: none;
+}
+.log {
+  font-size: 90%;
+}
+.log-message {
+  font-weight: bold;
+}
+.log-line, .log-message  {
+  border-radius: 3px;
+  margin: 5px;
+  padding: 5px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+}
+.log-line p {
+  margin: 0;
+}
+</style>
+{% endblock %}

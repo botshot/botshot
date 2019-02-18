@@ -1,0 +1,7 @@
+<ul class="nav nav-pills">
+{% for item in items %}
+    <li class="nav-item">
+      <a href="{% url item.view %}" class="nav-link {% if current_view == item.view %}active{% endif %}">{{ item.name }}</a>
+    </li>
+{% endfor %}
+</ul>
