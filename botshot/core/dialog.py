@@ -25,6 +25,13 @@ class Dialog:
         self.logging_service = logging_service
 
     def inactive(self, payload, seconds=None):
+        """
+        Schedules a callback to be run if the user doesn't do anything first.
+
+        :param payload:  Payload to send in the scheduled message.
+        :param seconds:  An integer, seconds from now
+        :return: ID of the celery task.
+        """
         if not seconds or seconds < 0:
             raise ValueError('Specify a positive "seconds" parameter')
         time_formatted = "in {} seconds".format(seconds)
@@ -47,7 +54,7 @@ class Dialog:
         :param payload:  Payload to send in the scheduled message.
         :param at:       A datetime with timezone
         :param seconds:  An integer, seconds from now
-        :return: ID of the task, see botshot.core.scheduler.MessageScheduler.
+        :return: ID of the schedule, see botshot.core.scheduler.MessageScheduler.
         """
         if not at and (not seconds or seconds < 0):
             raise ValueError('Specify either "at" or a positive "seconds" parameter')
@@ -56,8 +63,8 @@ class Dialog:
 
         if seconds and not at:
             at = timezone.now() + timedelta(seconds=seconds)
-        
-        task_id = self.scheduler.add_schedule(action=payload, user=self.conversation.id, at=at)
+
+        task_id = self.scheduler.add_schedule(action=payload, conversations=[self.conversation.id], at=at)
         return task_id
 
     def send(self, responses):

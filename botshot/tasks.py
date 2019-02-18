@@ -31,11 +31,12 @@ def run_async(method, _at=None, _seconds=None, **kwargs):
 def celery_method_call_wrapper(method, **kwargs):
     task_id = celery_method_call_wrapper.request.id
     logging.info("Accepting task {} for method {}".format(task_id, method))
-    already_done = get_set_task_flag(task_id)
-    if not already_done:
-        return method(**kwargs)
-    else:
-        logging.info("Prevented duplicate task {}!".format(task_id))
+    #already_done = get_set_task_flag(task_id)
+    #if not already_done:
+    #    return method(**kwargs)
+    #else:
+    #    logging.info("Prevented duplicate task {}!".format(task_id))
+    return method(**kwargs)
 
 
 def get_set_task_flag(task_id):

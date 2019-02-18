@@ -102,17 +102,15 @@ class ScheduledAction(models.Model):
 
     _id = models.BigAutoField(primary_key=True)
     description = models.TextField(null=True, blank=True)
-    _at = models.DateTimeField(null=True)
-    cron = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
+    _at = models.DateTimeField(null=False, blank=False)
+    recurrence = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     _until = models.DateTimeField(null=True)
     action = JSONField(load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
-    users = JSONField(load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
+    conversations = JSONField(load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
 
     @property
     def at(self):
-        if self._at:
-            return self._at.replace(tzinfo=pytz.UTC)
-        return None
+        return self._at.replace(tzinfo=pytz.UTC)
 
     @property
     def until(self):

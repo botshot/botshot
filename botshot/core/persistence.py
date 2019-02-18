@@ -1,13 +1,25 @@
 import redis
-from django.conf import settings
+import pickle
+import dateutil.parser
 from urllib.parse import urlparse
+from base64 import b64encode, b64decode
+
+from django.conf import settings
+from django.utils.module_loading import import_string
+
+from botshot.core.entity_value import EntityValue
 
 _connection_pool = None
 _redis = None
-import dateutil.parser
-from base64 import b64encode, b64decode
-from botshot.core.entity_value import EntityValue
-import pickle
+
+
+class DictSerializable:
+    """
+    Marker class used only to specify that our class can be serialized using its __dict__ field
+    Inheriting from this class is enforced instead of trying to serialize any object to avoid unexpected errors when serializing objects that should not be serialized
+    """
+    pass
+
 
 def get_redis():
     global _connection_pool
@@ -30,13 +42,23 @@ def get_redis():
     return _redis
 
 
+def fullname(o):
+    module = o.__class__.__module__
+    if module is None or module == str.__class__.__module__:
+        return o.__class__.__name__  # Avoid reporting __builtin__
+    return module + '.' + o.__class__.__name__
+
+
 def json_deserialize(obj):
     #print('Deserializing:', obj)
-    if obj.get('__type__') == 'datetime':
+    obj_type = obj.get('__type__')
+    if obj_type == 'datetime':
         return dateutil.parser.parse(obj.get('value'))
-    elif obj.get('__type__') == 'entity':
+    elif obj_type == 'entity':
         bytearr = str.encode(obj.get("__data__"))
         return pickle.loads(b64decode(bytearr))
+    elif obj_type:
+        return import_string(obj_type)(**obj.get("__dict__"))
     return obj
 
 
@@ -48,6 +70,8 @@ def json_serialize(obj):
     elif isinstance(obj, EntityValue):
         data = b64encode(pickle.dumps(obj))
         return {"__data__": data.decode('utf8'), '__type__': 'entity'}
+    elif isinstance(obj, DictSerializable):
+        return {'__dict__': obj.__dict__, '__type__': fullname(obj)}
     return obj
 
 
