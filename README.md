@@ -37,7 +37,7 @@ bots init my-bot
 cd my-bot && bots start my-bot
 ```
 
-That's it! A development chat server should now be running at http://localhost:8000.
+That's it! You can now chat with your bot at http://localhost:8000/chat.
 
 
 You may also want to configure NLU, chat integrations and analytics, see the documentation for details.
