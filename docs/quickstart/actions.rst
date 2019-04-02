@@ -3,14 +3,14 @@ Actions
 ############
 
 | If you read the previous page, you should already suspect what actions are.
-| To recap, each state has an action that triggers under some conditions. This action can be a hardcoded message or a python function returning some text.
+| To recap, each state has an action that triggers under some conditions. This action can be a hardcoded message or a python function.
 
 ========================
 Hardcoded actions
 ========================
 
 | You can simply define a message to be sent directly from the YAML flow.
-| We encourage you to try making a flow just with these and testing it in the web chat interface before moving on to Python code.
+| You can try making a flow just with these and test it in the web chat interface before moving on to Python code.
 
 .. code-block:: yaml
 
@@ -26,7 +26,7 @@ Hardcoded actions
 Coding actions in Python
 ========================
 
-You can call a custom function anywhere where you would use a hardcoded action. This function can be imported relatively or absolutely.
+You can call a custom function anywhere where you would use a hardcoded action. The function can also be imported relatively to path of the YAML file.
 
 .. code-block:: yaml
 
@@ -34,18 +34,18 @@ You can call a custom function anywhere where you would use a hardcoded action. 
     action: chatbot.bots.default.conditions.bar
     action: actions.foo  # relative import
 
-The function takes one parameter - an instance of ``DialogManager`` and optionally returns name of the next state (equivalent to ``next`` in YAML).
-This function should look at the conversation context (NLU entities), fetch any data it needs from external APIs and send messages to the user.
+The function takes one parameter - a ``Dialog`` object that you can use to send messages and access other APIs. It can also return the name of the next state (equivalent to ``next`` in YAML).
+The function should look at the conversation context (NLU entities), fetch any data it needs from external APIs and send messages to the user.
 
 .. code-block:: python
 
     import random
     from custom.logic import get_all_jokes
 
-    from botshot.core.dialog_manager import DialogManager
+    from botshot.core.dialog import Dialog
     from botshot.core.responses import *
 
-    def show_joke(dialog: DialogManager):
+    def show_joke(dialog: Dialog):
         jokes = get_all_jokes()
         joke = random.choice(jokes)
         dialog.send(joke)  # sends a string message
@@ -60,7 +60,7 @@ Message templates
 | You can send messages by calling ``dialog.send()``. This method requires one argument - the message!
 |
 |
-| The message should either be a string, one of the templates from ``golem.core.responses``, or a list of these.
+| The message should either be a string, a template from ``botshot.core.responses``, or a list of these.
 | Here is a list of all the templates you can use:
 
 +++++++++++++++++
@@ -159,7 +159,16 @@ Carousel template
 List template
 +++++++++++++++++++++
 
-TODO
+.. code-block:: python
+
+    msg = ListTemplate()
+    msg.add_element(
+        CardTemplate(
+            title="Card 1",
+            subtitle="Hello world!",
+            image_url="http://placehold.it/300x300"
+        )
+    )
 
 ++++++++++++++++++++++++++++++
 Sending more messages at once
@@ -174,7 +183,7 @@ Sending more messages at once
 
 TODO picture
 
-.. warning:: Avoid calling dialog.send() in a loop. In bad network conditions, the messages might be sent in wrong order.
+.. warning:: Avoid calling dialog.send() in a for loop. In bad network conditions, the messages might be sent in wrong order.
 
 -------------------
 Scheduling messages

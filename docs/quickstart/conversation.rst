@@ -2,18 +2,18 @@
 Conversation
 ####################
 
-Let's finally build a chatbot!
+Let's build a chatbot!
 
 
-| The central part of your chatbot is the conversation (meaning, what should the bot say and when).
-| In most chatbots, you can think of the conversation as a graph.
+| The central part of your chatbot is the conversation (meaning, what and when should the bot say).
+| In most chatbots, you will represent the conversation by a graph.
 |
-| Each node in this graph represents a state, a specific point in the conversation.
-| For example, you might have states for greeting, telling a joke, showing a quiz and so on.
-|
-| The chatbot can then move between states when a message is received.
+| Each node in this graph represents a specific state of the conversation, such as "greeting" or "asking for directions".
+| The chatbot can then move between states, for example, when the user asks something.
 
-Take a look at this picture: (TODO picture)
+.. figure:: ../images/visitor-tree.png
+
+  Graph of conversational states in a chatbot.
 
 .. You might say that a graph like this is actually an acceptable good model of a real world conversation.
 
@@ -21,11 +21,12 @@ Take a look at this picture: (TODO picture)
 Flows and states
 =======================
 
-| Botshot provides a **dialog manager** that makes it easy to define and move between these conversation **states**.
-| We further group states into so-called **flows**, which you can use to split your bot into smaller independent modules. A **flow** is a just a set of states about a specific topic.
+| Botshot provides a **dialog manager** that makes it easy to define and move between these **states**.
+| We further group states into so-called **flows**, conversations about a particular topic. These are similar to packages or modules in a programming language.
 |
-|
+| Usually, you will want to define the set of possible states, the **transitions** between these states and the **actions** that the bot should do in these states.
 | You can define the conversation in YAML_, in JSON [#f1]_, or directly in code.
+| Actions can either be written in Python, or they can be hardcoded in the conversation.
 
 ---------------------------------
 Defining the conversation in YAML
@@ -33,7 +34,7 @@ Defining the conversation in YAML
 
 | We prefer to use YAML over definitions in code, as it is cleaner and allows to separate structure from the content.
 | If you used the ``bots`` script, there is already a default flow at ``my_bot/chatbots/default/flow.yml``.
-| Each ``flow.yml`` has to be included in ``bot_settings.py`` like this:
+| Each ``flow.yml`` has to be enabled in ``bot_settings.py``:
 
 .. code-block:: python
 
@@ -62,6 +63,8 @@ Defining the conversation in YAML
       accepts:   # entities that trigger this flow
       - city_name
 
+
+| You can now skip to the next page see how the actions are implemented in Python, or you can continue reading about how the dialog manager works.
 
 
 +++++++++++++++++++
