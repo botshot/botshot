@@ -124,7 +124,7 @@ def start(args):
     atexit.register(exit_and_close)
 
     # start_subprocess('Redis Database', ["redis-server"])
-    start_subprocess('Celery Worker', ["celery", "-A", app_name, "worker", "-l", "info"])
+    start_subprocess('Celery Worker', ["celery", "-A", app_name, "worker", "-l", "info", "--concurrency", "1"])
     start_subprocess('Celery Beat', ["celery", "-A", app_name, "beat", "-l", "info"])
 
     # Give some time to Redis and Celery to start

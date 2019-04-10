@@ -21,7 +21,7 @@
     <h1>Messages</h1>
     <div id="button_logout" onclick="logout()">Log out</div>
 </div>
-<div id="list_wrap" data-simplebar>
+<div id="list_wrap">
     <div id="list">
         {% for m in messages %}
             <div class="message-wrap {% if m.is_user %} user-wrap {% else %} bot-wrap {% endif %}">
@@ -33,7 +33,7 @@
                 {% if m.type == 'message' %}
                     {% if m.text %}
                     <div class="bubble">
-                        <span class="text">{{ m.text }}</span>
+                        <span class="text">{{ m.text|linebreaksbr }}</span>
                     </div>
                     {% endif %}
 
@@ -41,9 +41,9 @@
                         <div class="clearfix"></div>
                         <div class="buttons">
                             {% for b in m.response_dict.buttons %}
-                                {% if b.type == 'web_url' %}
+                                {% if b.url %}
                                     <button onclick="gourl('{{ b.url }}')">{{ b.title }}</button>
-                                {% elif b.type == 'postback' %}
+                                {% elif b.payload %}
                                     <button onclick="postback('{{ b.title }}', '{{ b.payload | json | escapejs }}')">
                                         {{ b.title }}
                                     </button>
@@ -133,10 +133,6 @@
                     <div class="bubble bubble-postback">
                         <span class="text">{{ m.text }}</span>
                     </div>
-                {% elif m.type == 'message' %}
-                    <div class="bubble">
-                        <span class="text">{{ m.text }}</span>
-                    </div>
                 {% else %}
                     <div class="bubble">
                         <span class="text">{{ m.type }}: {{ m.text }}</span>
@@ -207,7 +203,7 @@
         })
     });
 
-    var last_change = {{ timestamp }};
+    var last_change = {{ timestamp|escapejs }};
     var POLL_INTERVAL_MS = 2000;
     $(window).on('load', function() {
         $("#list_wrap").scrollTop($("#list_wrap").prop("scrollHeight"));
@@ -222,7 +218,7 @@
                 // change occurred, reload messages
                 $('#list').load(document.URL + ' #list');
                 last_change = timestamp;
-                $("#list_wrap").animate({scrollTop: $("#list_wrap").prop("scrollHeight")}, "slow");
+                $("#list_wrap").animate({scrollTop: $("#list_wrap").prop("scrollHeight")}, "fast");
             }
         });
     }

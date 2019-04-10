@@ -48,6 +48,7 @@ It's quite easy to get started!
 
 Find out how to make your own bot in the **[Docs](https://botshot.readthedocs.io)**.
 
+Questions? [Join us on Slack!](https://botshot-slackin.herokuapp.com/)
 
 ## Authors
 - David Příhoda - [prihoda](https://github.com/prihoda)
