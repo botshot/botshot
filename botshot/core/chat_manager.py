@@ -78,7 +78,7 @@ class ChatManager:
             user = ChatUser.objects.get(pk=user_id)
 
             # TODO: this might break for more users or with special messages
-            if conversation.context_dict != counter:  # user was active
+            if conversation.context_dict and conversation.context_dict.get("counter") != counter:  # user was active
                 return
 
             message = ChatMessage()
