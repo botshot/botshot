@@ -29,7 +29,7 @@ class MessageProcessor:
         self.send_exceptions = config.get("SEND_EXCEPTIONS", default=settings.DEBUG)
         self.flows = flows
         self.current_state_name = self.message.conversation.state or 'default.root'
-        self.context = Context.from_dict(dialog=self, data=message.conversation.context_dict or {})
+        self.context = Context.load(data=message.conversation.context_dict or {})
         loggers = [import_string(path)() for path in config.get('MESSAGE_LOGGERS', default=[])]
         self.logging_service = AsyncLoggingService(loggers)
         self.dialog = Dialog(message=self.message, context=self.context, chat_manager=self.chat_manager, logging_service=self.logging_service)
@@ -185,8 +185,8 @@ class MessageProcessor:
         logging.info("Trying to move to {}".format(new_state_name))
 
         # if flow prefix is not present, add the current one
-        if isinstance(new_state_name, int):
-            new_state = self.context.get_history_state(new_state_name - 1)
+        if isinstance(new_state_name, int) and new_state_name < 0:
+            new_state = self.context.get_history_state(age=-new_state_name)
             new_state_name = new_state['name'] if new_state else None
         if not new_state_name:
             new_state_name = self.current_state_name

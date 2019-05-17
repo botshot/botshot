@@ -280,7 +280,7 @@ class MockDialog:
         self.conversation.conversation_id = 1
         self.conversation.save()
         self.chat_manager = ChatManager()
-        self.context = Context.from_dict(self, {})
+        self.context = Context.load({})
         self.logging_service = Mock()
 
         self.sent = []

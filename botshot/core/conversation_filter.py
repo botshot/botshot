@@ -36,7 +36,7 @@ class ContextConversationFilter(ConversationFilter):
     def get_ids(self):
         matching = []
         for conversation in ChatConversation.objects.all():
-            context = Context.from_dict(dialog=None, data=conversation.context_dict)
+            context = Context.load(data=conversation.context_dict)
             if self._filter_context(context):
                 matching.append(conversation.id)
         return matching
