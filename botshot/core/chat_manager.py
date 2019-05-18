@@ -7,7 +7,6 @@ from datetime import datetime
 from botshot.core import config
 from botshot.core.parsing.message_parser import parse_text_entities
 from botshot.core.parsing.raw_message import RawMessage
-from botshot.core.persistence import todict
 from botshot.core.responses import TextMessage, MessageElement
 from botshot.models import ChatConversation, ChatUser, ChatMessage
 
@@ -153,7 +152,7 @@ class ChatManager:
             message.text = response.get_text()
             message.time = timezone.now()
             message.is_user = False
-            message.response_dict = todict(response)
+            message.response_dict = response
             message.save()
 
         # Schedule logging messages

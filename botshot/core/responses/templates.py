@@ -41,9 +41,9 @@ class CardTemplate(MessageElement):
 
 class ListTemplate(MessageElement):
 
-    def __init__(self, is_compact=False, button=None):
+    def __init__(self, elements=None, is_compact=False, button=None):
         super().__init__()
-        self.elements = []  # type: List[CardTemplate]
+        self.elements = elements or []  # type: List[CardTemplate]
         self.compact = is_compact
         self.button = button
 
@@ -62,7 +62,7 @@ class CarouselTemplate(MessageElement):
     """
 
     def __init__(self, elements=None):
-        self.elements = [CardTemplate(**element) for element in elements or []]
+        self.elements = elements or []
 
     def to_response(self):
         return {

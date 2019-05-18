@@ -36,21 +36,21 @@ class MessageProcessor:
         self.interceptors = interceptors or []
 
     def process(self):
+        # Stop after first interception == True
+        if any(interceptor.intercept(self.dialog) for interceptor in self.interceptors):
+            return
         self._process_base()
         # Set conversation state if the message was processed successfully
         self.message.conversation.state = self.current_state_name
         self.message.conversation.context_dict = self.context.to_dict()
 
     def _process_base(self):
+        self.context.counter += 1
         self.context.add_message_entities(entities=self.message.entities)
         self.context.debug()
 
         if self.context.get_value(ConversationTestRecorder.ENTITY_KEY):
             self.logging_service.loggers.append(ConversationTestRecorder())
-
-        # Stop after first interception == True
-        if any(interceptor.intercept(self.dialog) for interceptor in self.interceptors):
-            return
 
         self.logging_service.log_user_message_start(self.message, self.current_state_name)
 
@@ -101,8 +101,8 @@ class MessageProcessor:
         # run the action
         retval = fn(dialog=self.dialog)
         # send a response if given in return value
-        if retval and not isinstance(retval, str):
-            raise ValueError("Error: Action must return either None or a state name.")
+        if retval and not isinstance(retval, (str, int)):
+            raise ValueError("Error: Action must return one of: None, state name, integer.")
         self._move_to(retval)
 
     def _check_state_transition(self):

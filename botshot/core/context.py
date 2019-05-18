@@ -79,7 +79,6 @@ class Context(object):
                     self.entities.setdefault(canon_name, []).insert(0, entity)
 
     def add_state(self, state_name):
-        self.counter += 1
         timestamp = int(time.time())
         if len(self.history) > self.history_limit:
             self.history = self.history[:self.history_limit]
