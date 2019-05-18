@@ -2,7 +2,7 @@ import logging
 import time
 from typing import Union, Optional
 
-from collections import Iterable
+from collections.abc import Iterable
 from functools import reduce
 
 from botshot.core.entity_query import EntityQuery

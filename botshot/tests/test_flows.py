@@ -4,9 +4,9 @@ import yaml
 from botshot.core.flow import Flow
 
 
-class TestFlows():
+class TestFlows:
 
-    flow = yaml.load("""
+    flow = yaml.safe_load("""
         default:
             intent: "(default.*)"
             states:

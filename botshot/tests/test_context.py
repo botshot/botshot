@@ -11,6 +11,7 @@ from botshot.core.entity_value import EntityValue
 from botshot.core.interfaces.test import TestInterface
 from botshot.core.tests import MockDialog
 
+from .fixtures import *
 
 # mock_redis = mockredis.mock_redis_client()
 
@@ -79,6 +80,12 @@ class TestContext():
         for i, state in enumerate(states):
             context.add_state(state)
             assert context.get_state_name() == state
-            assert context.counter == i + 1
         for i, state in enumerate(reversed(states)):
             assert context.get_history_state(i)['name'] == state
+        assert context.counter == 0
+
+    def test_counter_increment(self, flows, message):
+        proc = MessageProcessor(ChatManager(), message)
+        assert proc.context.counter == 0
+        proc.process()
+        assert proc.context.counter == 1
