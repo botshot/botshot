@@ -22,6 +22,7 @@ setup(
     license='GPL',
     description='A framework for creating stateful chatbots on Django.',
     long_description=README,
+    long_description_content_type='text/markdown',
     url='https://github.com/prihoda/botshot',
     author='David Příhoda, Matúš Žilinec, Jakub Drdák',
     author_email='david.prihoda@gmail.com, zilinec.m@gmail.com',
