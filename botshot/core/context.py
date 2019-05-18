@@ -1,8 +1,8 @@
 import logging
 import time
-from typing import Union
+from typing import Union, Optional
 
-from collections import Iterable
+from collections.abc import Iterable
 from functools import reduce
 
 from botshot.core.entity_query import EntityQuery
@@ -11,21 +11,20 @@ from botshot.core.entity_value import EntityValue
 
 class Context(object):
 
-    def __init__(self, dialog, entities, history, counter, max_depth=30, history_restart_minutes=30):
+    def __init__(self, entities, history, counter, max_depth=30, history_limit=30):
         self.counter = counter
         self.entities = entities
         self.history = history
         self.max_depth = max_depth
-        self.dialog = dialog
-        self.history_restart_minutes = history_restart_minutes
+        self.history_limit = history_limit
 
     def __getattr__(self, item):
-        if item in ['counter', 'entities', 'history', 'max_depth', 'dialog', 'history_restart_minutes']:
+        if item in ['counter', 'entities', 'history', 'max_depth', 'history_limit']:
             return super().__getattribute__(item)
         return self.__getitem__(item)
 
     def __setattr__(self, key, value):
-        if key in ['counter', 'entities', 'history', 'max_depth', 'dialog', 'history_restart_minutes']:
+        if key in ['counter', 'entities', 'history', 'max_depth', 'history_limit']:
             return super().__setattr__(key, value)
         return self.__setitem__(key, value)
 
@@ -36,7 +35,7 @@ class Context(object):
             return reduce(lambda x, y: x and y, map(self.__contains__, key))
         raise ValueError("Argument must be either entity name (str) or an iterable of entity names")
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'history': self.history,
             'entities': self.entities,
@@ -44,16 +43,15 @@ class Context(object):
         }
 
     @staticmethod
-    def from_dict(dialog, data):
+    def load(data: dict):
         history = data.get("history", [])
         counter = int(data.get("counter", 0))
         entities = data.get("entities", {})
-        return Context(dialog=dialog, entities=entities, history=history, counter=counter)
+        return Context(entities=entities, history=history, counter=counter)
 
     def add_message_entities(self, entities):
         # TODO don't increment when @ requires -> input and it's valid
         # TODO what to say and do on invalid requires -> input?
-        self.counter += 1
         for entity_name, entity_values in entities.items():
             # allow also direct passing of {'entity' : 'value'}
 
@@ -82,14 +80,14 @@ class Context(object):
 
     def add_state(self, state_name):
         timestamp = int(time.time())
-        if len(self.history) > 20:
-            self.history = self.history[-20:]
+        if len(self.history) > self.history_limit:
+            self.history = self.history[:self.history_limit]
 
         state = {
             'name': state_name,
             'timestamp': timestamp
         }
-        self.history.append(state)
+        self.history.insert(0, state)
 
     def clear(self, entities):
         for entity in entities:
@@ -101,14 +99,21 @@ class Context(object):
         ages = filter(lambda x: x is not None, ages)
         return min(ages) if ages else None
 
-    def get_history_state(self, index):
-        if index < 0:
-            index = len(self.history) - index
-        return self.history[index] if len(self.history) > index >= 0 else None
+    def get_history_state(self, age) -> Optional[dict]:
+        """
+        Get a previous state of the conversation.
 
-    def get_state_name(self):
-        return ""  # FIXME: self.dialog.current_state_name
-        # return self.history[-1] if len(self.history) > 0 else None
+        :param age: Which state in history to retrieve. Zero means the current state.
+        :returns: A state dictionary {"name": str, "timestamp": unix_time} or None.
+        """
+        if age < 0:
+            age = len(self.history) + age
+        return self.history[age] if len(self.history) > age >= 0 else None
+
+    def get_state_name(self) -> Optional[str]:
+        """Get the name of the current state of the conversation."""
+        state = self.get_history_state(age=0)
+        return state['name'] if state else None
 
     def get_all(self, entity, max_age=None, limit=None, ignored_values=None) -> list:
         values = []

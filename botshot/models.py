@@ -1,12 +1,11 @@
 import os
 import tempfile
-import pytz
 
+import pytz
 import requests
+from botshot.core.persistence import json_serialize, json_deserialize
 from django.db import models
 from jsonfield import JSONField
-
-from botshot.core.persistence import json_serialize, json_deserialize
 
 
 def save_temporary_image(image_url):
@@ -93,6 +92,20 @@ class ChatMessage(models.Model):
     entities = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     response_dict = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     supported = models.BooleanField(default=True)
+
+    @property
+    def response(self):
+        """This method is guaranteed to return the response as a MessageElement subclass."""
+        if self.response_dict:
+            return self.response_dict
+        return None
+
+    @property
+    def serialized_response(self):
+        """This method is guaranteed to return the response as a JSON dict."""
+        if self.response_dict:
+            return json_serialize(self.response_dict)
+        return None
 
     def __repr__(self):
         return 'ChatMessage({})'.format({k:v for k, v in self.__dict__.items() if k not in ['_state']})

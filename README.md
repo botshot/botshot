@@ -33,14 +33,13 @@ Botshot can:
 Just install the package and run our `bots` init script.
 ```bash
 pip3 install botshot
-bots init my-bot
-cd my-bot && bots start my-bot
+bots init my_bot && cd my_bot
+bots start
 ```
 
-That's it! You can now chat with your bot at http://localhost:8000/chat.
+That's it! Now open http://localhost:8000/chat and chat with your bot.
 
-
-You may also want to configure NLU, chat integrations and analytics, see the documentation for details.
+You may also want to add some actual content, so check the docs ;-)
 
 ## Docs
 

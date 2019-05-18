@@ -16,7 +16,11 @@ _redis = None
 class DictSerializable:
     """
     Marker class used only to specify that our class can be serialized using its __dict__ field
-    Inheriting from this class is enforced instead of trying to serialize any object to avoid unexpected errors when serializing objects that should not be serialized
+    Inheriting from this class is enforced instead of trying to serialize any object to avoid unexpected errors
+    when serializing objects that should not be serialized.
+
+    Callables and fields starting with _ are ignored.
+    The deserialized fields are passed in the constructor as kwargs.
     """
     pass
 
@@ -50,47 +54,45 @@ def fullname(o):
 
 
 def json_deserialize(obj):
-    #print('Deserializing:', obj)
+    if isinstance(obj, list):
+        return [json_deserialize(item) for item in obj]
+    elif not isinstance(obj, dict):
+        return obj
     obj_type = obj.get('__type__')
     if obj_type == 'datetime':
         return dateutil.parser.parse(obj.get('value'))
     elif obj_type == 'entity':
         bytearr = str.encode(obj.get("__data__"))
         return pickle.loads(b64decode(bytearr))
-    elif obj_type:
-        return import_string(obj_type)(**obj.get("__dict__"))
-    return obj
+    data = {}
+    for k, v in obj.items():
+        if not k.startswith("_"):
+            data[k] = json_deserialize(v)
+    if obj_type:
+        return import_string(obj_type)(**data)
+    return data
 
 
 def json_serialize(obj):
     from datetime import datetime
     # from botshot.core.entities import Entity
+    if isinstance(obj, dict):
+        data = {}
+        for k, v in obj.items():
+            data[k] = json_serialize(v)
+            return data
+    elif hasattr(obj, '__iter__') and not isinstance(obj, str):
+        return [json_serialize(item) for item in obj]
     if isinstance(obj, datetime):
-        return {'__type__':'datetime', 'value': obj.isoformat()}
+        return {'__type__': 'datetime', 'value': obj.isoformat()}
     elif isinstance(obj, EntityValue):
         data = b64encode(pickle.dumps(obj))
         return {"__data__": data.decode('utf8'), '__type__': 'entity'}
     elif isinstance(obj, DictSerializable):
-        return {'__dict__': obj.__dict__, '__type__': fullname(obj)}
-    return obj
-
-
-def todict(obj, classkey=None):
-    if isinstance(obj, dict):
         data = {}
-        for (k, v) in obj.items():
-            data[k] = todict(v, classkey)
+        for k, v in obj.__dict__.items():
+            if not callable(v) and not k.startswith('_'):
+                data[k] = json_serialize(v)
+        data['__type__'] = fullname(obj)
         return data
-    elif hasattr(obj, "_ast"):
-        return todict(obj._ast())
-    elif hasattr(obj, "__iter__") and not isinstance(obj, str):
-        return [todict(v, classkey) for v in obj]
-    elif hasattr(obj, "__dict__"):
-        data = dict([(key, todict(value, classkey))
-            for key, value in obj.__dict__.items()
-            if not callable(value) and not key.startswith('_')])
-        if classkey is not None and hasattr(obj, "__class__"):
-            data[classkey] = obj.__class__.__name__
-        return data
-    else:
-        return obj
+    return obj

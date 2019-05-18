@@ -23,12 +23,11 @@ class AlexaInterface(BotshotInterface):
             manager = ChatManager()
             request_body = json.loads(request.body.decode('utf-8'))
             raw_message, entities = self.parse_raw_message(request_body)
-            logging.info("Received raw message: %s", raw_message)
+            logging.debug("Received raw message: %s", raw_message)
             self.responses[raw_message.raw_user_id] = []
             manager.accept_with_entities(raw_message, entities)
             return self._generate_response(raw_message.raw_user_id)
-
-        return HttpResponseBadRequest()
+        return HttpResponse(status=405)
 
     def _parse_entities(self, slots):
         parsed = {}
@@ -42,6 +41,8 @@ class AlexaInterface(BotshotInterface):
             if not resolutions:
                 continue
             for resolution in resolutions:
+                if not resolution.get('values'):
+                    continue
                 authority = resolution['authority']
                 for value_obj in resolution['values']:  # ??!!
                     value = value_obj['value']['id']

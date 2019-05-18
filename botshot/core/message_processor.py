@@ -29,28 +29,28 @@ class MessageProcessor:
         self.send_exceptions = config.get("SEND_EXCEPTIONS", default=settings.DEBUG)
         self.flows = flows
         self.current_state_name = self.message.conversation.state or 'default.root'
-        self.context = Context.from_dict(dialog=self, data=message.conversation.context_dict or {})
+        self.context = Context.load(data=message.conversation.context_dict or {})
         loggers = [import_string(path)() for path in config.get('MESSAGE_LOGGERS', default=[])]
         self.logging_service = AsyncLoggingService(loggers)
         self.dialog = Dialog(message=self.message, context=self.context, chat_manager=self.chat_manager, logging_service=self.logging_service)
         self.interceptors = interceptors or []
 
     def process(self):
+        # Stop after first interception == True
+        if any(interceptor.intercept(self.dialog) for interceptor in self.interceptors):
+            return
         self._process_base()
         # Set conversation state if the message was processed successfully
         self.message.conversation.state = self.current_state_name
         self.message.conversation.context_dict = self.context.to_dict()
 
     def _process_base(self):
+        self.context.counter += 1
         self.context.add_message_entities(entities=self.message.entities)
         self.context.debug()
 
         if self.context.get_value(ConversationTestRecorder.ENTITY_KEY):
             self.logging_service.loggers.append(ConversationTestRecorder())
-
-        # Stop after first interception == True
-        if any(interceptor.intercept(self.dialog) for interceptor in self.interceptors):
-            return
 
         self.logging_service.log_user_message_start(self.message, self.current_state_name)
 
@@ -101,8 +101,8 @@ class MessageProcessor:
         # run the action
         retval = fn(dialog=self.dialog)
         # send a response if given in return value
-        if retval and not isinstance(retval, str):
-            raise ValueError("Error: Action must return either None or a state name.")
+        if retval and not isinstance(retval, (str, int)):
+            raise ValueError("Error: Action must return one of: None, state name, integer.")
         self._move_to(retval)
 
     def _check_state_transition(self):
@@ -185,8 +185,8 @@ class MessageProcessor:
         logging.info("Trying to move to {}".format(new_state_name))
 
         # if flow prefix is not present, add the current one
-        if isinstance(new_state_name, int):
-            new_state = self.context.get_history_state(new_state_name - 1)
+        if isinstance(new_state_name, int) and new_state_name < 0:
+            new_state = self.context.get_history_state(age=-new_state_name)
             new_state_name = new_state['name'] if new_state else None
         if not new_state_name:
             new_state_name = self.current_state_name

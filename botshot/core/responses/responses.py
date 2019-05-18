@@ -1,5 +1,8 @@
 from typing import Iterable
 
+from botshot.core.persistence import DictSerializable
+
+
 class MenuElement:
     def __init__(self, type, title, payload=None, url=None,
                  webview_height_ratio=None, messenger_extensions=None):
@@ -18,7 +21,7 @@ class MenuElement:
         return button
 
 
-class MessageElement:
+class MessageElement(DictSerializable):
     """
     Base class for message elements.
     """
