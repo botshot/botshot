@@ -71,10 +71,9 @@ class TextMessage(MessageElement):
     """
 
     def __init__(self, text='', buttons=None, quick_replies=None):
-        from .quick_reply import QuickReply
         self.text = text
         self.buttons = buttons if buttons else []
-        self.quick_replies = [QuickReply(**reply) for reply in quick_replies or []]
+        self.quick_replies = quick_replies or []
 
     def __str__(self):
         text = self.text
