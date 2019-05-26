@@ -10,6 +10,8 @@ from botshot.core.interfaces import BasicAsyncInterface
 from botshot.core import config
 from botshot.models import ChatMessage, ChatUser
 
+FB_API_URL = "https://graph.facebook.com/v2.6"
+
 
 class FacebookInterface(BasicAsyncInterface):
     name = 'facebook'
@@ -18,7 +20,7 @@ class FacebookInterface(BasicAsyncInterface):
         super().__init__()
         self.verify_token = config.get_required('FB_VERIFY_TOKEN')
         self.pages = self._init_pages()
-        self.adapter = FacebookAdapter()
+        self.adapter = FacebookAdapter(self)
 
     def _init_pages(self):
         page_configs = config.get_required('FB_PAGES')
@@ -129,7 +131,7 @@ class FacebookInterface(BasicAsyncInterface):
 
     def fill_user_details(self, user: ChatUser):
         try:
-            url = "https://graph.facebook.com/v2.6/" + user.raw_user_id
+            url = FB_API_URL + "/" + user.raw_user_id
             params = {
                 'fields': 'first_name,last_name,profile_pic,picture.type(normal),locale,timezone,gender',
                 'access_token': None # TODO: self.get_page(user.conversation.meta.get('page_id')).token
@@ -174,7 +176,7 @@ class FacebookInterface(BasicAsyncInterface):
                 }
             elif isinstance(response, MessageElement):
                 message_tag = response.get_message_tag()
-                message = self.adapter.transform_message(response, conversation_meta=conversation_meta)
+                message = self.adapter.transform_message(response, meta=conversation_meta)
 
                 response_dict = {
                     "recipient": {"id": fbid},
@@ -187,7 +189,7 @@ class FacebookInterface(BasicAsyncInterface):
                 # TODO: Check what happens when this error is thrown
                 raise ValueError('Error: Invalid message type: {}: {}'.format(type(response), response))
 
-            prefix_post_message_url = 'https://graph.facebook.com/v2.6/me/'
+            prefix_post_message_url = FB_API_URL + '/me/'
 
             post_message_url = prefix_post_message_url + request_mode + '?access_token=' + token
 
@@ -242,34 +244,30 @@ class FacebookInterface(BasicAsyncInterface):
     #         return r
     #     raise ValueError('Error: Invalid setting type: {}: {}'.format(type(response), response))
 
-    # def upload_attachment(self, conversation, attachment_url, type, is_reusable=True):
-    #     """
-    #     Uploads a file from the given URL to Facebook's servers.
-    #     :returns: Id of the attachment if uploaded successfully, None otherwise.
-    #     """
-    #
-    #     data = {
-    #         "message": {
-    #             "attachment": {
-    #                 "type": type,
-    #                 "payload": {
-    #                     "is_reusable": is_reusable,
-    #                     "url": attachment_url
-    #                 }
-    #             }
-    #         }
-    #     }
-    #
-    #     prefix_post_message_url = 'https://graph.facebook.com/v2.6/me/'
-    #     page_id = conversation.meta.get("page_id")
-    #     token = self.get_page(page_id).token
-    #     post_message_url = prefix_post_message_url + "message_attachments" + '?access_token=' + token
-    #     r = requests.post(url=post_message_url, data=json.dumps(data), headers={"Content-Type": "application/json"})
-    #     response = r.json()
-    #     if r.status_code != 200:
-    #         logging.error("Couldn't upload attachment: {}".format(response))
-    #         logging.exception(response['error']['message'])
-    #     return response.get("attachment_id")
+    def upload_attachment(self, meta, attachment_url: str, type: str, is_reusable=True):
+        """
+        Uploads a file from the given URL to Facebook's servers.
+
+        :returns: Id of the attachment if uploaded successfully, None otherwise.
+        """
+        data = {
+            "message": {
+                "attachment": {
+                    "type": type, "payload": {"is_reusable": is_reusable, "url": attachment_url}
+                }
+            }
+        }
+        prefix_post_message_url = FB_API_URL + '/me/'
+        page_id = meta.get("page_id")
+        token = self.get_page(page_id).token
+        post_message_url = prefix_post_message_url + "message_attachments" + '?access_token=' + token
+        r = requests.post(url=post_message_url, data=json.dumps(data), headers={"Content-Type": "application/json"})
+        response = r.json()
+        if r.status_code != 200:
+            logging.error("Couldn't upload attachment: {}".format(response))
+            logging.exception(response['error']['message'])
+            return None
+        return response.get("attachment_id")
 
 
 class MessengerPage:

@@ -13,6 +13,7 @@ import tempfile
 APPS_STR = """
     'botshot.apps.BotshotConfig',
     'botshot.webchat',
+    'bot',
 
 """
 

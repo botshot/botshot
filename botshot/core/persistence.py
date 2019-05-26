@@ -1,3 +1,5 @@
+import warnings
+
 import redis
 import pickle
 import dateutil.parser
@@ -26,12 +28,16 @@ class DictSerializable:
 
 
 def get_redis():
+    """
+    Returns an instance of Redis cache, or None if Redis is not configured. 
+    """
     global _connection_pool
     global _redis
     if not _connection_pool:
         redis_url = settings.BOT_CONFIG.get('REDIS_URL')
         if not redis_url:
-            raise Exception('REDIS_URL cannot be blank')
+            warnings.warn("Redis not available, returning None. Set REDIS_URL in BOT_CONFIG to enable cache.")
+            return None
         redis_url_parsed = urlparse(redis_url)
 
         _connection_pool = redis.ConnectionPool(
