@@ -22,10 +22,10 @@ With Botshot, you can build complex chatbots that remember past conversations.
 
 Botshot can:
 - __Receive messages__ from __Messenger__, __Telegram__ or __Amazon Alexa__ (more platforms coming soon)
-- __Understand__ these messages using your a **NLU** service
+- __Understand__ and parse messages using a **NLU** service
   - e.g. "Show me the best concert" -> *intent:* recommend, *query:* concert
-- __Move between states__ of the dialogue
-- __Keep track of the history__ of the conversation
+- __Manage the dialogue__ and move between the conversation's states
+- __Keep track of the context__ and history of the conversation
 - __Send messages__ and media back to the user
 - __Connect__ to 3rd party APIs and analytics
 <!-- - It's __language independent__ -->
