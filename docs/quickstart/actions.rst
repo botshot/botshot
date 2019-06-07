@@ -102,6 +102,9 @@ Read more in `Scheduling messages`_.
 
 .. TODO explain payloads
 
+Amazing, you're now ready to implement your first action. But wait, the chatbot does not yet understand anything the user said, what about that?
+Continue reading and you'll find out in `Natural language processing`.
+
 -------------------
 Message templates
 -------------------

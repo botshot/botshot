@@ -10,6 +10,9 @@ Installation
 | First, install Botshot and dependencies from PyPI.
 | ``pip3 install botshot``
 |
+| You will also need to install and start the Redis database. On Ubuntu, run:
+| ``sudo apt install redis-server``
+|
 | Now go ahead and run:
 | ``bots init my_bot``
 | This will bootstrap a chatbot with default configuration under ``my_bot/``.
@@ -25,6 +28,15 @@ Running the chatbot
 |
 | The web chat interface should now be running at http://127.0.0.1:8000/ .
 | Go ahead and trying sending a message to your chatbot!
+
+
++++++++++++++++++++++++++++
+Windows support
++++++++++++++++++++++++++++
+
+Install Botshot on Windows Subsystem for Linux (WSL). This was tested on Windows 10 1903 build. Follow the [instalation guide](https://docs.microsoft.com/cs-cz/windows/wsl/install-win10) if you haven't installed WSL yet.
+
+Running Botshot on Windows natively is not supported yet.
 
 +++++++++++++++++++++++++++
 Running from IDE (optional)
