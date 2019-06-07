@@ -1,3 +1,4 @@
+import logging
 import warnings
 
 import redis
@@ -60,45 +61,72 @@ def fullname(o):
 
 
 def json_deserialize(obj):
-    if isinstance(obj, list):
-        return [json_deserialize(item) for item in obj]
-    elif not isinstance(obj, dict):
-        return obj
-    obj_type = obj.get('__type__')
-    if obj_type == 'datetime':
-        return dateutil.parser.parse(obj.get('value'))
-    elif obj_type == 'entity':
-        bytearr = str.encode(obj.get("__data__"))
-        return pickle.loads(b64decode(bytearr))
-    data = {}
-    for k, v in obj.items():
-        if not k.startswith("_"):
-            data[k] = json_deserialize(v)
-    if obj_type:
-        return import_string(obj_type)(**data)
-    return data
+    """
+    Attempts to recursively deserialize an object from its JSON representation.
+    Any items containing the __type__ key will be loaded as instances of the corresponding class.
+    If this is not possible, the function will return None and an error will be logged.
+
+    Attributes starting with '__' will be ignored.
+
+    :param obj: The object to be deserialized. Should be loaded using json.loads().
+    :return: The deserialized object.
+    """
+    try:
+        if isinstance(obj, list):
+            return [json_deserialize(item) for item in obj]
+        elif not isinstance(obj, dict):
+            return obj
+        obj_type = obj.get('__type__')
+        if obj_type == 'datetime':
+            return dateutil.parser.parse(obj.get('value'))
+        elif obj_type == 'entity':
+            bytearr = str.encode(obj.get("__data__"))
+            return pickle.loads(b64decode(bytearr))
+        data = {}
+        for k, v in obj.items():
+            if not k.startswith("__"):
+                data[k] = json_deserialize(v)
+        if obj_type:
+            return import_string(obj_type)(**data)
+        return data
+    except Exception:
+        logging.exception("Error deserializing object: %s" % obj)
+        return None
 
 
 def json_serialize(obj):
-    from datetime import datetime
-    # from botshot.core.entities import Entity
-    if isinstance(obj, dict):
-        data = {}
-        for k, v in obj.items():
-            data[k] = json_serialize(v)
-            return data
-    elif hasattr(obj, '__iter__') and not isinstance(obj, str):
-        return [json_serialize(item) for item in obj]
-    if isinstance(obj, datetime):
-        return {'__type__': 'datetime', 'value': obj.isoformat()}
-    elif isinstance(obj, EntityValue):
-        data = b64encode(pickle.dumps(obj))
-        return {"__data__": data.decode('utf8'), '__type__': 'entity'}
-    elif isinstance(obj, DictSerializable):
-        data = {}
-        for k, v in obj.__dict__.items():
-            if not callable(v) and not k.startswith('_'):
+    """
+    Attempts to recursively serialize an object to a JSON representation.
+    Any objects extending the DictSerializable class will be serialized using their __dict__ property.
+
+    Attributes starting with '__' will be ignored.
+
+    :param obj: The object to be serialized.
+    :return: The JSON representation. Should be saved with json.dumps().
+    """
+    try:
+        from datetime import datetime
+        # from botshot.core.entities import Entity
+        if isinstance(obj, dict):
+            data = {}
+            for k, v in obj.items():
                 data[k] = json_serialize(v)
-        data['__type__'] = fullname(obj)
-        return data
-    return obj
+            return data
+        elif hasattr(obj, '__iter__') and not isinstance(obj, str):
+            return [json_serialize(item) for item in obj]
+        if isinstance(obj, datetime):
+            return {'__type__': 'datetime', 'value': obj.isoformat()}
+        elif isinstance(obj, EntityValue):
+            data = b64encode(pickle.dumps(obj))
+            return {"__data__": data.decode('utf8'), '__type__': 'entity'}
+        elif isinstance(obj, DictSerializable):
+            data = {}
+            for k, v in obj.__dict__.items():
+                if not callable(v) and not k.startswith('__'):
+                    data[k] = json_serialize(v)
+            data['__type__'] = fullname(obj)
+            return data
+        return obj
+    except Exception:
+        logging.exception("Error serializing object: %s" % obj)
+        return None

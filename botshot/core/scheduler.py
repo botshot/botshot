@@ -11,7 +11,6 @@ from botshot.core.responses import MessageElement
 from botshot.core.chat_manager import ChatManager
 from botshot.core.parsing.raw_message import RawMessage
 from botshot.core.conversation_filter import ConversationFilter, ListConversationFilter
-from botshot.core.persistence import json_serialize, json_deserialize
 
 from django.db.models.signals import post_save, post_delete
 

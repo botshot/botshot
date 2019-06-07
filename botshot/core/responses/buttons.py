@@ -37,7 +37,7 @@ class LinkButton(Button):
         super(Button, self).__init__()
         self.title = title
         self.url = url
-        self.webview_height_ratio = 'compact' if webview else 'full'
+        self.webview = webview
 
     def __str__(self):
         return 'button: {}: {}'.format(self.title, self.url)
