@@ -24,9 +24,10 @@ Botshot can:
 - __Receive messages__ from __Messenger__, __Telegram__ or __Amazon Alexa__ (more platforms coming soon)
 - __Understand__ these messages using your a **NLU** service
   - e.g. "Show me the best concert" -> *intent:* recommend, *query:* concert
-- __Keep track of the history__ of the conversation *(context)*
-- __Move between different states__ of the conversation based on the context
+- __Move between states__ of the dialogue
+- __Keep track of the history__ of the conversation
 - __Send messages__ and media back to the user
+- __Connect__ to 3rd party APIs and analytics
 <!-- - It's __language independent__ -->
 <!-- - It has a __web chat GUI__ for easy testing -->
 
