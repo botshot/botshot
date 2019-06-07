@@ -50,15 +50,15 @@ class ChatManager:
             except ObjectDoesNotExist:
                 user = ChatUser()
                 user.raw_user_id = raw_message.raw_user_id
+                logging.info("Created new user: %s", user.__dict__)
                 # Save user before filling details so that image field can be saved
                 user.save()
+                user.conversations.add(conversation)  # save metadata before filling details
+                conversation.save()
+
                 # TODO: also update details of existing users every once in a while
                 raw_message.interface.fill_user_details(user)
-                logging.info("Created new user: %s", user.__dict__)
                 user.save()
-                user.conversations.add(conversation)
-                user.save()
-                conversation.save()
 
             message = ChatMessage()
             message.conversation = conversation
