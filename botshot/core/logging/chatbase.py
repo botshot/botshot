@@ -16,10 +16,8 @@ class ChatbaseLogger(MessageLogger):
     def __init__(self):
         super().__init__()
         self.base_url = 'https://chatbase.com/api'
-        self.api_key = settings.BOT_CONFIG.get("CHATBASE_API_KEY")
+        self.api_key = config.get_required("CHATBASE_API_KEY", "Chatbase API key not provided!")
         self.bot_version = config.get("VERSION", 'no version')
-        if self.api_key is None:
-            logging.warning("Chatbase API key not provided, will not log!")
 
     def _interface_to_platform(self, interface: str):
         if interface is None:

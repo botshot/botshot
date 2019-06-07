@@ -10,6 +10,7 @@ from base64 import b64encode, b64decode
 from django.conf import settings
 from django.utils.module_loading import import_string
 
+from botshot.core import config
 from botshot.core.entity_value import EntityValue
 
 _connection_pool = None
@@ -35,7 +36,7 @@ def get_redis():
     global _connection_pool
     global _redis
     if not _connection_pool:
-        redis_url = settings.BOT_CONFIG.get('REDIS_URL')
+        redis_url = config.get('REDIS_URL')
         if not redis_url:
             warnings.warn("Redis not available, returning None. Set REDIS_URL in BOT_CONFIG to enable cache.")
             return None
