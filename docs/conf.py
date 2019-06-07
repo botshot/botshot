@@ -20,8 +20,8 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Botshot'
-copyright = '2018, David Prihoda, Matus Zilinec'
-author = 'David Prihoda, Matus Zilinec'
+copyright = '2019, Matus Zilinec, David Prihoda'
+author = 'Matus Zilinec, David Prihoda'
 
 # The short X.Y version
 version = ''
@@ -133,7 +133,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'Botshot.tex', 'Botshot Documentation',
-     'David Prihoda, Matus Zilinec, Jakub Drdak', 'manual'),
+     'Matus Zilinec, David Prihoda, Jakub Drdak', 'manual'),
 ]
 
 
