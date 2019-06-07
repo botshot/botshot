@@ -27,6 +27,7 @@ Botshot can:
 - __Manage the dialogue__ and move between the conversation's states
 - __Keep track of the context__ and history of the conversation
 - __Send messages__ and media back to the user
+- __Send proactive messages__ and notifications
 - __Connect__ to 3rd party APIs and analytics
 <!-- - It's __language independent__ -->
 <!-- - It has a __web chat GUI__ for easy testing -->
