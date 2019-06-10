@@ -10,76 +10,127 @@ Hardcoded actions
 ========================
 
 | You can simply define a message to be sent directly from the YAML flow.
-| We encourage you to try making a flow just with these and testing it in the web chat interface before moving on to Python code.
+| In the example below, each time the user visits the "root" state, the bot sends the message "How are you?" and moves to the state "root" of the flow "next".
 
 .. code-block:: yaml
 
-    action:
-      text: "How are you?"        # sends a text message
-      replies:                    # sends quick replies below the message
-      - "I'm fine!"
-      - "Don't even ask"
-      next: "next.root:"          # moves to a different state
+    greeting:
+        states:
+        - name: "root"
+          action:
+            text: "How are you?"        # sends a text message
+            replies:                    # sends quick replies below the message
+            - "I'm fine!"
+            - "Don't even ask"
+          next: "next.root:"          # moves to a different state
 
 
 ========================
 Coding actions in Python
 ========================
 
-You can call a custom function anywhere where you would use a hardcoded action. This function can be imported relatively or absolutely.
+You can also define the action as a regular Python function.
+In this function, you can implement business logic and send messages from the bot.
 
 .. code-block:: yaml
 
-    # absolute import
-    action: chatbot.bots.default.conditions.bar
-    action: actions.foo  # relative import
+    greeting:
+        states:
+        - name: "root"
+        # relative import ...
+          action: actions.foo
+        # ... or absolute import
+          action: chatbot.bots.default.conditions.bar
 
-The function takes one parameter - an instance of ``DialogManager`` and optionally returns name of the next state (equivalent to ``next`` in YAML).
-This function should look at the conversation context (NLU entities), fetch any data it needs from external APIs and send messages to the user.
+| The function should take one parameter - ``dialog``. This object can be used to send messages and query conversation context and user profile.
+| To move to another state, the function can optionally return the new state's name (equivalent to ``next`` in YAML).
 
 .. code-block:: python
 
     import random
     from custom.logic import get_all_jokes
 
-    from botshot.core.dialog_manager import DialogManager
+    from botshot.core.dialog import Dialog
     from botshot.core.responses import *
 
-    def show_joke(dialog: DialogManager):
+    def show_joke(dialog: Dialog):
         jokes = get_all_jokes()
         joke = random.choice(jokes)
         dialog.send(joke)  # sends a string message
         return "next.root:"
 
-.. note:: While waiting for the function to return, a typing indicator is displayed. (three dots in messenger)
+| You can send messages by calling ``dialog.send()``. This method takes one argument - the message!
+| The argument can be a string, a standard template from ``botshot.core.responses``, or a list of messages.
+| See `Message Templates`_.
+|
+| The context of the conversation is stored in ``dialog.context``. See `Context`_ for more information.
+
+.. note:: The function will be run asynchronously. While waiting for the function to return, a typing indicator will be displayed. (three dots in messenger)
+
+
+--------------------------------------
+Sending more messages at once
+--------------------------------------
+
+.. code-block:: python
+
+    messages = []
+    for i in range(3):
+        messages.append("Message #{}".format(i))
+    dialog.send(messages)
+
+.. TODO picture
+
+.. warning:: Avoid calling dialog.send() in a loop. In bad network conditions, the messages might be sent in wrong order.
+
+--------------------------------------
+Sending delayed messages
+--------------------------------------
+
+You can schedule messages to be sent at a time in the future, or when the user is inactive for a period of time.
+Read more in `Scheduling messages`_.
+
+.. code-block:: python
+
+    payload = {"_state": "default.schedule", "schedule_id": "123"}
+
+    # Regular scheduled message - use a datetime or number of seconds
+    dialog.schedule(payload, at=None, seconds=None)
+
+    # Executed only if the user remains inactive
+    dialog.inactive(payload, seconds=None)
+
+.. TODO explain payloads
+
+Amazing, you're now ready to implement your first action. But wait, the chatbot does not yet understand anything the user said, what about that?
+Continue reading and you'll find out in `Natural language processing`.
 
 -------------------
 Message templates
 -------------------
 
-| You can send messages by calling ``dialog.send()``. This method requires one argument - the message!
-|
-|
-| The message should either be a string, one of the templates from ``golem.core.responses``, or a list of these.
-| Here is a list of all the templates you can use:
+This section contains a list of all message templates that can be sent using ``dialog.send()``.
+The templates are universal, but they will render slightly different on each messaging service.
 
 +++++++++++++++++
 Text message
 +++++++++++++++++
 
-| A basic message with text. Can optionally have buttons or quick replies.
+| A basic message with text. Can contain buttons or quick replies.
 
-| The officially supported button types are:
+``TextMessage(text, buttons=[], replies=[])``
 
-- ``LinkButton(title, url)`` Redirects to a webpage upon being clicked.
-- ``PayloadButton(title, payload)`` Sends a special `postback message`_ on click.
-- ``PhoneButton(title, phone_number)`` Facebook only. Calls a number when clicked.
-- ``ShareButton()`` Facebook only. Opens the "Share" window.
+Buttons are shown below the message. They can be used to provide additional related actions.
 
-| The supported quick reply types are:
+- ``LinkButton(title, url)`` - Opens a web page upon being clicked.
+- ``PayloadButton(title, payload)`` - Sends a special `postback message`_ with programmer-defined payload on click.
+- ``PhoneButton(title, phone_number)`` - Facebook only. Calls a number when clicked.
+- ``ShareButton()`` - Facebook only. Opens the "Share" window.
 
-- ``QuickReply(title)`` Used to suggest what the user can say. Sends "title" as a message.
-- ``LocationQuickReply()`` Facebook only. Opens the "Send location" window.
+Quick replies are used to suggest a user's response. They contain text that is sent back to the chatbot when clicked. They can also contain payload.
+
+- ``QuickReply(title)`` - Used to suggest what the user can say. Sends "title" as a message.
+- ``LocationQuickReply()`` - Facebook only. Opens the "Send location" window.
 
 .. code-block:: python
 
@@ -103,31 +154,52 @@ Text message
     msg.with_replies(reply_list)
 
 
-TODO picture, result on more platforms?
+.. TODO show result on all platforms
 
 .. note:: Different platforms have different message limitations. For example, quick replies in Facebook Messenger can have a maximum of 20 characters.
 
 +++++++++++++++++++++
-Image message
+Media message
 +++++++++++++++++++++
 
-TODO
+MediaMessage can be used to send an image with optional buttons. The image should be located on a publicly available URL.
 
-+++++++++++++++++++++
-Audio message
-+++++++++++++++++++++
+Example:
 
-TODO
+.. code-block:: python
 
-+++++++++++++++++++++
-Video message
-+++++++++++++++++++++
+    from botshot.core.responses import MediaMessage
 
-TODO
+    message = MediaMessage(url="http://placehold.it/300x300", buttons=[LinkButton("Open", "http://example.com"))
+
+renders as:
+
+.. TODO show result on all platforms
+
+.. +++++++++++++++++++++
+.. Image message
+.. +++++++++++++++++++++
+
+.. TODO
+
+.. +++++++++++++++++++++
+.. Audio message
+.. +++++++++++++++++++++
+
+.. TODO
+
+.. +++++++++++++++++++++
+.. Video message
+.. +++++++++++++++++++++
+
+.. TODO
 
 +++++++++++++++++++++
 Card template
 +++++++++++++++++++++
+
+The card template displays a card with a title, subtitle, an image and buttons.
+It can be used to present structured information about an item or product.
 
 .. code-block:: python
 
@@ -139,10 +211,13 @@ Card template
     )
     msg.add_button(button)
 
+.. TODO show result on all platforms
 
 +++++++++++++++++++++
 Carousel template
 +++++++++++++++++++++
+
+The carousel template is a horizontal list of cards.
 
 .. code-block:: python
 
@@ -159,36 +234,4 @@ Carousel template
 List template
 +++++++++++++++++++++
 
-TODO
-
-++++++++++++++++++++++++++++++
-Sending more messages at once
-++++++++++++++++++++++++++++++
-
-.. code-block:: python
-
-    messages = []
-    for i in range(3):
-        messages.append("Message #{}".format(i))
-    dialog.send(messages)
-
-TODO picture
-
-.. warning:: Avoid calling dialog.send() in a loop. In bad network conditions, the messages might be sent in wrong order.
-
--------------------
-Scheduling messages
--------------------
-
-You can schedule a message to be sent in the future.
-You can optionally send it only if the user doesn't say anything first.
-
-.. code-block:: python
-
-    payload = {"_state": "default.schedule", "schedule_id": "123"}
-
-    # Regular scheduled message - use a datetime or number of seconds
-    dialog.schedule(payload, at=None, seconds=None)
-
-    # Runs only if the user remains inactive
-    dialog.inactive(payload, seconds=None)
+The list template is a vertical list of cards.

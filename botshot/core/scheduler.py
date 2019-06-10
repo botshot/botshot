@@ -11,7 +11,6 @@ from botshot.core.responses import MessageElement
 from botshot.core.chat_manager import ChatManager
 from botshot.core.parsing.raw_message import RawMessage
 from botshot.core.conversation_filter import ConversationFilter, ListConversationFilter
-from botshot.core.persistence import json_serialize, json_deserialize
 
 from django.db.models.signals import post_save, post_delete
 
@@ -119,7 +118,7 @@ class MessageScheduler:
         # delete expired schedules
         ScheduledAction.objects.filter(_until__lt=now).delete()
         # select tasks to run
-        for schedule in ScheduledAction.objects.filter(_at__lte=now):
+        for schedule in ScheduledAction.objects.filter(_at__lte=now, is_done=False):
             if schedule.at >= now - TASK_TIMEOUT:
                 # task is recent enough to run
                 actions_to_run.append((schedule._id, schedule.conversations, schedule.action))
@@ -129,9 +128,14 @@ class MessageScheduler:
                 # update _at to first matching future time
                 nearest = MessageScheduler._nearest_datetime(schedule.recurrence)  # tz-naive
                 schedule._at = nearest.replace(tzinfo=pytz.UTC)
-                schedule.save()
+                schedule.save()           # saved for future run
             else:
-                schedule.delete()  # one-time schedule, we can't risk running it twice
+                # one-time schedule, we can't risk running it twice
+                if schedule.description:  # human-triggered
+                    schedule.is_done = True  # TODO: is_active would be better
+                    schedule.save()       # saved for future reference
+                else:                     # automatic (no description)
+                    schedule.delete()     # not needed, deleted
         # run selected tasks
         for task_id, conversations, action in actions_to_run:
             MessageScheduler._schedule_wrapper.delay(conversations, action, task_id)

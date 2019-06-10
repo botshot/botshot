@@ -1,8 +1,10 @@
+import logging
 import os
 import tempfile
 
 import pytz
 import requests
+
 from botshot.core.persistence import json_serialize, json_deserialize
 from django.db import models
 from jsonfield import JSONField
@@ -63,16 +65,22 @@ class ChatUser(models.Model):
     image = models.ImageField(upload_to='profile_pic', default='images/icon_user.png')
     locale = models.CharField(max_length=16, blank=True, null=True)
     last_message_time = models.DateTimeField(blank=True, null=True)
+    profile = JSONField(blank=True, null=True)  # arbitrary profile, managed by chat interface
 
     def save_image(self, image_url, extension=None):
+        if not image_url:
+            logging.warning("Profile image is None in save_image, ignoring")
+            return
         if not self.user_id:
-            raise ValueError('Save model before saving image, user_id has to be initialized.')
-        tmpfile = save_temporary_image(image_url)
+            raise ValueError('Save user before saving profile image, user_id has to be initialized.')
         if not extension:
             path, extension = os.path.splitext(image_url)
-        elif not extension.startswith('.'):
-            raise ValueError('Image extension has to start with "."')
-        self.image.save('{}{}'.format(self.user_id, extension), tmpfile)
+        if extension.startswith('.'):
+            extension = extension[1:]
+
+        # FIXME: secure MEDIA_ROOT directory or clients will see all pics!
+        tmpfile = save_temporary_image(image_url)
+        self.image.save('%s.%s' % (self.user_id, extension), tmpfile)
 
 
 class ChatMessage(models.Model):
@@ -115,11 +123,12 @@ class ScheduledAction(models.Model):
 
     _id = models.BigAutoField(primary_key=True)
     description = models.TextField(null=True, blank=True)
-    _at = models.DateTimeField(null=False, blank=False)
+    _at = models.DateTimeField(null=False, blank=False, db_index=True)
     recurrence = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     _until = models.DateTimeField(null=True)
     action = JSONField(load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     conversations = JSONField(load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
+    is_done = models.BooleanField(default=False, db_index=True)
 
     @property
     def at(self):

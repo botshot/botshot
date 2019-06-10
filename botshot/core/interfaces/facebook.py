@@ -21,6 +21,7 @@ class FacebookInterface(BasicAsyncInterface):
         self.verify_token = config.get_required('FB_VERIFY_TOKEN')
         self.pages = self._init_pages()
         self.adapter = FacebookAdapter(self)
+        self.profile_fields = config.get('FB_PROFILE_FIELDS', 'first_name,last_name,profile_pic')
 
     def _init_pages(self):
         page_configs = config.get_required('FB_PAGES')
@@ -132,25 +133,43 @@ class FacebookInterface(BasicAsyncInterface):
     def fill_user_details(self, user: ChatUser):
         try:
             url = FB_API_URL + "/" + user.raw_user_id
-            params = {
-                'fields': 'first_name,last_name,profile_pic,picture.type(normal),locale,timezone,gender',
-                'access_token': None # TODO: self.get_page(user.conversation.meta.get('page_id')).token
-            }
-            res = requests.get(url, params=params)
-            if not res.status_code == requests.codes.ok:
+            url += "?fields=" + self.profile_fields
+            page = self._get_page_for_user(user)
+            if not page:
+                logging.warn("Can't retrieve user details, no associated FB page")
+                return
+            url += "&access_token=" + str(page.token)
+            res = requests.get(url)  # don't use params, encoding issues
+            if res.status_code != requests.codes.ok:
                 logging.error("ERROR: Loading FB profile, got response: {}".format(res.text))
                 return
 
             response = res.json()
 
-            image_url = response.get("picture", {}).get('data', {}).get('url')
+            # basic user information
+            image_url = response.get("profile_pic")
             user.save_image(image_url, extension='.jpeg')
             user.first_name = response.get("first_name")
             user.last_name = response.get("last_name")
-            user.locale = response.get("locale")
+            user.locale = response.get("locale")  # needs permission
+
+            # optional fields (also need permission)
+            profile = {}
+            profile['gender'] = response.get("gender")
+            profile['timezone'] = response.get("timezone")
+            user.profile = profile
             # user.conversation.name = '{} {}'.format(user.first_name, user.last_name)
-        except:
-            logging.error('Unexpected error loading FB user profile')
+        except Exception:
+            logging.exception('Unexpected error loading FB user profile')
+
+    def _get_page_for_user(self, user: ChatUser):
+        """Used to get user details."""
+        conversations = user.conversations.all()
+        if conversations:
+            page_id = conversations[0].meta.get('page_id')
+            return self.get_page(page_id)
+        logging.warn("No page for user %s" % user.user_id)
+        return None
 
     def send_responses(self, conversation, reply_to, responses):
 

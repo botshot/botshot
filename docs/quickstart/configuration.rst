@@ -4,8 +4,6 @@ Configuration
 
 If you used the ``bots`` init tool, you don't need to configure anything at the moment.
 
-TODO The dialogue manager is quite well thought out and has a powerful set of rules that you can utilize to handle any conversational situation.
-
 ----------------------
 Project structure
 ----------------------
@@ -16,7 +14,7 @@ It might look similar to this:
 ::
 
     my_bot/  # the root directory
-        my_bot/  # your chatbot (django) app
+        bot/  # your chatbot (django) app
             chatbots/            # actual chatbot logic (read on)
             botshot_settings.py  # chatbot-specific settings
             settings.py          # web server settings

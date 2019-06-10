@@ -5,18 +5,21 @@ import pytest
 from django.conf import settings
 from django.test import RequestFactory
 from django.test.client import JSON_CONTENT_TYPE_RE
+from mock import Mock
 
 from botshot.core.interfaces.alexa import AlexaInterface
 from botshot.core.interfaces.facebook import FacebookInterface
 from botshot.core.interfaces.telegram import TelegramInterface
-from botshot.models import ChatMessage
+from botshot.models import ChatMessage, ChatUser, ChatConversation
 
 
+@pytest.mark.django_db
 class TestFacebookInterface():
 
     verify_token = 'hello_world'
     challenge = 'a challenging string'
     page = {"NAME": "TEST", "TOKEN": "TEST", "PAGE_ID": "TEST"}
+    page_2 = {"NAME": "foo", "TOKEN": "abc", "PAGE_ID": "zwei"}
     req_factory = RequestFactory()
 
     @pytest.fixture
@@ -65,6 +68,23 @@ class TestFacebookInterface():
         req = self.req_factory.post('', data=data, content_type="application/json")
         retval = interface.webhook(req)
         assert retval.status_code == 200
+
+    def test_user_details(self, interface, monkeypatch):
+        user = ChatUser()
+        conversation = ChatConversation()
+        conversation.meta = {"page_id": self.page['PAGE_ID']}
+        user.save()
+        conversation.save()
+        user.conversations.add(conversation)
+        user.save()
+        conversation.save()
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json = lambda: {"first_name": "foo", "last_name": "bar"}
+        monkeypatch.setattr("requests.get", lambda x: mock_response)
+        interface.fill_user_details(user)
+        assert user.first_name == 'foo' and user.last_name == 'bar'
 
 
 class TestTelegramInterface():

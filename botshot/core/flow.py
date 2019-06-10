@@ -3,6 +3,8 @@ import importlib
 import re
 from abc import abstractmethod, ABC
 from django.conf import settings
+
+from botshot.core import config
 from botshot.core.responses import AttachmentMessage
 import os
 import logging
@@ -17,7 +19,7 @@ def get_flows(cache=True):
     if not cache or _FLOWS is None:
         import yaml
         flows = {}  # a dict with all the flows loaded from YAML
-        BOTS = settings.BOT_CONFIG.get('BOTS', [])
+        BOTS = config.get('BOTS', [])
         for filename in BOTS:
             try:
                 with open(os.path.join(settings.BASE_DIR, filename)) as f:

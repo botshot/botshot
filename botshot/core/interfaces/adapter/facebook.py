@@ -102,7 +102,7 @@ class FacebookAdapter(MessageAdapter):
             'title': button.title,
             'type': 'web_url',
             'url': button.url,
-            'webview_height_ratio': button.webview_height_ratio
+            'webview_height_ratio': 'compact' if button.webview else 'full'
         }
 
     def _payload_button(self, button: PayloadButton, **kwargs):

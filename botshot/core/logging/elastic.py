@@ -1,17 +1,16 @@
 import json
 import time
 
-from botshot.core.chat_session import ChatSession
+from botshot.core import config
 from botshot.core.logging import MessageLogger
 
 
 def get_elastic():
     from elasticsearch import Elasticsearch
-    from django.conf import settings
-    config = settings.BOT_CONFIG.get('ELASTIC')
-    if not config:
+    es_config = config.get_required('ELASTIC', 'ElasticSearch config not provided.')
+    if not es_config:
         return None
-    return Elasticsearch(config['HOST'], port=config['PORT'])
+    return Elasticsearch(es_config['HOST'], port=es_config['PORT'])
 
 
 class ElasticsearchLogger(MessageLogger):

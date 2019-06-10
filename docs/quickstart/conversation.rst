@@ -4,25 +4,12 @@ Conversation
 
 Let's finally build a chatbot!
 
-
-| The central part of your chatbot is the conversation (meaning, what should the bot say and when).
-| In most chatbots, you can think of the conversation as a graph.
-|
-| Each node in this graph represents a state, a specific point in the conversation.
-| For example, you might have states for greeting, telling a joke, showing a quiz and so on.
-|
-| The chatbot can then move between states when a message is received.
-
-Take a look at this picture: (TODO picture)
-
-.. You might say that a graph like this is actually an acceptable good model of a real world conversation.
-
 =======================
 Flows and states
 =======================
 
-| Botshot provides a **dialog manager** that makes it easy to define and move between these conversation **states**.
-| We further group states into so-called **flows**, which you can use to split your bot into smaller independent modules. A **flow** is a just a set of states about a specific topic.
+| Botshot provides a **dialog manager** that makes it easy to define different **states** of the conversation and move between them.
+| We group states into smaller independent modules, so-called **flows**. A **flow** usually defines a conversation about a specific topic.
 |
 |
 | You can define the conversation in YAML_, in JSON [#f1]_, or directly in code.
@@ -31,18 +18,18 @@ Flows and states
 Defining the conversation in YAML
 ---------------------------------
 
-| We prefer to use YAML over definitions in code, as it is cleaner and allows to separate structure from the content.
-| If you used the ``bots`` script, there is already a default flow at ``my_bot/chatbots/default/flow.yml``.
-| Each ``flow.yml`` has to be included in ``bot_settings.py`` like this:
+| We prefer to use YAML over definitions in code, as it is cleaner and allows to separate definition from the implementation.
+| If you used the ``bots`` script, there is already a default flow in ``bot/bots/default/flow.yml``.
+| You can enable or disable each ``flow.yml`` by adding or removing it under ``FLOWS`` in ``settings.py``:
 
 .. code-block:: python
 
    BOT_CONFIG = {
-       "FLOWS": {  # we recommend creating a separate directory and file for each flow
+       "FLOWS": {  # we recommend creating a separate directory for each flow
            "chatbot/bots/default/flow.yml"
        ...
 
-| The structure of ``flow.yml`` is as follows.
+| You can see an example ``flow.yml`` below.
 
 .. code-block:: yaml
 
@@ -62,14 +49,19 @@ Defining the conversation in YAML
       accepts:   # entities that trigger this flow
       - city_name
 
+| The file contains a flow named "greeting", that has two states, "root" and "joke".
+| The "root" state is always required - it is where the chatbot will first move when the user sends a "greeting" message.
+| The state's action can be hardcoded directly in the definition, like in the "root" state, or it can reference a Python function, like in the "joke" state.
 
+| All the ways in which you can move between states are described in the optional section below.
+| You can now skip directly to `Actions`_ or continue reading.
 
 +++++++++++++++++++
 State transitions
 +++++++++++++++++++
 
-| Each conversation starts in the default.root state.
-| The system of transitions between states is quite well thought out.
+| Each conversation starts in the "root" state of the "default" flow.
+| The user can then system of transitions between states.
 | This is important, get ready.
 
 1. **Intent transition** First, the dialogue manager checks whether an **intent** was received from the NLU.
