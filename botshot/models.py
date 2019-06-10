@@ -123,11 +123,12 @@ class ScheduledAction(models.Model):
 
     _id = models.BigAutoField(primary_key=True)
     description = models.TextField(null=True, blank=True)
-    _at = models.DateTimeField(null=False, blank=False)
+    _at = models.DateTimeField(null=False, blank=False, db_index=True)
     recurrence = JSONField(null=True, load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     _until = models.DateTimeField(null=True)
     action = JSONField(load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
     conversations = JSONField(load_kwargs=dict(object_hook=json_deserialize), dump_kwargs=dict(default=json_serialize))
+    is_done = models.BooleanField(default=False, db_index=True)
 
     @property
     def at(self):
