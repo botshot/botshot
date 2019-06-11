@@ -106,8 +106,14 @@ class MessageScheduler:
                     conversation_id=id, user_id=None, payload=action)
         elif isinstance(action, MessageElement):
             # Prepared MessageElement schedule, sent as a broadcast
-            # TODO: send the message to the interfaces
-            # TODO: send more messages at once
+            for id in conversations:  # TODO: this has to be done in one query
+                conversation = ChatConversation.objects.get(conversation_id=id)
+                try:
+                    conversation.interface.send_responses(conversation, None, action)
+                except Exception:
+                    logging.exception("Can't send scheduled message to chat")
+        else:
+            logging.error("Unknown schedule action type: {}".format(type(action)))
             raise NotImplementedError()
 
     @staticmethod
