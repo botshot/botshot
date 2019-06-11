@@ -170,12 +170,8 @@ def _yesno(query):
 
 def main():
 
-    if sys.version_info >= (3, 7):
-        ok = _yesno("Warning: Python 3.7 is not supported yet due to Celery dependency. Do you want to continue? [y/n]")
-        if not ok:
-            exit(1)
-    elif sys.version_info < (3, 5):
-        print("Your Python version is not supported. Please update to Python 3.5 or 3.6.")
+    if sys.version_info < (3, 5):
+        print("Your Python version is not supported. Please update to Python 3.5, 3.6 or 3.7.")
         exit(1)
 
     parser = argparse.ArgumentParser(description="Botshot framework configuration utility")
