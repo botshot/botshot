@@ -23,7 +23,7 @@ setup(
     description='A framework for creating stateful chatbots on Django.',
     long_description=README,
     long_description_content_type='text/markdown',
-    url='https://github.com/prihoda/botshot',
+    url='https://github.com/botshot/botshot',
     author='David Příhoda, Matúš Žilinec, Jakub Drdák',
     author_email='david.prihoda@gmail.com, zilinec.m@gmail.com',
     entry_points={
@@ -42,7 +42,7 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        # 'Programming Language :: Python :: 3.7',  Not compatible yet, waiting for Celery 4.3 !
+        'Programming Language :: Python :: 3.7',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
         'Topic :: Communications :: Chat',
