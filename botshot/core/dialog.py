@@ -36,7 +36,7 @@ class Dialog:
         if not locale:
             locale = 'en_US'
             meta = self.conversation.meta
-            if meta and 'locale' in meta:
+            if meta is not None:
                 locale = meta.get('locale', 'en_US')
         strings.set_locale(locale)
 

@@ -48,8 +48,9 @@ class SimpleStringLoader(StringLoader):
         string_files = config.get("STRING_FILES")
         if not string_files:
             logging.debug("STRING_FILES not set. Strings will not be available.")
-        for lang, filename in string_files.items():
-            self.strings[lang] = self._load_strings(filename)
+        else:
+            for lang, filename in string_files.items():
+                self.strings[lang] = self._load_strings(filename)
 
     def _load_strings(self, filename):
         strings = {}
