@@ -3,10 +3,11 @@ import emoji
 import re
 import time
 from django.conf import settings
-from botshot.core.parsing.entity_extractor import EntityExtractor
+from botshot.core.parsing import EntityExtractor
 from django.utils.module_loading import import_string
 
 ENTITY_EXTRACTORS = []
+
 
 def register_extractor(extractor):
     """Registers an entity extractor class."""
@@ -38,16 +39,19 @@ def add_default_extractors():
 add_default_extractors()
 
 
-def parse_text_entities(text, num_tries=1):
+def parse_text_entities(text, num_tries=1, locale=None, context=None):
     entities = {}
 
     if len(ENTITY_EXTRACTORS) <= 0:
         logging.warning('No entity extractors configured!')
     else:
         for extractor in ENTITY_EXTRACTORS:
-            append = extractor.extract_entities(text)
-            for entity, values in append.items():
-                entities.setdefault(entity, []).extend(values)
+            try:
+                append = extractor.extract_entities(text, max_retries=num_tries, locale=locale, context=context)
+                for entity, values in append.items():
+                    entities.setdefault(entity, []).extend(values)
+            except Exception:
+                logging.exception("Error in entity extractor")
 
     append = parse_special_text_entities(text)
 
@@ -73,7 +77,7 @@ def parse_special_text_entities(text):
              '<3': ':heavy_black_heart:️', ':P': ':face_with_stuck-out_tongue:'}
     demojized = emoji.demojize(text)
     char_emojis = re.compile(
-        r'(' + '|'.join(chars.keys()).replace('(', '\(').replace(')', '\)').replace('*', '\*') + r')')
+        r'(' + '|'.join(chars.keys()).replace('(', '\\(').replace(')', '\\)').replace('*', '\\*') + r')')
     demojized = char_emojis.sub(lambda x: chars[x.group()], demojized)
     if demojized != text:
         match = re.compile(r':([a-zA-Z_0-9]+):')

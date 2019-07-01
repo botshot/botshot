@@ -124,11 +124,15 @@ class ChatManager:
         if self.save_messages:
             message.save()
 
-    def parse_raw_message_entities(self, raw_message):
+    def parse_raw_message_entities(self, raw_message: RawMessage):
         entities = raw_message.payload
+        try:
+            locale = raw_message.conversation_meta['locale']
+        except Exception:
+            locale = None
         if raw_message.text:
             if not entities:
-                entities = parse_text_entities(raw_message.text)
+                entities = parse_text_entities(raw_message.text, locale=locale)
             entities['_message_text'] = raw_message.text
         # Remove empty lists
         return {entity: value for entity, value in entities.items() if value is not None and value != []}

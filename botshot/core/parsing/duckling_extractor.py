@@ -4,8 +4,7 @@ import logging
 import requests
 from django.conf import settings
 
-from botshot.core.parsing import date_utils
-from botshot.core.parsing.entity_extractor import EntityExtractor
+from botshot.core.parsing import date_utils, EntityExtractor
 
 
 class DucklingExtractor(EntityExtractor):
@@ -17,14 +16,14 @@ class DucklingExtractor(EntityExtractor):
         if not self.duckling_url:
             raise ValueError("Duckling URL not set! Please set it as settings.BOT_CONFIG['DUCKLING_URL'].")
 
-    def extract_entities(self, text: str, max_retries=1):
+    def extract_entities(self, text: str, max_retries=1, locale=None, **kwargs):
         """
         Makes a duckling request for text entities.
         :param text: Text to be parsed by Duckling.
         :return: Json returned by Duckling. Empty on error.
         """
         payload = {
-            'locale': self.language,
+            'locale': locale or self.language,
             'text': text
         }
         try:

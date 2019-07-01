@@ -1,4 +1,4 @@
-from botshot.core.parsing.entity_extractor import EntityExtractor
+from botshot.core.parsing import EntityExtractor
 
 
 class GolemExtractor(EntityExtractor):
@@ -7,7 +7,7 @@ class GolemExtractor(EntityExtractor):
         super().__init__()
         self.nlu = None
 
-    def extract_entities(self, text: str, max_retries=1):
+    def extract_entities(self, text: str, max_retries=1, **kwargs):
         if not self.nlu:
             from botshot.nlu.predict import GolemNLU
             self.nlu = GolemNLU()

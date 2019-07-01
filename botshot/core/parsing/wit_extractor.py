@@ -6,8 +6,7 @@ from django.conf import settings
 from wit import Wit
 from wit.wit import WitError
 
-from botshot.core.parsing import date_utils
-from botshot.core.parsing.entity_extractor import EntityExtractor
+from botshot.core.parsing import date_utils, EntityExtractor
 from botshot.core.persistence import get_redis
 
 
@@ -23,7 +22,7 @@ class WitExtractor(EntityExtractor):
         self.cache = settings.BOT_CONFIG.get('WIT_ENABLE_CACHE', True)
         # self.clear_wit_cache()
 
-    def extract_entities(self, text: str, max_retries=5):
+    def extract_entities(self, text: str, max_retries=5, **kwargs):
         if max_retries <= 0:
             self.log.error("Maximal number of Wit retries reached")
             return {}
