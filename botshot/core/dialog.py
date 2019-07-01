@@ -1,13 +1,19 @@
 import logging
 import time
 
+from botshot.core import config
 from django.utils import timezone
 from datetime import timedelta
 
 from botshot.core.logging.logging_service import AsyncLoggingService
-from botshot.core.responses.responses import TextMessage
 from botshot.models import ChatMessage, ChatConversation, ChatUser
 from botshot.tasks import run_async
+from django.utils.module_loading import import_string
+
+
+def _load_strings():
+    cls = config.get("STRING_LOADER", "botshot.core.strings.SimpleStringLoader")
+    return import_string(cls)()
 
 
 class Dialog:
@@ -23,6 +29,16 @@ class Dialog:
         self.context = context  # type: Context
         self.scheduler = MessageScheduler()
         self.logging_service = logging_service
+        self.reset_locale()
+
+    def reset_locale(self, locale=None):
+        global strings
+        if not locale:
+            locale = 'en_US'
+            meta = self.conversation.meta
+            if meta and 'locale' in meta:
+                locale = meta.get('locale', 'en_US')
+        strings.set_locale(locale)
 
     def inactive(self, payload, seconds=None):
         """
@@ -79,3 +95,6 @@ class Dialog:
 
         for response in responses:
             self.logging_service.log_bot_response(self.message, response, timestamp=time.time())
+
+
+strings = _load_strings()
