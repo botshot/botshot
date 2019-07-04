@@ -40,9 +40,37 @@ class Dialog:
                 locale = meta.get('locale', 'en_US')
         strings.set_locale(locale)
 
+    # def block_callbacks(self):
+    #     """Blocks all callbacks. Useful for example when asking the user for input."""
+    #     meta = self.conversation.meta or {}
+    #     meta['block_callbacks'] = True
+    #     self.conversation.meta = meta
+    #
+    # def unblock_callbacks(self):
+    #     """Unblocks all callbacks."""
+    #     meta = self.conversation.meta or {}
+    #     if 'block_callbacks' in meta:
+    #         del meta['block_callbacks']
+    #     self.conversation.meta = meta
+
+    def set_inactive_interval(self, payload, seconds=None, state_regex=None):
+        """
+        Sets a global inactivity callback that will be run after any action.
+        :param payload:     a dict with payload that will be sent when triggered
+        :param seconds:     number of seconds to wait before executing the callback
+        """
+        meta = self.conversation.meta or {}
+        meta['inactive_interval'] = {"payload": payload, "seconds": seconds, "state_regex": state_regex}
+        self.conversation.meta = meta
+
+    def clear_inactive_interval(self):
+        """Clears the global inactivity callback."""
+        if self.conversation.meta and 'inactive_interval' in self.conversation.meta:
+            del self.conversation.meta['inactive_interval']
+
     def inactive(self, payload, seconds=None):
         """
-        Schedules a callback to be run if the user doesn't do anything first.
+        Schedules a callback to be run when the user has been inactive for a period of time.
 
         :param payload:  Payload to send in the scheduled message.
         :param seconds:  An integer, seconds from now

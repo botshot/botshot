@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Optional
 from django.conf import settings
 from botshot.core.context import Context
@@ -43,6 +44,18 @@ class MessageProcessor:
         # Set conversation state if the message was processed successfully
         self.message.conversation.state = self.current_state_name
         self.message.conversation.context_dict = self.context.to_dict()
+        self._schedule_global_inactivity_callback()
+
+    def _schedule_global_inactivity_callback(self):
+        try:
+            if not self.message.conversation.meta or "inactive_interval" not in self.message.conversation.meta:
+                return
+            inactive_interval = self.message.conversation.meta["inactive_interval"]
+            if inactive_interval['state_regex'] and not re.fullmatch(inactive_interval['state_regex'], self.current_state_name):
+                return
+            self.dialog.inactive(inactive_interval['payload'], inactive_interval['seconds'])
+        except Exception:
+            logging.exception("Error scheduling global inactivity callback")
 
     def _process_base(self):
         self.context.counter += 1
