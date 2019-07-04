@@ -9,9 +9,10 @@ from botshot.core.responses import AttachmentMessage
 import os
 import logging
 from inspect import getsource
-from django.utils.module_loading import import_string
+from .action import create_action
 
 _FLOWS = None
+
 
 def get_flows(cache=True):
     """Creates flows from their YAML definitions."""
@@ -84,7 +85,7 @@ class State:
         action = None
         if 'action' in definition:
             action = definition['action']
-            action = State.make_action(action, relpath)
+            action = create_action(action, relpath)
         requires = State.parse_requirements(definition.get('require'), relpath)
         intent = definition.get("intent")
         is_temporary = definition.get("temporary", False)
@@ -111,7 +112,7 @@ class State:
         supported = supported.union([r.entity for r in requires if isinstance(r, EntityRequirement)])
 
         if 'unsupported' in definition:
-            unsupported = State.make_action(definition.get("unsupported"), relpath)
+            unsupported = create_action(definition.get("unsupported"), relpath)
         else:
             unsupported = None
 
@@ -127,65 +128,6 @@ class State:
         return name, s
 
     @staticmethod
-    def make_action(action, relpath: Optional[str] = None):
-        """
-        Loads action from a definition.
-        :param action:      either a string or a function pointer
-        :param relpath:     base path for relative imports
-        :return:    The loaded action, a function pointer.
-        """
-
-        if isinstance(relpath, str):
-            relpath = relpath.replace("/", ".")
-
-        if callable(action):
-            # action already given as object, everything ok
-            return action
-        elif isinstance(action, str):
-            # dynamically load the function
-            try:
-                # try to import as absolute path
-                return import_string(action)
-            except ImportError:
-                # try to import relative to flow module
-                return import_string(relpath + "." + action)
-        elif isinstance(action, dict):
-            # load a static action, such as text or image
-            return State.make_default_action(action)
-
-        raise ValueError("Action class {} not supported".format(type(action)))
-
-    @staticmethod
-    def make_default_action(action_dict):
-        """
-        Creates an action from a non-function definition.
-        :param action_dict:
-        :return: The created action, a function pointer.
-        """
-        from botshot.core.responses import TextMessage
-        next = action_dict.get("next")
-        message = None
-        if 'type' in action_dict:
-            type = action_dict['type'].lower()
-            if type == 'qa':
-                if 'context' not in action_dict:
-                    raise ValueError("QA context not set")
-                # TODO
-            elif type == 'free_input': pass
-            elif type == 'seq2seq': pass
-            message = TextMessage("TO DO")
-        elif 'text' in action_dict:
-            message = TextMessage(action_dict['text'])
-            if 'replies' in action_dict:
-                message.with_replies(action_dict['replies'])
-        elif 'image_url' in action_dict:
-            message = AttachmentMessage('image', action_dict['image_url'])
-
-        if not message:
-            raise ValueError("Unknown action: {}".format(action_dict))
-        return dynamic_response_fn(message, next)
-
-    @staticmethod
     def parse_requirements(reqs_raw, relpath: Optional[str]):
         reqs = []
         if reqs_raw is None:
@@ -198,8 +140,8 @@ class State:
             if req_cond and entity:
                 raise ValueError("Error: either use a requirement entity or a condition, not both")
             elif req_cond:
-                req_cond = State.make_action(req_cond, relpath)
-                action = State.make_action(req.get("action"), relpath)
+                req_cond = create_action(req_cond, relpath)
+                action = create_action(req.get("action"), relpath)
                 reqs.append(ConditionRequirement(
                     condition=req_cond,
                     action=action
@@ -209,7 +151,7 @@ class State:
                     slot=req.get("slot"),
                     entity=req.get("entity"),
                     filter=req.get("filter"),
-                    action=State.make_action(req.get("action"), relpath)
+                    action=create_action(req.get("action"), relpath)
                 ))
 
         return reqs
@@ -269,7 +211,7 @@ class Flow:
         intent = data.get("intent", name)
         unsupported = None
         if 'unsupported' in data:
-            unsupported = State.make_action(data['unsupported'], relpath)
+            unsupported = create_action(data['unsupported'], relpath)
         flow = Flow(name=name, states=states, intent=intent, unsupported=unsupported)
         flow.accepted = set(data.get('accepts', {}))
         return flow
@@ -321,13 +263,13 @@ class Requirement(ABC):
 
 
 class EntityRequirement(Requirement):
-    def __init__(self, slot, entity, filter=None, message=None, action=None):
+    def __init__(self, slot, entity, filter=None, action=None):
+        if not action:
+            raise ValueError("Requirement has no action")
         self.slot = slot
         self.entity = entity
         self.filter = filter
-        self.action = action or dynamic_response_fn(message)
-        if not self.action:
-            raise ValueError("Requirement has no message nor action")
+        self.action = action
 
     def matches(self, context) -> bool:
         if self.entity not in context:
@@ -341,20 +283,13 @@ class EntityRequirement(Requirement):
 
 
 class ConditionRequirement(Requirement):
-    def __init__(self, condition, message=None, action=None):
+    def __init__(self, condition, action=None):
+        if not condition:
+            raise ValueError("Requirement has no condition")
+        if not action:
+            raise ValueError("Requirement has no action")
         self.condition = condition
-        self.action = action or dynamic_response_fn(message)
-        if not self.condition:
-            raise ValueError("Requirement has no condition set")
-        if not self.action:
-            raise ValueError("Requirement has no message nor action")
+        self.action = action
 
     def matches(self, context) -> bool:
         return self.condition(context)
-
-
-def dynamic_response_fn(messages, next=None):
-    def fn(dialog):
-        dialog.send(messages)
-        return next
-    return fn

@@ -5,7 +5,9 @@ from botshot.core import config
 from django.utils import timezone
 from datetime import timedelta
 
+from botshot.core.action import _insert_context_entities, _insert_strings
 from botshot.core.logging.logging_service import AsyncLoggingService
+from botshot.core.responses import TextMessage
 from botshot.models import ChatMessage, ChatConversation, ChatUser
 from botshot.tasks import run_async
 from django.utils.module_loading import import_string
@@ -29,10 +31,11 @@ class Dialog:
         self.context = context  # type: Context
         self.scheduler = MessageScheduler()
         self.logging_service = logging_service
+        self.strings = strings
         self.reset_locale()
 
     def reset_locale(self, locale=None):
-        global strings
+        # global strings
         if not locale:
             locale = 'en_US'
             meta = self.conversation.meta
@@ -111,18 +114,32 @@ class Dialog:
         task_id = self.scheduler.add_schedule(action=payload, conversations=[self.conversation.id], at=at)
         return task_id
 
-    def send(self, responses):
+    def send(self, responses, insert_strings=False):
         """
         Send one or more messages to the user.
         
         :param responses:       Instance of MessageElement, str or Iterable.
+        :param insert_strings:  whether placeholders in messages should be substituted by strings
         """
 
         responses = self.chat_manager.process_responses(responses)
+        if insert_strings:
+            responses = self._insert_strings(responses)
         self.chat_manager.send(self.message.conversation, responses, self.message)
 
         for response in responses:
             self.logging_service.log_bot_response(self.message, response, timestamp=time.time())
+
+    def _insert_strings(self, responses: list) -> list:
+        for resp in responses:
+            if isinstance(resp, TextMessage):
+                resp.text = _insert_strings(_insert_context_entities(resp.text, self.context), self.strings)
+                for reply in resp.quick_replies:
+                    reply.title = _insert_strings(_insert_context_entities(reply.title, self.context), self.strings)
+                for btn in resp.buttons:
+                    btn.title = _insert_strings(_insert_context_entities(btn.title, self.context), self.strings)
+            # TODO: insert inside other message types
+        return responses
 
 
 strings = _load_strings()

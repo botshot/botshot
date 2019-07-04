@@ -107,16 +107,21 @@ class MessageProcessor:
             return
         self._run_action(state.action)
 
-    def _run_action(self, fn):
-        if not callable(fn):
-            logging.error("Error: Trying to run a function of type {}".format(type(fn)))
-            return
-        # run the action
-        retval = fn(dialog=self.dialog)
-        # send a response if given in return value
-        if retval and not isinstance(retval, (str, int)):
-            raise ValueError("Error: Action must return one of: None, state name, integer.")
-        self._move_to(retval)
+    def _run_action(self, action):
+        if isinstance(action, tuple):
+            # send premade message
+            msg_template, next = action
+            self.dialog.send(msg_template, insert_strings=True)
+            self._move_to(next)
+        elif callable(action):
+            # run dynamic action
+            retval = action(dialog=self.dialog)
+            # send a response if given in return value
+            if retval and not isinstance(retval, (str, int)):
+                raise ValueError("Error: Action must return one of: None, state name, integer.")
+            self._move_to(retval)
+        else:
+            logging.error("Error: Invalid action {} of type {}".format(action, type(action)))
 
     def _check_state_transition(self):
         """Checks if entity _state was received in current message (and moves to the state)"""
@@ -294,4 +299,3 @@ class MessageProcessor:
                 logging.info("Skipping entity {} in supported message check".format(name))
 
         return entity_set
-
