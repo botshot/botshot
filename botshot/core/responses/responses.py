@@ -1,3 +1,4 @@
+import re
 from typing import Iterable
 
 from botshot.core.persistence import DictSerializable
@@ -49,6 +50,25 @@ class MessageElement(DictSerializable):
         Used in voice-only interfaces.
         """
         return self.__str__()
+
+    def localize(self, strings):
+        """Return a localized version of self."""
+        return self
+
+    def _check_string_key(self, s):
+        """Checks whether a string needs to be localized."""
+        if re.fullmatch("@[A-Za-z0-9.-_]+", s):
+            return s[1:]
+        return None
+
+    def _localize_if_possible(self, s, strings):
+        key = self._check_string_key(s)
+        if key is not None:
+            try:
+                return strings.get(key)
+            except:
+                logging.exception("Can't localize string")
+        return s
 
     def __str__(self):
         return str(self.__dict__)
@@ -125,6 +145,10 @@ class TextMessage(MessageElement):
         if humanize:
             return self.text or ""
         return super().as_string(humanize)
+    
+    def localize(self, strings):
+        self.text = self._localize_if_possible(self.text, strings)
+        return self
 
 
 class AttachmentMessage(MessageElement):

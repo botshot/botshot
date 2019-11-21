@@ -354,7 +354,10 @@ class ConditionRequirement(Requirement):
 
 
 def dynamic_response_fn(messages, next=None):
+    if not isinstance(messages, list):
+        messages = [messages]
     def fn(dialog):
-        dialog.send(messages)
+        from botshot.core.dialog import strings
+        dialog.send([message.localize(strings) for message in messages])
         return next
     return fn
